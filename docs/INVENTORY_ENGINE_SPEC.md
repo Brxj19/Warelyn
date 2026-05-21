@@ -14,6 +14,8 @@ Purchase receiving is implemented in Phase 4 through purchase receipt commit. Co
 
 Phase 5 adds batch, expiry, and serial tracking foundation to `InventoryEngine.stock_in()`. The engine validates tracking fields, updates batch quantities, creates serial rows, and writes `batch_id`/`serial_id` ledger references during inbound stock. Purchasing stores draft tracking input, but batch and serial records are created only on receipt commit through the engine.
 
+Phase 6 adds sales reservation and fulfillment foundation. Sales confirmation calls `InventoryEngine.reserve_stock()`, sales cancellation/close calls `InventoryEngine.release_reservation()`, and fulfillment commit calls `InventoryEngine.deduct_reserved_stock()`. Sales services own sales workflow state but do not directly mutate `warehouse_stock`, `stock_reservations`, or `stock_ledger_entries` outside the engine.
+
 ## Required Public Methods
 
 ```python
@@ -258,6 +260,7 @@ Batch and serial rules:
 ## Reservation Rules
 
 - Sales confirmation reserves stock; it does not physically deduct stock.
+- Phase 6 confirmation requires explicit location-level allocation lines and does not auto-pick warehouse/location.
 - Reservations create `stock_reservations` rows and `SALES_RESERVE` ledger entries.
 - Reservations reduce `quantity_available` and increase `quantity_reserved`.
 - Reservations can target warehouse, location, batch, or serial when allocation is known.
@@ -265,6 +268,7 @@ Batch and serial rules:
 - Reservations convert to physical deduction during delivery through `deduct_reserved_stock()`.
 - Reservation release and deduction must be idempotent.
 - Reservation cannot exceed available sellable stock unless an explicit future admin setting allows backorder behavior.
+- Phase 6 does not implement FEFO, batch-specific allocation, or serial-specific allocation. Serial-tracked products are blocked from sales confirmation until explicit serial picking/allocation is implemented.
 
 ## Purchase Receive Rules
 
@@ -289,6 +293,7 @@ Batch and serial rules:
 - Delivery without reservation must be blocked unless a documented admin setting allows it.
 - FEFO should be used for expiring items when allocation is not explicitly chosen.
 - Serial-tracked items must identify exact serials before delivery.
+- Phase 6 fulfillment is a basic delivery/deduction foundation against active reservations. Full picking, packing, carrier shipment, mobile scanner workflow, and serial allocation are future work.
 
 ## Return QC Rules
 

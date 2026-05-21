@@ -3,6 +3,7 @@ from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportR
 from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Brand, Category, Customer, LocationType, Product, RecordStatus, Vendor, Warehouse, WarehouseLocation
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptItem, PurchaseReceiptStatus
+from app.models.sales import SalesFulfillment, SalesFulfillmentItem, SalesFulfillmentStatus, SalesOrder, SalesOrderItem, SalesOrderStatus
 
 __all__ = [
     "Brand",
@@ -32,6 +33,12 @@ __all__ = [
     "RecordStatus",
     "RefreshToken",
     "ReservationStatus",
+    "SalesFulfillment",
+    "SalesFulfillmentItem",
+    "SalesFulfillmentStatus",
+    "SalesOrder",
+    "SalesOrderItem",
+    "SalesOrderStatus",
     "StockLedgerEntry",
     "StockReservation",
     "Tenant",

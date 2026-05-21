@@ -14,6 +14,11 @@ import { PurchaseReceiptDetailPage } from '../pages/PurchaseReceiptDetailPage.js
 import { PurchaseReceivePage } from '../pages/PurchaseReceivePage.jsx';
 import { PurchasesPage } from '../pages/PurchasesPage.jsx';
 import { RegisterPage } from '../pages/RegisterPage.jsx';
+import { SalesFulfillPage } from '../pages/SalesFulfillPage.jsx';
+import { SalesFulfillmentDetailPage } from '../pages/SalesFulfillmentDetailPage.jsx';
+import { SalesOrderDetailPage } from '../pages/SalesOrderDetailPage.jsx';
+import { SalesOrderFormPage } from '../pages/SalesOrderFormPage.jsx';
+import { SalesPage } from '../pages/SalesPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
@@ -40,6 +45,11 @@ export function AppRoutes() {
           <Route path="purchases/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="purchases/:id/receive" element={<PurchaseReceivePage />} />
           <Route path="purchase-receipts/:id" element={<PurchaseReceiptDetailPage />} />
+          <Route path="sales" element={<SalesPage />} />
+          <Route path="sales/new" element={<SalesOrderFormPage />} />
+          <Route path="sales/:id" element={<SalesOrderDetailPage />} />
+          <Route path="sales/:id/fulfill" element={<SalesFulfillPage />} />
+          <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
           <Route path="reports" element={<DashboardPage />} />
           <Route path="*" element={<NotFoundPage />} />

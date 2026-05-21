@@ -47,14 +47,14 @@ class InventoryService:
     def adjust_stock(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
         return self.engine.adjust_stock(tenant_id, actor_id, values)
 
-    def reserve_stock(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
-        return self.engine.reserve_stock(tenant_id, actor_id, values)
+    def reserve_stock(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.reserve_stock(tenant_id, actor_id, values, auto_commit=auto_commit)
 
-    def release_reservation(self, tenant_id: int, actor_id: int, reservation_id: int, values: dict[str, Any]) -> dict:
-        return self.engine.release_reservation(tenant_id, actor_id, reservation_id, values)
+    def release_reservation(self, tenant_id: int, actor_id: int, reservation_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.release_reservation(tenant_id, actor_id, reservation_id, values, auto_commit=auto_commit)
 
-    def deduct_reserved_stock(self, tenant_id: int, actor_id: int, reservation_id: int, values: dict[str, Any]) -> dict:
-        return self.engine.deduct_reserved_stock(tenant_id, actor_id, reservation_id, values)
+    def deduct_reserved_stock(self, tenant_id: int, actor_id: int, reservation_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.deduct_reserved_stock(tenant_id, actor_id, reservation_id, values, auto_commit=auto_commit)
 
     def transfer_stock(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
         return self.engine.transfer_stock(tenant_id, actor_id, values)

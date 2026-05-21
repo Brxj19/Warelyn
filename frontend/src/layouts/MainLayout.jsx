@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Customers', to: '/catalog/customers' },
   { label: 'Warehouses', to: '/warehouses' },
   { label: 'Purchases', to: '/purchases', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'VIEWER'] },
+  { label: 'Sales', to: '/sales', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
 ];
 
 export function MainLayout() {

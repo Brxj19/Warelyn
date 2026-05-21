@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 5 batch, expiry, and serial tracking foundation is complete.
+Phase 6 sales reservation and fulfillment foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Sales order, picking/packing/delivery, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving increases stock only through `InventoryEngine.stock_in()`.
+Picking/packing, carrier shipment, invoice accounting, payment collection, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, serial-specific sales allocation, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving and sales fulfillment mutate stock only through `InventoryEngine`.
 
 Current implemented models:
 
@@ -37,8 +37,12 @@ Current implemented models:
 - `PurchaseReceiptItem`
 - `InventoryBatch`
 - `InventorySerial`
+- `SalesOrder`
+- `SalesOrderItem`
+- `SalesFulfillment`
+- `SalesFulfillmentItem`
 
-Next recommended phase: `Phase 6 - Sales reservation and fulfillment foundation` or `Phase 6 - Putaway foundation`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 7 - Picking, Packing, and Serial Allocation Foundation` or `Phase 7 - Returns QC Foundation`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -142,6 +146,17 @@ Tenant-scoped tracking tables added by `20260521_0006_batch_expiry_serial_founda
 - `inventory_serials`: tenant, product, warehouse, location, optional batch, serial number, status, warranty date, expiry date, and timestamps; unique `(tenant_id, product_id, serial_number)`.
 
 `warehouse_stock` remains location-level only with unique `(tenant_id, product_id, warehouse_id, location_id)`. Phase 5 does not add `batch_id` or `serial_id` to `warehouse_stock`.
+
+### Sales Reservation And Fulfillment Foundation
+
+Tenant-scoped sales tables added by `20260521_0007_sales_reservation_fulfillment_foundation.py`:
+
+- `sales_orders`: tenant, customer, order number, status, order dates, notes, creator, workflow timestamps, and timestamps; unique `(tenant_id, order_number)`.
+- `sales_order_items`: tenant, sales order, product, ordered quantity, reserved quantity, fulfilled quantity, unit price, notes, and timestamps.
+- `sales_fulfillments`: tenant, sales order, fulfillment number, status, fulfiller, fulfilled/committed/cancelled timestamps, notes, and timestamps; unique `(tenant_id, fulfillment_number)`.
+- `sales_fulfillment_items`: tenant, fulfillment, sales order item, product, warehouse, location, reservation, fulfilled quantity, and timestamps.
+
+Sales confirmation creates `stock_reservations` and `SALES_RESERVE` ledger entries through `InventoryEngine.reserve_stock()`. Sales cancellation/close releases active reservations through `InventoryEngine.release_reservation()`. Fulfillment commit deducts reserved stock through `InventoryEngine.deduct_reserved_stock()`.
 
 ## Enums
 
@@ -275,6 +290,21 @@ Tenant-scoped tracking tables added by `20260521_0006_batch_expiry_serial_founda
 - `RETURNED`
 - `QC_HOLD`
 
+### `SalesOrderStatus`
+
+- `DRAFT`
+- `CONFIRMED`
+- `PARTIALLY_FULFILLED`
+- `FULFILLED`
+- `CANCELLED`
+- `CLOSED`
+
+### `SalesFulfillmentStatus`
+
+- `DRAFT`
+- `COMMITTED`
+- `CANCELLED`
+
 ## Migration
 
 Current migration:
@@ -285,6 +315,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0004_product_import_foundation.py`
 - `backend/alembic/versions/20260521_0005_purchase_receiving_foundation.py`
 - `backend/alembic/versions/20260521_0006_batch_expiry_serial_foundation.py`
+- `backend/alembic/versions/20260521_0007_sales_reservation_fulfillment_foundation.py`
 
 Apply migrations:
 

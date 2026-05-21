@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 5 - Batch, Expiry, and Serial Tracking Foundation**.
+This repository has completed **Phase 6 - Sales Reservation and Fulfillment Foundation**.
 
 Related commits:
 
@@ -22,26 +22,28 @@ The current implementation provides:
 - CSV product import with upload, validation, preview, commit, cancel, duplicate checks, tenant isolation, and barcode-ready product search.
 - Tenant-scoped purchase orders, purchase order items, purchase receipts, partial receiving, and receipt commit through `InventoryEngine.stock_in()`.
 - Batch, expiry, and serial traceability records for tracked products, with ledger references created by `InventoryEngine.stock_in()`.
+- Tenant-scoped sales orders, explicit location-level sales reservation, reservation release, and fulfillment deduction through `InventoryEngine`.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - Product import UI with CSV dropzone, preview table, import modes, and reusable scanner-friendly barcode input.
 - Purchase order, receiving, and receipt detail screens with warehouse/location receiving and committed stock impact.
 - Purchase receiving fields for batch number, expiry, warranty, and serial capture on tracked products.
+- Sales order, sales confirmation allocation, fulfillment draft, and fulfillment commit screens.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
 - XLSX import and import column mapping UI.
 - Vendor bills, supplier payments, invoice accounting, and purchase PDFs.
-- Sales order, picking, packing, delivery, or returns QC workflows.
-- FEFO auto-allocation, expiry background jobs, and serial tracking during sales fulfillment/returns.
+- Full picking, packing, carrier shipment, invoice accounting, payment collection, or returns QC workflows.
+- FEFO auto-allocation, expiry background jobs, and serial-specific sales allocation/picking.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **Phase 6 - Sales reservation and fulfillment foundation** or **Phase 6 - Putaway foundation**.
+Next recommended phase: **Phase 7 - Picking, Packing, and Serial Allocation Foundation** or **Phase 7 - Returns QC Foundation**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()` and writes `PURCHASE_RECEIPT` ledger references. `warehouse_stock` remains location-level in Phase 5; batch and serial references live on traceability tables and ledger entries.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()`, sales confirmation reserves through `InventoryEngine.reserve_stock()`, sales cancellation/close releases through `InventoryEngine.release_reservation()`, and fulfillment commit deducts through `InventoryEngine.deduct_reserved_stock()`.
 
 ## Tech Stack
 
@@ -179,6 +181,18 @@ Purchase endpoints:
 - `POST /api/purchase-receipts/{receipt_id}/commit`
 - `POST /api/purchase-receipts/{receipt_id}/cancel`
 
+Sales endpoints:
+
+- `GET|POST /api/sales-orders`
+- `GET|PATCH /api/sales-orders/{order_id}`
+- `POST /api/sales-orders/{order_id}/confirm`
+- `POST /api/sales-orders/{order_id}/cancel`
+- `POST /api/sales-orders/{order_id}/close`
+- `GET|POST /api/sales-orders/{order_id}/fulfillments`
+- `GET|PATCH /api/sales-fulfillments/{fulfillment_id}`
+- `POST /api/sales-fulfillments/{fulfillment_id}/commit`
+- `POST /api/sales-fulfillments/{fulfillment_id}/cancel`
+
 Warehouse endpoints:
 
 - `GET|POST /api/warehouses`
@@ -239,5 +253,6 @@ Development URLs:
 - Phase 2 inventory mutation endpoints require idempotency keys and location-level stock dimensions.
 - Product import does not call `InventoryEngine` because it does not mutate stock.
 - Purchase receipt commit calls `InventoryEngine.stock_in()` and does not directly update stock tables.
+- Sales confirmation and fulfillment call reservation/deduction methods on `InventoryEngine` and do not directly update stock tables.
 - Frontend pages stay thin and call service/API wrappers.
 - Frontend never calculates authoritative stock.

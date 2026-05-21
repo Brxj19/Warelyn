@@ -29,16 +29,16 @@ class InventoryEngine:
     def adjust_stock(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         return self._run_idempotent("adjust_stock", tenant_id, actor_id, payload, lambda: self._adjust_stock(tenant_id, actor_id, payload))
 
-    def reserve_stock(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
-        return self._run_idempotent("reserve_stock", tenant_id, actor_id, payload, lambda: self._reserve_stock(tenant_id, actor_id, payload))
+    def reserve_stock(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("reserve_stock", tenant_id, actor_id, payload, lambda: self._reserve_stock(tenant_id, actor_id, payload), auto_commit=auto_commit)
 
-    def release_reservation(self, tenant_id: int, actor_id: int, reservation_id: int, payload: dict[str, Any]) -> dict:
+    def release_reservation(self, tenant_id: int, actor_id: int, reservation_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
         body = {**payload, "reservation_id": reservation_id}
-        return self._run_idempotent("release_reservation", tenant_id, actor_id, body, lambda: self._release_reservation(tenant_id, actor_id, reservation_id, payload))
+        return self._run_idempotent("release_reservation", tenant_id, actor_id, body, lambda: self._release_reservation(tenant_id, actor_id, reservation_id, payload), auto_commit=auto_commit)
 
-    def deduct_reserved_stock(self, tenant_id: int, actor_id: int, reservation_id: int, payload: dict[str, Any]) -> dict:
+    def deduct_reserved_stock(self, tenant_id: int, actor_id: int, reservation_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
         body = {**payload, "reservation_id": reservation_id}
-        return self._run_idempotent("deduct_reserved_stock", tenant_id, actor_id, body, lambda: self._deduct_reserved_stock(tenant_id, actor_id, reservation_id, payload))
+        return self._run_idempotent("deduct_reserved_stock", tenant_id, actor_id, body, lambda: self._deduct_reserved_stock(tenant_id, actor_id, reservation_id, payload), auto_commit=auto_commit)
 
     def transfer_stock(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         return self._run_idempotent("transfer_stock", tenant_id, actor_id, payload, lambda: self._transfer_stock(tenant_id, actor_id, payload))

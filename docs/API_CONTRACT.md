@@ -429,3 +429,58 @@ Rules:
 - Receipt commit uses `reference_type=PURCHASE_RECEIPT` and `reference_id=receipt_number` on stock ledger entries.
 
 Phase 5 limitations: no vendor bills, supplier payments, invoice accounting, purchase PDFs, sales workflow, returns QC, FEFO auto-allocation, expiry background jobs, mobile scanner workflow, or advanced reports.
+
+## Sales Reservation And Fulfillment Foundation
+
+All sales routes require a bearer token and derive `tenant_id` from authenticated user context. Sales confirmation reserves stock only through `InventoryEngine.reserve_stock()`. Sales cancellation/close releases active reservations only through `InventoryEngine.release_reservation()`. Fulfillment commit deducts reserved stock only through `InventoryEngine.deduct_reserved_stock()`.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`, `VIEWER`.
+
+Write roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`.
+
+`VIEWER` is read-only. `PURCHASE_STAFF` cannot manage sales orders. `SUPER_ADMIN` does not use normal tenant sales APIs.
+
+Implemented endpoints:
+
+- `GET /api/sales-orders`
+- `POST /api/sales-orders`
+- `GET /api/sales-orders/{order_id}`
+- `PATCH /api/sales-orders/{order_id}`
+- `POST /api/sales-orders/{order_id}/confirm`
+- `POST /api/sales-orders/{order_id}/cancel`
+- `POST /api/sales-orders/{order_id}/close`
+- `POST /api/sales-orders/{order_id}/fulfillments`
+- `GET /api/sales-orders/{order_id}/fulfillments`
+- `GET /api/sales-fulfillments/{fulfillment_id}`
+- `PATCH /api/sales-fulfillments/{fulfillment_id}`
+- `POST /api/sales-fulfillments/{fulfillment_id}/commit`
+- `POST /api/sales-fulfillments/{fulfillment_id}/cancel`
+
+Sales order statuses:
+
+- `DRAFT`
+- `CONFIRMED`
+- `PARTIALLY_FULFILLED`
+- `FULFILLED`
+- `CANCELLED`
+- `CLOSED`
+
+Sales fulfillment statuses:
+
+- `DRAFT`
+- `COMMITTED`
+- `CANCELLED`
+
+Rules:
+
+- Sales orders must reference a tenant-owned customer and tenant-owned products.
+- Sales order updates are allowed only while `DRAFT`.
+- Confirmation requires explicit allocation lines with `sales_order_item_id`, `warehouse_id`, `location_id`, and `quantity`.
+- Allocated quantity must equal ordered quantity for each order item in Phase 6.
+- Warehouse and location must belong to the tenant; location must belong to the selected warehouse.
+- Serial-tracked products are blocked from sales confirmation until explicit serial allocation is implemented.
+- Fulfillment requires active reservations for the same sales order.
+- Fulfillment commit creates `SALES_DEDUCT` ledger entries and updates order fulfillment status.
+- Cancelled fulfillments do not mutate stock.
+
+Phase 6 limitations: no picking workflow, packing workflow, carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, mobile scanner workflow, advanced reports, or serial-specific allocation/picking.

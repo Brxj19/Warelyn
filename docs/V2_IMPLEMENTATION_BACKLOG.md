@@ -14,7 +14,24 @@ This backlog is for progressive implementation. Do not implement backend code, f
 Completed:
 
 - Phase 0 foundation: root docs/config, FastAPI shell, React/Vite/Tailwind shell, Docker Compose.
-- Auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
+- Phase 1A auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
+
+## Required Phase Order
+
+`Phase 1A - Auth and Tenant Foundation` must happen after project foundation and before tenant-owned business workflows.
+
+This phase establishes the authenticated tenant context that later modules must trust. Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow, sales workflow, returns workflow, and reports all depend on backend-derived `tenant_id`, role checks, active tenant status, active user status, and protected route dependencies.
+
+Do not start product, warehouse, inventory, purchase, sales, returns, or reporting implementation until Phase 1A is complete enough to provide:
+
+- Tenant model and tenant status.
+- User model, user roles, and user status.
+- Password hashing and verification.
+- JWT access token and JWT refresh token handling.
+- Tenant admin registration.
+- Login, refresh, logout, and `auth/me`.
+- Backend dependencies: `get_current_user`, `get_current_user_context`, `require_roles()`, `require_tenant_user()`, and `require_super_admin()`.
+- Frontend auth shell, protected routes, and role-aware navigation foundation.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|
@@ -23,6 +40,13 @@ Completed:
 | V2-010 | Phase 1 - Backend module boundaries | P0 | Backend structure | Without clear boundaries, business logic can leak into routers and stock updates can fragment. | Create FastAPI app structure with routers, core, domain, repositories, models, schemas, events, jobs, services, and CLI folders. | `backend/app/api/routers/*`, `backend/app/core/*`, `backend/app/domain/*`, `backend/app/repositories/*`, `backend/app/models/*`, `backend/app/schemas/*` | App boots with empty or migrated module structure; no stock mutation outside planned engine path. | Backend import/compile smoke test once backend exists. |
 | V2-011 | Phase 1 - Backend module boundaries | P0 | Router/service/repository split | Routers can become business logic containers. | Implement thin routers that call use-case services; repositories own database queries; schemas own request/response contracts. | `backend/app/api/routers/*`, `backend/app/domain/*`, `backend/app/repositories/*`, `backend/app/schemas/*` | Routers contain HTTP concerns only and no direct stock mutation. | Router unit tests or route smoke tests; service tests for behavior. |
 | V2-012 | Phase 1 - Backend module boundaries | P0 | Tenant isolation | Tenant-owned data can leak without repository-level filtering. | Establish tenant context dependency and repository base methods requiring tenant scope. | `backend/app/core/permissions.py`, `backend/app/repositories/base.py`, tenant-owned repositories | Tenant-owned reads/writes always require tenant context. | Cross-tenant denial tests for each tenant-owned module. |
+| V2-013 | Phase 1A - Auth and Tenant Foundation | P0 | Tenant identity | Later business records need a trusted tenant owner before any tenant-owned CRUD exists. | Add `Tenant` model with company profile fields, status enum, timestamps, and tenant creation through registration. | `backend/app/models/*`, `backend/app/schemas/*`, `backend/app/repositories/*`, Alembic migration | Tenant records exist with `ACTIVE`, `DISABLED`, and `PENDING` statuses; registration creates an active tenant. | Migration test; tenant registration test. |
+| V2-014 | Phase 1A - Auth and Tenant Foundation | P0 | User identity and roles | Business APIs cannot safely authorize actions without users, roles, and statuses. | Add `User` model with nullable `tenant_id` for `SUPER_ADMIN`, password hash, roles, statuses, verification timestamps, and last login timestamp. | `backend/app/models/*`, `backend/app/schemas/*`, auth repository/service, Alembic migration | Users have unique email, role, status, and tenant association rules; password hash is never returned. | User create tests; duplicate email test; schema leak test. |
+| V2-015 | Phase 1A - Auth and Tenant Foundation | P0 | Token security | Protected APIs need standard authentication before tenant data exists. | Implement password hashing, JWT access tokens, JWT refresh tokens, refresh token hashing at rest, token decoding, configurable expiry, and clean auth errors. | `backend/app/core/security.py`, `backend/app/services/auth.py`, `backend/app/repositories/*`, `backend/.env.example` | Login returns access/refresh tokens; invalid, expired, revoked, or missing tokens fail cleanly. | Login, wrong password, refresh, logout/revoke, missing token tests. |
+| V2-016 | Phase 1A - Auth and Tenant Foundation | P0 | Auth API | Frontend and future APIs need a minimal auth contract. | Add `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`, and `POST /api/auth/logout`. | `backend/app/api/auth.py`, auth schemas/service/repositories | Register creates tenant admin without returning tokens; login blocks disabled users/tenants; `auth/me` returns user, tenant, and role. | API integration tests for each endpoint. |
+| V2-017 | Phase 1A - Auth and Tenant Foundation | P0 | Protected dependencies | Future business routers must not accept arbitrary tenant IDs from requests. | Add `get_current_user`, `get_current_user_context`, `require_roles()`, `require_tenant_user()`, and `require_super_admin()` dependencies. | `backend/app/dependencies/auth.py`, auth service | Tenant APIs can resolve tenant ID from authenticated user context; role checks block unauthorized users. | Dependency tests for role blocking and tenant context resolution. |
+| V2-018 | Phase 1A - Auth and Tenant Foundation | P0 | Super admin seed | Platform administration needs a non-tenant user without demo business data. | Add env-driven super admin seed command or startup option using `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, and `SUPER_ADMIN_NAME`. | backend seed utility, config, `.env.example` | A `SUPER_ADMIN` can be created with `tenant_id = null`; no tenant demo data is created. | Seed command test or documented manual verification. |
+| V2-019 | Phase 1A - Auth and Tenant Foundation | P1 | Frontend auth shell | Users need auth entrypoints and future pages need route protection. | Add frontend auth service methods, auth state/context, `/login`, `/register`, `/dashboard`, protected route wrapper, guest route behavior, `auth/me` load on startup, logout, and role-aware navigation foundation. | `frontend/src/services/*`, auth context/store, routes, login/register/dashboard pages, layouts | Unauthenticated users redirect to login; authenticated users reach dashboard and see user, tenant, and role. | Frontend build; manual auth flow check; later component tests. |
 | V2-020 | Phase 2 - Inventory Engine and stock ledger | P0 | Stock correctness | Current PRD warns stock changes may be scattered across services. | Implement `InventoryEngine` as the only stock mutation path with transaction, lock, ledger, projection, audit, and idempotency responsibilities. | `backend/app/domain/inventory/engine.py`, `ledger.py`, `repositories/stock_repository.py`, `models/warehouse_stock.py`, `models/stock_ledger_entry.py` | Every stock mutation writes ledger and projection in one transaction. | Engine invariant tests; ledger write tests; idempotency tests. |
 | V2-021 | Phase 2 - Inventory Engine and stock ledger | P0 | Idempotency | Repeated requests can duplicate stock movement. | Add idempotency key storage and service helper for critical operations. | `backend/app/core/idempotency.py`, `models/idempotency_key.py`, engine/service callers | Repeating same key returns prior result or safe conflict without duplicate ledger rows. | Idempotency unit/integration tests. |
 | V2-022 | Phase 2 - Inventory Engine and stock ledger | P0 | Reconciliation | Projection can drift from ledger if no comparison exists. | Add reconciliation service/CLI with dry-run first, then controlled fix mode. | `backend/app/domain/inventory/reconciliation.py`, `backend/app/cli/reconcile_inventory.py`, report repository | Dry-run reports mismatches by tenant; fix mode creates correction entries. | Reconciliation mismatch/fix tests. |
@@ -49,7 +73,8 @@ Completed:
 ## Phase Guardrails
 
 - Do not start backend implementation until Phase 0 planning is approved.
-- Do not add database migrations until target models and ownership rules are approved.
+- Do not add tenant-owned business migrations until Phase 1A auth and tenant ownership rules are approved.
+- Do not start product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow, sales workflow, returns workflow, or reports before Phase 1A is complete.
 - Do not add frontend screens before API contracts and workflow ownership are clear.
 - Do not work on AI assistant, subscription expansion, billing plans, payment features, marketplace integration, carrier integration, native mobile app, forecasting, full accounting, or ERP manufacturing during early V2 foundation work.
 - Each implementation phase should end with relevant tests, updated docs when behavior changes, and a small commit.
@@ -60,6 +85,7 @@ Completed:
 |---|---|
 | Phase 0 | `document Warelyn V2 foundation and project rules` |
 | Phase 1 | `refactor backend module boundaries for v2 foundation` |
+| Phase 1A | `implement Warelyn auth and tenant foundation` |
 | Phase 2 | `centralize inventory mutations in inventory engine` |
 | Phase 3 | `add product import planning and barcode catalog support` |
 | Phase 4 | `add warehouse location and bin tracking foundation` |

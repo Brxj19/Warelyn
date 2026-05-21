@@ -284,6 +284,20 @@ API clients must not:
 - Cross-tenant reads are platform-admin-only and must be explicit in service method names and authorization checks.
 - Tests for every module must include at least one cross-tenant access denial case.
 
+## Auth And Tenant Foundation Boundary
+
+`Phase 1A - Auth and Tenant Foundation` is a prerequisite for all tenant-owned business modules.
+
+This phase owns:
+
+- Tenant model, tenant status, and tenant admin registration.
+- User model, roles, statuses, and password hashing.
+- JWT access tokens, JWT refresh tokens, refresh token hashing, refresh, logout, login, and `auth/me`.
+- Backend protected dependencies: `get_current_user`, `get_current_user_context`, `require_roles()`, `require_tenant_user()`, and `require_super_admin()`.
+- Frontend auth shell, protected routes, guest route behavior, and role-aware navigation foundation.
+
+Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow, sales workflow, returns workflow, and reports must wait for this phase because they need backend-derived tenant context, active tenant/user checks, and role enforcement. Tenant users must not pass arbitrary `tenant_id` for normal business APIs; routers and services should derive tenant scope from the authenticated user context.
+
 ## InventoryEngine Ownership Rules
 
 - `InventoryEngine` is the only backend module allowed to change stock quantities or stock state.

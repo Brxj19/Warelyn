@@ -4,9 +4,22 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 1 creates only authentication and tenant foundation tables.
+Phase 1A auth and tenant foundation is complete.
+
+Related commits:
+
+- Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
+- Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
 No inventory, product, warehouse, purchase, sales, stock ledger, or business workflow tables are implemented yet.
+
+Current implemented models:
+
+- `Tenant`
+- `User`
+- `RefreshToken`
+
+Next recommended phase: `Phase 1B - Tenant-scoped catalog and warehouse foundation`, which should add catalog and warehouse master data models without stock mutation. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
 
 ## Tables
 
@@ -109,5 +122,6 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 
 - Tenant-owned business tables added in later phases must include `tenant_id` unless explicitly documented as platform-global.
 - Normal tenant APIs must resolve `tenant_id` from authenticated user context.
+- Future tenant-owned modules must derive `tenant_id` from authenticated user context.
 - `users.email` is globally unique in this foundation to simplify login and avoid cross-tenant ambiguity.
 - Repository methods for future business tables should require tenant context by default.

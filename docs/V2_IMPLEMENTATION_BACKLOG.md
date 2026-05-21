@@ -15,6 +15,24 @@ Completed:
 
 - Phase 0 foundation: root docs/config, FastAPI shell, React/Vite/Tailwind shell, Docker Compose.
 - Phase 1A auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
+- Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
+- Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
+
+Current implemented auth endpoints:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+Current implemented auth models:
+
+- `Tenant`
+- `User`
+- `RefreshToken`
+
+Next recommended phase: `Phase 1B - Tenant-scoped catalog and warehouse foundation`.
 
 ## Required Phase Order
 
@@ -33,6 +51,24 @@ Do not start product, warehouse, inventory, purchase, sales, returns, or reporti
 - Backend dependencies: `get_current_user`, `get_current_user_context`, `require_roles()`, `require_tenant_user()`, and `require_super_admin()`.
 - Frontend auth shell, protected routes, and role-aware navigation foundation.
 
+Phase 1A is now completed. Future tenant-owned modules must derive `tenant_id` from authenticated user context instead of accepting arbitrary tenant IDs from normal tenant user requests.
+
+`Phase 1B - Tenant-scoped catalog and warehouse foundation` should happen next and should include:
+
+- Base tenant-scoped repository pattern.
+- Base CRUD conventions.
+- Category model.
+- Brand model.
+- Vendor model.
+- Customer model.
+- Product model without stock mutation.
+- Warehouse model.
+- Warehouse location/bin model foundation.
+- Tenant isolation tests.
+- Frontend module shells for catalog and warehouses.
+
+Phase 1B must not implement stock mutation. Product CRUD must not change stock. Warehouse CRUD must not change stock. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
+
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|
 | V2-000 | Phase 0 - Foundation audit and cleanup | P0 | Repo baseline | Current checkout has planning docs but no backend/frontend source to verify. | Confirm source location, add missing root docs/config only when requested, document real commands once manifests exist, keep PRD path as `docs/WARELYN_REAL_WORLD_V2_PRD.md`. | `README.md`, `AGENTS.md`, `opencode.json`, `docs/*` | Future agents know what exists, what is target-only, and which commands are verified. | Documentation review; no app tests until app exists. |
@@ -47,6 +83,10 @@ Do not start product, warehouse, inventory, purchase, sales, returns, or reporti
 | V2-017 | Phase 1A - Auth and Tenant Foundation | P0 | Protected dependencies | Future business routers must not accept arbitrary tenant IDs from requests. | Add `get_current_user`, `get_current_user_context`, `require_roles()`, `require_tenant_user()`, and `require_super_admin()` dependencies. | `backend/app/dependencies/auth.py`, auth service | Tenant APIs can resolve tenant ID from authenticated user context; role checks block unauthorized users. | Dependency tests for role blocking and tenant context resolution. |
 | V2-018 | Phase 1A - Auth and Tenant Foundation | P0 | Super admin seed | Platform administration needs a non-tenant user without demo business data. | Add env-driven super admin seed command or startup option using `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, and `SUPER_ADMIN_NAME`. | backend seed utility, config, `.env.example` | A `SUPER_ADMIN` can be created with `tenant_id = null`; no tenant demo data is created. | Seed command test or documented manual verification. |
 | V2-019 | Phase 1A - Auth and Tenant Foundation | P1 | Frontend auth shell | Users need auth entrypoints and future pages need route protection. | Add frontend auth service methods, auth state/context, `/login`, `/register`, `/dashboard`, protected route wrapper, guest route behavior, `auth/me` load on startup, logout, and role-aware navigation foundation. | `frontend/src/services/*`, auth context/store, routes, login/register/dashboard pages, layouts | Unauthenticated users redirect to login; authenticated users reach dashboard and see user, tenant, and role. | Frontend build; manual auth flow check; later component tests. |
+| V2-019A | Phase 1B - Tenant-scoped catalog and warehouse foundation | P0 | Tenant-scoped repository base | Future master data needs a consistent tenant isolation pattern before CRUD expands. | Add base repository conventions/helpers that require tenant context for tenant-owned tables and make cross-tenant access explicit. | `backend/app/repositories/base.py`, dependencies, tests | Tenant-owned repository methods require tenant context by default. | Tenant isolation repository tests. |
+| V2-019B | Phase 1B - Tenant-scoped catalog and warehouse foundation | P1 | Catalog master data | Product setup needs supporting master data before inventory workflows. | Add category, brand, vendor, customer, and product models/schemas/repositories/services/routers using thin-router and tenant-scoped conventions. Product CRUD must not mutate stock. | catalog models/schemas/repositories/services/routers, Alembic migration | Tenant users can manage catalog master data scoped to their tenant; product has no stock mutation path. | CRUD and cross-tenant denial tests. |
+| V2-019C | Phase 1B - Tenant-scoped catalog and warehouse foundation | P1 | Warehouse master data | Inventory workflows need warehouse and bin identity before stock exists. | Add warehouse model and warehouse location/bin model foundation. Warehouse CRUD and location CRUD must not mutate stock. | warehouse models/schemas/repositories/services/routers, Alembic migration | Tenant users can manage warehouses and location/bin records scoped to their tenant; no stock quantity fields are mutated. | CRUD and cross-tenant denial tests. |
+| V2-019D | Phase 1B - Tenant-scoped catalog and warehouse foundation | P1 | Frontend module shells | Users need navigable shells for catalog and warehouses without operational workflows. | Add frontend module shells for catalog and warehouses using existing Warelyn visual style and API service files. | `frontend/src/modules/catalog/*`, `frontend/src/modules/warehouses/*`, frontend services/routes | Authenticated users can navigate to catalog and warehouse placeholders/basic CRUD shells; no stock UI is shown. | Frontend build; route smoke/manual checks. |
 | V2-020 | Phase 2 - Inventory Engine and stock ledger | P0 | Stock correctness | Current PRD warns stock changes may be scattered across services. | Implement `InventoryEngine` as the only stock mutation path with transaction, lock, ledger, projection, audit, and idempotency responsibilities. | `backend/app/domain/inventory/engine.py`, `ledger.py`, `repositories/stock_repository.py`, `models/warehouse_stock.py`, `models/stock_ledger_entry.py` | Every stock mutation writes ledger and projection in one transaction. | Engine invariant tests; ledger write tests; idempotency tests. |
 | V2-021 | Phase 2 - Inventory Engine and stock ledger | P0 | Idempotency | Repeated requests can duplicate stock movement. | Add idempotency key storage and service helper for critical operations. | `backend/app/core/idempotency.py`, `models/idempotency_key.py`, engine/service callers | Repeating same key returns prior result or safe conflict without duplicate ledger rows. | Idempotency unit/integration tests. |
 | V2-022 | Phase 2 - Inventory Engine and stock ledger | P0 | Reconciliation | Projection can drift from ledger if no comparison exists. | Add reconciliation service/CLI with dry-run first, then controlled fix mode. | `backend/app/domain/inventory/reconciliation.py`, `backend/app/cli/reconcile_inventory.py`, report repository | Dry-run reports mismatches by tenant; fix mode creates correction entries. | Reconciliation mismatch/fix tests. |
@@ -86,6 +126,7 @@ Do not start product, warehouse, inventory, purchase, sales, returns, or reporti
 | Phase 0 | `document Warelyn V2 foundation and project rules` |
 | Phase 1 | `refactor backend module boundaries for v2 foundation` |
 | Phase 1A | `implement Warelyn auth and tenant foundation` |
+| Phase 1B | `add tenant scoped catalog and warehouse foundation` |
 | Phase 2 | `centralize inventory mutations in inventory engine` |
 | Phase 3 | `add product import planning and barcode catalog support` |
 | Phase 4 | `add warehouse location and bin tracking foundation` |

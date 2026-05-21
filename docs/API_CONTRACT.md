@@ -35,6 +35,16 @@ Returns service status.
 
 ## Auth And Tenant Foundation
 
+Status: completed in implementation commit `dbd9752 implement Warelyn auth and tenant foundation` and documented in planning alignment commit `0137f69 update backlog with auth and tenant foundation phase`.
+
+Current implemented auth endpoints are:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
 ### `POST /api/auth/register`
 
 Creates a tenant and its first `TENANT_ADMIN` user. Does not return tokens.
@@ -185,5 +195,8 @@ Response:
 
 - Tenant users do not pass arbitrary `tenant_id` for normal business APIs.
 - Backend dependencies resolve tenant context from the authenticated access token and current user row.
+- Future tenant-owned modules must derive `tenant_id` from authenticated user context.
 - `SUPER_ADMIN` users are platform users and have `tenant_id = null`.
 - Role checks are enforced by backend dependencies, not frontend navigation alone.
+
+Phase 1B will add tenant-scoped catalog and warehouse foundation. Product CRUD and warehouse CRUD must not mutate stock. `InventoryEngine`, stock ledger, and actual stock quantities are not implemented yet and must wait for Phase 2.

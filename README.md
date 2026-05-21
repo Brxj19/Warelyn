@@ -6,12 +6,17 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository is at **Phase 1: auth and tenant foundation**.
+This repository has completed **Phase 1A - Auth and Tenant Foundation**.
+
+Related commits:
+
+- Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
+- Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
 The current implementation provides:
 
 - FastAPI backend scaffold with health endpoint, settings, middleware, exception handling, database session setup, and Alembic foundation.
-- Tenant, user, role, status, refresh token, password hashing, JWT access token, JWT refresh token, login, registration, logout, and `auth/me` backend foundation.
+- `Tenant`, `User`, and `RefreshToken` models with roles, statuses, password hashing, JWT access tokens, JWT refresh tokens, login, registration, logout, refresh, and `auth/me` backend foundation.
 - React + Vite + Tailwind frontend scaffold with layouts, placeholder pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - MySQL, backend, and frontend development services in Docker Compose.
@@ -19,16 +24,19 @@ The current implementation provides:
 Not implemented yet:
 
 - Product CRUD.
-- Inventory workflows.
-- Purchase or sales flows.
 - Warehouse workflows.
+- Inventory workflows.
+- Stock ledger and `InventoryEngine`.
+- Purchase, sales, or returns flows.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **catalog and warehouse foundation**, after auth and tenant behavior is reviewed.
+Next recommended phase: **Phase 1B - Tenant-scoped catalog and warehouse foundation**.
 
-Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs.
+Phase 1B should add the base tenant-scoped repository pattern, base CRUD conventions, category/brand/vendor/customer/product models without stock mutation, warehouse model, warehouse location/bin foundation, tenant isolation tests, and frontend module shells for catalog and warehouses.
+
+Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. Product CRUD and warehouse CRUD must not mutate stock; actual stock quantities, `InventoryEngine`, and stock ledger wait for Phase 2.
 
 ## Tech Stack
 

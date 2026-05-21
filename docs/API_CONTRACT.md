@@ -335,6 +335,10 @@ Implemented endpoints:
 
 - `GET /api/inventory/stock`
 - `GET /api/inventory/ledger`
+- `GET /api/inventory/batches`
+- `GET /api/inventory/batches/{batch_id}`
+- `GET /api/inventory/serials`
+- `GET /api/inventory/serials/{serial_id}`
 - `GET /api/inventory/reconciliation/dry-run`
 - `POST /api/inventory/stock-in`
 - `POST /api/inventory/stock-out`
@@ -346,9 +350,27 @@ Implemented endpoints:
 
 Mutation requests require `idempotency_key`. Reusing the same tenant, operation, and idempotency key with the same request returns the stored response. Reusing the same key with a different request returns `409 IDEMPOTENCY_CONFLICT`.
 
-Phase 2 stock operations require `product_id`, `warehouse_id`, and `location_id`; `location_id` is required to avoid ambiguous stock dimensions.
+Stock operations require `product_id`, `warehouse_id`, and `location_id`; `location_id` is required to avoid ambiguous stock dimensions.
 
-Phase 2 limitations: this is not product import, purchase receiving, sales order fulfillment, picking/packing/delivery, returns QC, batch/expiry/serial tracking, or advanced reporting.
+`POST /api/inventory/stock-in` accepts optional Phase 5 tracking fields:
+
+- `batch_number`
+- `supplier_batch_number`
+- `manufacture_date`
+- `expiry_date`
+- `warranty_until`
+- `serial_numbers`
+
+Tracking rules:
+
+- Untracked products reject tracking fields.
+- Batch-tracked or expiry-tracked products require `batch_number`.
+- Expiry-tracked products require `expiry_date`.
+- Serial-tracked products require `serial_numbers`, and the serial count must equal `quantity`.
+- For serial-tracked receiving, the engine creates one `STOCK_IN` ledger entry per serial with `serial_id`.
+- For batch/expiry non-serial receiving, the engine creates one `STOCK_IN` ledger entry with `batch_id`.
+
+Phase 5 limitations: `warehouse_stock` remains location-level only; batch/serial details are traceability records and ledger references. FEFO allocation, expiry jobs, blocked stock transitions, sales fulfillment serial capture, returns QC, and advanced reporting are not implemented.
 
 ## Purchase Receiving Workflow
 
@@ -400,9 +422,10 @@ Rules:
 - Cancelled, closed, and fully received purchase orders cannot be received.
 - Receipt items must reference tenant-owned products, warehouses, and locations; location must belong to the selected warehouse.
 - Received quantity must be positive and cannot exceed the remaining ordered quantity. Phase 4 blocks over-receiving.
+- Receipt items may include `batch_number`, `supplier_batch_number`, `manufacture_date`, `expiry_date`, `warranty_until`, and `serial_numbers`; commit forwards these fields to `InventoryEngine.stock_in()`.
 - Draft receipts can be edited or cancelled.
 - Committed receipts cannot be edited.
 - Cancelled receipts do not mutate stock.
 - Receipt commit uses `reference_type=PURCHASE_RECEIPT` and `reference_id=receipt_number` on stock ledger entries.
 
-Phase 4 limitations: no vendor bills, supplier payments, invoice accounting, purchase PDFs, sales workflow, returns QC, advanced reports, or full batch/expiry/serial receiving workflow.
+Phase 5 limitations: no vendor bills, supplier payments, invoice accounting, purchase PDFs, sales workflow, returns QC, FEFO auto-allocation, expiry background jobs, mobile scanner workflow, or advanced reports.

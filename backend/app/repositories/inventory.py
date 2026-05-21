@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from app.models.inventory import IdempotencyKey, IdempotencyStatus, StockLedgerEntry, StockReservation, WarehouseStock
+from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventorySerial, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Product, Warehouse, WarehouseLocation
 
 
@@ -27,6 +27,18 @@ class InventoryRepository:
 
     def list_ledger(self, tenant_id: int) -> list[StockLedgerEntry]:
         return list(self.db.scalars(select(StockLedgerEntry).where(StockLedgerEntry.tenant_id == tenant_id).order_by(StockLedgerEntry.created_at.desc(), StockLedgerEntry.id.desc())))
+
+    def list_batches(self, tenant_id: int) -> list[InventoryBatch]:
+        return list(self.db.scalars(select(InventoryBatch).where(InventoryBatch.tenant_id == tenant_id).order_by(InventoryBatch.created_at.desc(), InventoryBatch.id.desc())))
+
+    def get_batch(self, tenant_id: int, batch_id: int) -> InventoryBatch | None:
+        return self.db.scalar(select(InventoryBatch).where(InventoryBatch.id == batch_id, InventoryBatch.tenant_id == tenant_id))
+
+    def list_serials(self, tenant_id: int) -> list[InventorySerial]:
+        return list(self.db.scalars(select(InventorySerial).where(InventorySerial.tenant_id == tenant_id).order_by(InventorySerial.created_at.desc(), InventorySerial.id.desc())))
+
+    def get_serial(self, tenant_id: int, serial_id: int) -> InventorySerial | None:
+        return self.db.scalar(select(InventorySerial).where(InventorySerial.id == serial_id, InventorySerial.tenant_id == tenant_id))
 
     def stock_query(self, tenant_id: int, product_id: int, warehouse_id: int, location_id: int) -> Select[tuple[WarehouseStock]]:
         return select(WarehouseStock).where(
@@ -61,6 +73,33 @@ class InventoryRepository:
         if stock is not None:
             return stock
         return self.create_stock(tenant_id, product_id, warehouse_id, location_id)
+
+    def batch_query(self, tenant_id: int, product_id: int, warehouse_id: int, location_id: int, batch_number: str) -> Select[tuple[InventoryBatch]]:
+        return select(InventoryBatch).where(
+            InventoryBatch.tenant_id == tenant_id,
+            InventoryBatch.product_id == product_id,
+            InventoryBatch.warehouse_id == warehouse_id,
+            InventoryBatch.location_id == location_id,
+            InventoryBatch.batch_number == batch_number,
+        )
+
+    def lock_batch(self, tenant_id: int, product_id: int, warehouse_id: int, location_id: int, batch_number: str) -> InventoryBatch | None:
+        return self.db.scalar(self.batch_query(tenant_id, product_id, warehouse_id, location_id, batch_number).with_for_update())
+
+    def create_batch(self, values: dict[str, Any]) -> InventoryBatch:
+        batch = InventoryBatch(**values)
+        self.db.add(batch)
+        self.db.flush()
+        return batch
+
+    def get_serial_by_number(self, tenant_id: int, product_id: int, serial_number: str) -> InventorySerial | None:
+        return self.db.scalar(select(InventorySerial).where(InventorySerial.tenant_id == tenant_id, InventorySerial.product_id == product_id, InventorySerial.serial_number == serial_number))
+
+    def create_serial(self, values: dict[str, Any]) -> InventorySerial:
+        serial = InventorySerial(**values)
+        self.db.add(serial)
+        self.db.flush()
+        return serial
 
     def add_ledger_entry(self, values: dict[str, Any]) -> StockLedgerEntry:
         entry = StockLedgerEntry(**values)

@@ -74,6 +74,12 @@ class PurchaseReceiptItemCreate(BaseModel):
     location_id: int
     received_quantity: Decimal = Field(gt=0)
     unit_cost: Decimal | None = Field(default=None, ge=0)
+    batch_number: str | None = Field(default=None, max_length=120)
+    supplier_batch_number: str | None = Field(default=None, max_length=120)
+    manufacture_date: date | None = None
+    expiry_date: date | None = None
+    warranty_until: date | None = None
+    serial_numbers: list[str] | None = None
 
 
 class PurchaseReceiptCreate(BaseModel):
@@ -102,6 +108,12 @@ class PurchaseReceiptItemRead(BaseModel):
     location_id: int
     received_quantity: Decimal
     unit_cost: Decimal
+    batch_number: str | None = None
+    supplier_batch_number: str | None = None
+    manufacture_date: date | None = None
+    expiry_date: date | None = None
+    warranty_until: date | None = None
+    serial_numbers: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 

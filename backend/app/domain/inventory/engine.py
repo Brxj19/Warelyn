@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
 from app.domain.inventory.reconciliation import InventoryReconciliation
-from app.models.inventory import MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
+from app.models.inventory import InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
 from app.repositories.inventory import InventoryRepository
 
 ZERO = Decimal("0")
@@ -49,12 +49,17 @@ class InventoryEngine:
     def _stock_in(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         quantity = self._positive_quantity(payload["quantity"])
         self._validate_dimension(tenant_id, payload["product_id"], payload["warehouse_id"], payload["location_id"])
+        product = self.repository.get_product(tenant_id, payload["product_id"])
+        if product is None:
+            raise AppError("PRODUCT_NOT_FOUND", "Product was not found for this tenant.", 404)
         stock = self.repository.get_or_create_stock(tenant_id, payload["product_id"], payload["warehouse_id"], payload["location_id"])
         stock.quantity_on_hand += quantity
         stock.quantity_available += quantity
         self._assert_invariants(stock)
-        entry = self._ledger(stock, MovementType.STOCK_IN, quantity, ZERO, quantity, actor_id, payload)
-        return self._response(stock, [entry], None, payload["idempotency_key"])
+        entries = self._apply_inbound_tracking(stock, product, quantity, actor_id, payload)
+        if not entries:
+            entries = [self._ledger(stock, MovementType.STOCK_IN, quantity, ZERO, quantity, actor_id, payload)]
+        return self._response(stock, entries, None, payload["idempotency_key"])
 
     def _stock_out(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         quantity = self._positive_quantity(payload["quantity"])
@@ -214,6 +219,8 @@ class InventoryEngine:
                 "product_id": stock.product_id,
                 "warehouse_id": stock.warehouse_id,
                 "location_id": stock.location_id,
+                "batch_id": payload.get("batch_id"),
+                "serial_id": payload.get("serial_id"),
                 "movement_type": movement_type,
                 "quantity_delta": quantity_delta,
                 "reserved_delta": reserved_delta,
@@ -225,6 +232,86 @@ class InventoryEngine:
                 "created_by": actor_id,
             }
         )
+
+    def _apply_inbound_tracking(self, stock: WarehouseStock, product: Any, quantity: Decimal, actor_id: int, payload: dict[str, Any]) -> list[StockLedgerEntry]:
+        serial_numbers = self._normalized_serial_numbers(payload.get("serial_numbers"))
+        has_tracking_payload = any(payload.get(field) is not None for field in ["batch_number", "supplier_batch_number", "manufacture_date", "expiry_date", "warranty_until"]) or bool(serial_numbers)
+        if not product.track_batch and not product.track_expiry and not product.track_serial:
+            if has_tracking_payload:
+                raise AppError("TRACKING_NOT_ENABLED", "Tracking fields cannot be received for an untracked product.", 400)
+            return []
+
+        if product.track_serial:
+            if not serial_numbers:
+                raise AppError("SERIAL_NUMBERS_REQUIRED", "Serial-tracked products require serial numbers on stock in.", 400)
+            if quantity != Decimal(len(serial_numbers)):
+                raise AppError("SERIAL_QUANTITY_MISMATCH", "Serial-tracked stock in quantity must match serial number count.", 400)
+        elif serial_numbers:
+            raise AppError("SERIAL_TRACKING_NOT_ENABLED", "Serial numbers cannot be received for a non-serial-tracked product.", 400)
+
+        batch = None
+        if product.track_batch or product.track_expiry or payload.get("batch_number"):
+            batch_number = str(payload.get("batch_number") or "").strip()
+            if not batch_number:
+                raise AppError("BATCH_NUMBER_REQUIRED", "Batch or expiry tracked products require a batch number on stock in.", 400)
+            if product.track_expiry and not payload.get("expiry_date"):
+                raise AppError("EXPIRY_DATE_REQUIRED", "Expiry-tracked products require an expiry date on stock in.", 400)
+            batch = self.repository.lock_batch(stock.tenant_id, stock.product_id, stock.warehouse_id, stock.location_id, batch_number)
+            if batch is None:
+                batch = self.repository.create_batch(
+                    {
+                        "tenant_id": stock.tenant_id,
+                        "product_id": stock.product_id,
+                        "warehouse_id": stock.warehouse_id,
+                        "location_id": stock.location_id,
+                        "batch_number": batch_number,
+                        "supplier_batch_number": payload.get("supplier_batch_number"),
+                        "manufacture_date": payload.get("manufacture_date"),
+                        "expiry_date": payload.get("expiry_date"),
+                        "warranty_until": payload.get("warranty_until"),
+                        "quantity_on_hand": ZERO,
+                        "quantity_available": ZERO,
+                        "quantity_reserved": ZERO,
+                        "status": InventoryBatchStatus.ACTIVE,
+                    }
+                )
+            batch.quantity_on_hand += quantity
+            batch.quantity_available += quantity
+
+        if product.track_serial:
+            entries = []
+            for serial_number in serial_numbers:
+                if self.repository.get_serial_by_number(stock.tenant_id, stock.product_id, serial_number) is not None:
+                    raise AppError("SERIAL_NUMBER_EXISTS", "Serial number already exists for this product.", 409)
+                serial = self.repository.create_serial(
+                    {
+                        "tenant_id": stock.tenant_id,
+                        "product_id": stock.product_id,
+                        "warehouse_id": stock.warehouse_id,
+                        "location_id": stock.location_id,
+                        "batch_id": batch.id if batch else None,
+                        "serial_number": serial_number,
+                        "status": InventorySerialStatus.IN_STOCK,
+                        "warranty_until": payload.get("warranty_until"),
+                        "expires_on": payload.get("expiry_date"),
+                    }
+                )
+                entries.append(self._ledger(stock, MovementType.STOCK_IN, Decimal("1"), ZERO, Decimal("1"), actor_id, {**payload, "batch_id": batch.id if batch else None, "serial_id": serial.id}))
+            return entries
+
+        if batch is not None:
+            return [self._ledger(stock, MovementType.STOCK_IN, quantity, ZERO, quantity, actor_id, {**payload, "batch_id": batch.id})]
+        return []
+
+    def _normalized_serial_numbers(self, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise AppError("INVALID_SERIAL_NUMBERS", "Serial numbers must be a list.", 400)
+        serial_numbers = [str(item).strip() for item in value if str(item).strip()]
+        if len(serial_numbers) != len(value) or len(set(serial_numbers)) != len(serial_numbers):
+            raise AppError("INVALID_SERIAL_NUMBERS", "Serial numbers must be non-empty and unique.", 400)
+        return serial_numbers
 
     def _response(self, stock: WarehouseStock | list[WarehouseStock], entries: list[StockLedgerEntry], reservation: StockReservation | None, idempotency_key: str) -> dict:
         self.db.flush()
@@ -255,6 +342,8 @@ class InventoryEngine:
             "product_id": entry.product_id,
             "warehouse_id": entry.warehouse_id,
             "location_id": entry.location_id,
+            "batch_id": entry.batch_id,
+            "serial_id": entry.serial_id,
             "movement_type": entry.movement_type.value,
             "quantity_delta": str(entry.quantity_delta),
             "reserved_delta": str(entry.reserved_delta),

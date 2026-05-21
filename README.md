@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 4 - Purchase Receiving Workflow**.
+This repository has completed **Phase 5 - Batch, Expiry, and Serial Tracking Foundation**.
 
 Related commits:
 
@@ -21,26 +21,27 @@ The current implementation provides:
 - Tenant-scoped `InventoryEngine`, stock ledger, warehouse stock projection, stock reservation foundation, idempotency, and reconciliation dry-run APIs.
 - CSV product import with upload, validation, preview, commit, cancel, duplicate checks, tenant isolation, and barcode-ready product search.
 - Tenant-scoped purchase orders, purchase order items, purchase receipts, partial receiving, and receipt commit through `InventoryEngine.stock_in()`.
+- Batch, expiry, and serial traceability records for tracked products, with ledger references created by `InventoryEngine.stock_in()`.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - Product import UI with CSV dropzone, preview table, import modes, and reusable scanner-friendly barcode input.
 - Purchase order, receiving, and receipt detail screens with warehouse/location receiving and committed stock impact.
+- Purchase receiving fields for batch number, expiry, warranty, and serial capture on tracked products.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
 - XLSX import and import column mapping UI.
-- Purchase receiving workflow.
 - Vendor bills, supplier payments, invoice accounting, and purchase PDFs.
 - Sales order, picking, packing, delivery, or returns QC workflows.
-- Batch, expiry, and serial tracking.
+- FEFO auto-allocation, expiry background jobs, and serial tracking during sales fulfillment/returns.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **Phase 5 - Batch, expiry, and serial tracking foundation** or **Phase 5 - Sales reservation and fulfillment foundation**.
+Next recommended phase: **Phase 6 - Sales reservation and fulfillment foundation** or **Phase 6 - Putaway foundation**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()` and writes `PURCHASE_RECEIPT` ledger references.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()` and writes `PURCHASE_RECEIPT` ledger references. `warehouse_stock` remains location-level in Phase 5; batch and serial references live on traceability tables and ledger entries.
 
 ## Tech Stack
 
@@ -189,6 +190,10 @@ Inventory endpoints:
 
 - `GET /api/inventory/stock`
 - `GET /api/inventory/ledger`
+- `GET /api/inventory/batches`
+- `GET /api/inventory/batches/{batch_id}`
+- `GET /api/inventory/serials`
+- `GET /api/inventory/serials/{serial_id}`
 - `GET /api/inventory/reconciliation/dry-run`
 - `POST /api/inventory/stock-in`
 - `POST /api/inventory/stock-out`

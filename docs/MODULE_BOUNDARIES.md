@@ -5,8 +5,8 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 ## Current Repo State
 
 - This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
-- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, and Phase 4 purchase receiving workflow are implemented.
-- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, and purchase receipts.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, and Phase 5 batch/expiry/serial tracking foundation are implemented.
+- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, and inventory serials.
 - The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
 ## Target Backend Folder Structure
@@ -303,6 +303,9 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 - Stock in/out, adjustment, reservation, reservation release, reserved deduction, transfer, and future purchase receiving, sales delivery, return QC, damaged stock, expired stock, quarantine, and reconciliation fixes must call `InventoryEngine`.
 - Product import is catalog-only in Phase 3 and must not call `InventoryEngine`, create stock projection rows, create ledger entries, or create reservations.
 - Purchase receipt commit is the only purchase workflow in Phase 4 that mutates stock, and it must call `InventoryEngine.stock_in()`.
+- Phase 5 batch quantity updates, serial creation, and ledger `batch_id`/`serial_id` references are owned by `InventoryEngine.stock_in()`.
+- Purchasing may persist draft receipt tracking fields, but it must not create `inventory_batches`, create `inventory_serials`, or update batch/serial quantities directly.
+- `warehouse_stock` remains location-level in Phase 5; do not add batch or serial stock projection writes outside the engine.
 - Every `InventoryEngine` mutation must create a stock ledger entry.
 - Important stock mutations must create audit logs and notifications where appropriate.
 - Services may orchestrate inventory use cases, but they must delegate stock math and persistence updates to `InventoryEngine`.
@@ -331,7 +334,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 | Product Import | import service, imports router | catalog/import page and import service | import jobs, import rows, products | No in Phase 3 | Preview/validation before commit; catalog-only CSV import. |
 | Warehouses | warehouse service/repository | `modules/warehouses`, `api/warehouseApi.js` | warehouses, locations/bins | No direct mutation | Location movement uses inventory engine. |
 | Inventory | `domain/inventory/engine.py`, stock repository | `modules/inventory`, `api/inventoryApi.js` | stock projection, ledger, batches, serials | Yes, only via `InventoryEngine` | Core correctness module. |
-| Purchasing | purchasing and receiving services | purchase pages and purchasing service | purchase orders, purchase receipts | Via `InventoryEngine.stock_in()` in Phase 4 | PO status alone must not increase stock; bills/accounting are future work. |
+| Purchasing | purchasing and receiving services | purchase pages and purchasing service | purchase orders, purchase receipts | Via `InventoryEngine.stock_in()` in Phase 4+ | PO status alone must not increase stock; receipt tracking fields are forwarded to the engine; bills/accounting are future work. |
 | Sales | sales order service | `modules/sales` | sales orders, customers | Via reservation engine methods | Confirmation reserves; delivery deducts. |
 | Fulfillment | fulfillment service, picking strategy | `modules/fulfillment` | pick tasks, packages, delivery | Via reservation/deduction engine methods | Scanner-friendly flows. |
 | Returns | return service | `modules/returns` | sales returns, return QC | Via return/QC engine methods | Returns do not go directly to sellable stock. |

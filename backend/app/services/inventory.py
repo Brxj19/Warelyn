@@ -2,8 +2,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import AppError
 from app.domain.inventory.engine import InventoryEngine
-from app.models.inventory import StockLedgerEntry, WarehouseStock
+from app.models.inventory import InventoryBatch, InventorySerial, StockLedgerEntry, WarehouseStock
 from app.repositories.inventory import InventoryRepository
 
 
@@ -18,6 +19,24 @@ class InventoryService:
 
     def list_ledger(self, tenant_id: int) -> list[StockLedgerEntry]:
         return self.repository.list_ledger(tenant_id)
+
+    def list_batches(self, tenant_id: int) -> list[InventoryBatch]:
+        return self.repository.list_batches(tenant_id)
+
+    def get_batch(self, tenant_id: int, batch_id: int) -> InventoryBatch:
+        batch = self.repository.get_batch(tenant_id, batch_id)
+        if batch is None:
+            raise AppError("BATCH_NOT_FOUND", "Inventory batch was not found for this tenant.", 404)
+        return batch
+
+    def list_serials(self, tenant_id: int) -> list[InventorySerial]:
+        return self.repository.list_serials(tenant_id)
+
+    def get_serial(self, tenant_id: int, serial_id: int) -> InventorySerial:
+        serial = self.repository.get_serial(tenant_id, serial_id)
+        if serial is None:
+            raise AppError("SERIAL_NOT_FOUND", "Inventory serial was not found for this tenant.", 404)
+        return serial
 
     def stock_in(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
         return self.engine.stock_in(tenant_id, actor_id, values, auto_commit=auto_commit)

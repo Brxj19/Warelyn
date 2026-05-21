@@ -1,6 +1,6 @@
 from app.models.auth import RefreshToken, Tenant, TenantStatus, User, UserRole, UserStatus
 from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportRowStatus, ProductImportMode
-from app.models.inventory import IdempotencyKey, IdempotencyStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
+from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Brand, Category, Customer, LocationType, Product, RecordStatus, Vendor, Warehouse, WarehouseLocation
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptItem, PurchaseReceiptStatus
 
@@ -14,6 +14,10 @@ __all__ = [
     "ImportJobRow",
     "ImportJobStatus",
     "ImportRowStatus",
+    "InventoryBatch",
+    "InventoryBatchStatus",
+    "InventorySerial",
+    "InventorySerialStatus",
     "LocationType",
     "MovementType",
     "Product",

@@ -12,6 +12,8 @@ Product import is catalog-only in Phase 3. It creates or updates product master 
 
 Purchase receiving is implemented in Phase 4 through purchase receipt commit. Commit calls `InventoryEngine.stock_in()` for accepted receipt quantities, uses `STOCK_IN` movement entries with `PURCHASE_RECEIPT` reference type, and must not directly update stock projection or ledger rows outside the engine.
 
+Phase 5 adds batch, expiry, and serial tracking foundation to `InventoryEngine.stock_in()`. The engine validates tracking fields, updates batch quantities, creates serial rows, and writes `batch_id`/`serial_id` ledger references during inbound stock. Purchasing stores draft tracking input, but batch and serial records are created only on receipt commit through the engine.
+
 ## Required Public Methods
 
 ```python
@@ -75,8 +77,8 @@ Target fields:
 - `product_id`
 - `warehouse_id`
 - `location_id` nullable
-- `batch_id` nullable
-- `serial_id` nullable
+- `batch_id` nullable, implemented in Phase 5
+- `serial_id` nullable, implemented in Phase 5
 - `movement_type`
 - `quantity_delta`
 - `reserved_delta`
@@ -121,7 +123,25 @@ Ledger rules:
 
 `warehouse_stock` is a fast current-state projection used by APIs and reports. It must reconcile with ledger totals.
 
-Target fields:
+Implemented Phase 5 fields:
+
+- `id`
+- `tenant_id`
+- `product_id`
+- `warehouse_id`
+- `location_id`
+- `quantity_on_hand`
+- `quantity_reserved`
+- `quantity_available`
+- `updated_at`
+
+Current Phase 5 projection rules:
+
+- `warehouse_stock` remains location-level only with unique `(tenant_id, product_id, warehouse_id, location_id)`.
+- Phase 5 does not add `batch_id` or `serial_id` to `warehouse_stock`.
+- Batch and serial traceability is represented by `inventory_batches`, `inventory_serials`, and ledger references.
+
+Future target fields:
 
 - `id`
 - `tenant_id`
@@ -227,8 +247,13 @@ Batch and serial rules:
 - Products with batch tracking require batch assignment on receive before stock becomes usable.
 - Products with expiry tracking require expiry date on receive and should support FEFO picking.
 - Products with serial tracking require serial capture for each unit at receive, reservation, pick, pack, delivery, and return.
+- Phase 5 implements serial capture only on stock-in/receiving; reservation, pick, pack, delivery, and return serial capture remain future work.
+- Serial-tracked stock-in creates one ledger entry per serial with quantity `1` and `serial_id`.
+- Batch/expiry non-serial stock-in creates one ledger entry with `batch_id`.
+- Untracked products reject tracking fields.
 - Expired batches cannot be reserved for normal sales.
 - Damaged, expired, quarantine, and QC-held batch/serial stock is blocked from available quantity.
+- Expired/damaged/quarantine/QC blocked-state enforcement is future work beyond the Phase 5 foundation.
 
 ## Reservation Rules
 
@@ -248,6 +273,7 @@ Batch and serial rules:
 - Receiving supports partial quantity, accepted quantity, rejected quantity, damaged quantity, batch, expiry, serials, and receiving location.
 - Accepted quantity creates `PURCHASE_RECEIVE` ledger entries and updates stock projection.
 - Phase 4 records accepted quantity as `STOCK_IN` ledger entries with `PURCHASE_RECEIPT` references until a dedicated purchase movement type is introduced.
+- Phase 5 purchase receipt items can store batch, expiry, warranty, and serial input while draft. Commit forwards those fields to `InventoryEngine.stock_in()`.
 - Damaged received quantity must enter damaged or QC state, not sellable available stock.
 - Rejected quantity should be recorded against receiving workflow but should not increase sellable stock.
 - Received tracked products must satisfy required batch, expiry, and serial data before posting.

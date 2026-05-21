@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 4 purchase receiving workflow is complete.
+Phase 5 batch, expiry, and serial tracking foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Sales order, picking/packing/delivery, returns QC, batch/expiry/serial, vendor bill/accounting, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving increases stock only through `InventoryEngine.stock_in()`.
+Sales order, picking/packing/delivery, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving increases stock only through `InventoryEngine.stock_in()`.
 
 Current implemented models:
 
@@ -35,8 +35,10 @@ Current implemented models:
 - `PurchaseOrderItem`
 - `PurchaseReceipt`
 - `PurchaseReceiptItem`
+- `InventoryBatch`
+- `InventorySerial`
 
-Next recommended phase: `Phase 5 - Batch, expiry, and serial tracking foundation` or `Phase 5 - Sales reservation and fulfillment foundation`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 6 - Sales reservation and fulfillment foundation` or `Phase 6 - Putaway foundation`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -107,7 +109,7 @@ Tenant-scoped master data tables added by `20260521_0002_catalog_warehouse_found
 Tenant-scoped inventory tables added by `20260521_0003_inventory_engine_foundation.py`:
 
 - `warehouse_stock`: tenant, product, warehouse, required location, on-hand quantity, reserved quantity, available quantity, updated timestamp; unique `(tenant_id, product_id, warehouse_id, location_id)`.
-- `stock_ledger_entries`: immutable movement history with tenant, product, warehouse, required location, movement type, quantity/reserved/available deltas, reference, idempotency key, note, actor, and timestamp.
+- `stock_ledger_entries`: immutable movement history with tenant, product, warehouse, required location, optional batch, optional serial, movement type, quantity/reserved/available deltas, reference, idempotency key, note, actor, and timestamp.
 - `stock_reservations`: active/released/deducted reservation foundation with tenant, product, warehouse, required location, quantity, status, reference, actor, and timestamps.
 - `idempotency_keys`: tenant-scoped mutation replay protection keyed by `(tenant_id, key, operation)` with request hash and stored response JSON.
 
@@ -128,8 +130,18 @@ Tenant-scoped purchase tables added by `20260521_0005_purchase_receiving_foundat
 - `purchase_order_items`: tenant, purchase order, product, ordered quantity, received quantity, unit cost, notes, and timestamps.
 - `purchase_receipts`: tenant, purchase order, receipt number, status, receiver, received/committed/cancelled timestamps, notes, and timestamps; unique `(tenant_id, receipt_number)`.
 - `purchase_receipt_items`: tenant, receipt, purchase order item, product, warehouse, location, received quantity, unit cost, and timestamps.
+- Phase 5 adds receipt item tracking fields: batch number, supplier batch number, manufacture date, expiry date, warranty date, and serial numbers JSON.
 
 Purchase receipt commit updates `purchase_order_items.received_quantity` and purchase order status in the purchasing workflow transaction, while stock projection and ledger entries are created only through `InventoryEngine.stock_in()`.
+
+### Batch, Expiry, And Serial Tracking Foundation
+
+Tenant-scoped tracking tables added by `20260521_0006_batch_expiry_serial_foundation.py`:
+
+- `inventory_batches`: tenant, product, warehouse, location, batch number, supplier batch number, manufacture date, expiry date, warranty date, quantities, status, and timestamps; unique `(tenant_id, product_id, warehouse_id, location_id, batch_number)`.
+- `inventory_serials`: tenant, product, warehouse, location, optional batch, serial number, status, warranty date, expiry date, and timestamps; unique `(tenant_id, product_id, serial_number)`.
+
+`warehouse_stock` remains location-level only with unique `(tenant_id, product_id, warehouse_id, location_id)`. Phase 5 does not add `batch_id` or `serial_id` to `warehouse_stock`.
 
 ## Enums
 
@@ -244,6 +256,25 @@ Purchase receipt commit updates `purchase_order_items.received_quantity` and pur
 - `COMMITTED`
 - `CANCELLED`
 
+### `InventoryBatchStatus`
+
+- `ACTIVE`
+- `QC_HOLD`
+- `DAMAGED`
+- `EXPIRED`
+- `QUARANTINE`
+- `SCRAPPED`
+
+### `InventorySerialStatus`
+
+- `IN_STOCK`
+- `RESERVED`
+- `SOLD`
+- `DAMAGED`
+- `SCRAPPED`
+- `RETURNED`
+- `QC_HOLD`
+
 ## Migration
 
 Current migration:
@@ -253,6 +284,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0003_inventory_engine_foundation.py`
 - `backend/alembic/versions/20260521_0004_product_import_foundation.py`
 - `backend/alembic/versions/20260521_0005_purchase_receiving_foundation.py`
+- `backend/alembic/versions/20260521_0006_batch_expiry_serial_foundation.py`
 
 Apply migrations:
 

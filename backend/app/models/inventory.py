@@ -1,8 +1,8 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -35,6 +35,25 @@ class ReferenceType(str, enum.Enum):
     TRANSFER = "TRANSFER"
     ADJUSTMENT = "ADJUSTMENT"
     RECONCILIATION = "RECONCILIATION"
+
+
+class InventoryBatchStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    QC_HOLD = "QC_HOLD"
+    DAMAGED = "DAMAGED"
+    EXPIRED = "EXPIRED"
+    QUARANTINE = "QUARANTINE"
+    SCRAPPED = "SCRAPPED"
+
+
+class InventorySerialStatus(str, enum.Enum):
+    IN_STOCK = "IN_STOCK"
+    RESERVED = "RESERVED"
+    SOLD = "SOLD"
+    DAMAGED = "DAMAGED"
+    SCRAPPED = "SCRAPPED"
+    RETURNED = "RETURNED"
+    QC_HOLD = "QC_HOLD"
 
 
 class IdempotencyStatus(str, enum.Enum):
@@ -71,6 +90,8 @@ class StockLedgerEntry(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False, index=True)
     warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True)
     location_id: Mapped[int] = mapped_column(ForeignKey("warehouse_locations.id", ondelete="RESTRICT"), nullable=False, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("inventory_batches.id", ondelete="SET NULL"), nullable=True, index=True)
+    serial_id: Mapped[int | None] = mapped_column(ForeignKey("inventory_serials.id", ondelete="SET NULL"), nullable=True, index=True)
     movement_type: Mapped[MovementType] = mapped_column(Enum(MovementType, name="movement_type", native_enum=False), nullable=False, index=True)
     quantity_delta: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
     reserved_delta: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
@@ -81,6 +102,52 @@ class StockLedgerEntry(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+class InventoryBatch(Base):
+    __tablename__ = "inventory_batches"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "product_id", "warehouse_id", "location_id", "batch_number", name="uq_inventory_batches_dimension_number"),
+        Index("ix_inventory_batches_tenant_product", "tenant_id", "product_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False, index=True)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True)
+    location_id: Mapped[int] = mapped_column(ForeignKey("warehouse_locations.id", ondelete="RESTRICT"), nullable=False, index=True)
+    batch_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    supplier_batch_number: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    manufacture_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    warranty_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    quantity_on_hand: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    quantity_available: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    quantity_reserved: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    status: Mapped[InventoryBatchStatus] = mapped_column(Enum(InventoryBatchStatus, name="inventory_batch_status", native_enum=False), default=InventoryBatchStatus.ACTIVE, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class InventorySerial(Base):
+    __tablename__ = "inventory_serials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "product_id", "serial_number", name="uq_inventory_serials_tenant_product_number"),
+        Index("ix_inventory_serials_tenant_product", "tenant_id", "product_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False, index=True)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True)
+    location_id: Mapped[int] = mapped_column(ForeignKey("warehouse_locations.id", ondelete="RESTRICT"), nullable=False, index=True)
+    batch_id: Mapped[int | None] = mapped_column(ForeignKey("inventory_batches.id", ondelete="SET NULL"), nullable=True, index=True)
+    serial_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    status: Mapped[InventorySerialStatus] = mapped_column(Enum(InventorySerialStatus, name="inventory_serial_status", native_enum=False), default=InventorySerialStatus.IN_STOCK, nullable=False, index=True)
+    warranty_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expires_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
 class StockReservation(Base):

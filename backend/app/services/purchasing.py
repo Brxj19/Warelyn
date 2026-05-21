@@ -147,6 +147,12 @@ class PurchasingService:
                         "warehouse_id": item.warehouse_id,
                         "location_id": item.location_id,
                         "quantity": item.received_quantity,
+                        "batch_number": item.batch_number,
+                        "supplier_batch_number": item.supplier_batch_number,
+                        "manufacture_date": item.manufacture_date,
+                        "expiry_date": item.expiry_date,
+                        "warranty_until": item.warranty_until,
+                        "serial_numbers": item.serial_numbers,
                         "reference_type": ReferenceType.PURCHASE_RECEIPT,
                         "reference_id": receipt.receipt_number,
                         "note": values.get("note") or receipt.notes,
@@ -183,9 +189,10 @@ class PurchasingService:
                 raise AppError("PURCHASE_ORDER_ITEM_NOT_FOUND", "Purchase order item was not found for this purchase order.", 404)
             if po_item.product_id != item["product_id"]:
                 raise AppError("PURCHASE_RECEIPT_PRODUCT_MISMATCH", "Receipt item product must match the purchase order item.", 400)
-            self._require_product(tenant_id, item["product_id"])
+            product = self._require_product(tenant_id, item["product_id"])
             self._require_warehouse(tenant_id, item["warehouse_id"])
             self._require_location(tenant_id, item["warehouse_id"], item["location_id"])
+            self._validate_tracking_fields(product, item)
             pending_by_item[po_item.id] = pending_by_item.get(po_item.id, Decimal("0")) + Decimal(str(item["received_quantity"]))
             remaining = po_item.ordered_quantity - po_item.received_quantity
             if pending_by_item[po_item.id] > remaining:
@@ -209,9 +216,33 @@ class PurchasingService:
         if self.repository.get_vendor(tenant_id, vendor_id) is None:
             raise AppError("VENDOR_NOT_FOUND", "Vendor was not found for this tenant.", 404)
 
-    def _require_product(self, tenant_id: int, product_id: int) -> None:
-        if self.repository.get_product(tenant_id, product_id) is None:
+    def _require_product(self, tenant_id: int, product_id: int):
+        product = self.repository.get_product(tenant_id, product_id)
+        if product is None:
             raise AppError("PRODUCT_NOT_FOUND", "Product was not found for this tenant.", 404)
+        return product
+
+    def _validate_tracking_fields(self, product, item: dict[str, Any]) -> None:
+        serial_numbers = item.get("serial_numbers") or []
+        has_tracking_payload = any(item.get(field) is not None for field in ["batch_number", "supplier_batch_number", "manufacture_date", "expiry_date", "warranty_until"]) or bool(serial_numbers)
+        if not product.track_batch and not product.track_expiry and not product.track_serial:
+            if has_tracking_payload:
+                raise AppError("TRACKING_NOT_ENABLED", "Tracking fields cannot be received for an untracked product.", 400)
+            return
+        if product.track_batch or product.track_expiry:
+            if not str(item.get("batch_number") or "").strip():
+                raise AppError("BATCH_NUMBER_REQUIRED", "Batch or expiry tracked receipt items require a batch number.", 400)
+        if product.track_expiry and not item.get("expiry_date"):
+            raise AppError("EXPIRY_DATE_REQUIRED", "Expiry-tracked receipt items require an expiry date.", 400)
+        if product.track_serial:
+            normalized = [str(value).strip() for value in serial_numbers]
+            if not normalized or len(normalized) != len(serial_numbers) or len(set(normalized)) != len(normalized):
+                raise AppError("INVALID_SERIAL_NUMBERS", "Serial numbers must be non-empty and unique.", 400)
+            if Decimal(len(normalized)) != Decimal(str(item["received_quantity"])):
+                raise AppError("SERIAL_QUANTITY_MISMATCH", "Serial number count must match received quantity.", 400)
+            item["serial_numbers"] = normalized
+        elif serial_numbers:
+            raise AppError("SERIAL_TRACKING_NOT_ENABLED", "Serial numbers cannot be received for a non-serial-tracked product.", 400)
 
     def _require_warehouse(self, tenant_id: int, warehouse_id: int) -> None:
         if self.repository.get_warehouse(tenant_id, warehouse_id) is None:

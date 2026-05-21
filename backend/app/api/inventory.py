@@ -6,7 +6,9 @@ from app.dependencies.auth import require_roles
 from app.models.auth import UserRole
 from app.schemas.inventory import (
     DeductReservationRequest,
+    InventoryBatchRead,
     InventoryMutationResponse,
+    InventorySerialRead,
     ReconciliationDryRunResponse,
     ReleaseReservationRequest,
     ReserveStockRequest,
@@ -34,6 +36,26 @@ def list_stock(context: UserContext = Depends(require_roles(*read_roles)), db: S
 @router.get("/ledger", response_model=list[StockLedgerEntryRead])
 def list_ledger(context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> list[StockLedgerEntryRead]:
     return InventoryService(db).list_ledger(context.tenant_id)
+
+
+@router.get("/batches", response_model=list[InventoryBatchRead])
+def list_batches(context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> list[InventoryBatchRead]:
+    return InventoryService(db).list_batches(context.tenant_id)
+
+
+@router.get("/batches/{batch_id}", response_model=InventoryBatchRead)
+def get_batch(batch_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> InventoryBatchRead:
+    return InventoryService(db).get_batch(context.tenant_id, batch_id)
+
+
+@router.get("/serials", response_model=list[InventorySerialRead])
+def list_serials(context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> list[InventorySerialRead]:
+    return InventoryService(db).list_serials(context.tenant_id)
+
+
+@router.get("/serials/{serial_id}", response_model=InventorySerialRead)
+def get_serial(serial_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> InventorySerialRead:
+    return InventoryService(db).get_serial(context.tenant_id, serial_id)
 
 
 @router.get("/reconciliation/dry-run", response_model=ReconciliationDryRunResponse)

@@ -8,6 +8,7 @@ import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import * as catalogService from '../services/catalogService.js';
 import * as purchasingService from '../services/purchasingService.js';
 import * as warehouseService from '../services/warehouseService.js';
 
@@ -18,6 +19,7 @@ export function PurchaseReceivePage() {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
+  const [productsById, setProductsById] = useState({});
   const [warehouses, setWarehouses] = useState([]);
   const [locationsByWarehouse, setLocationsByWarehouse] = useState({});
   const [receiptNumber, setReceiptNumber] = useState(`GRN-${Date.now()}`);
@@ -31,15 +33,16 @@ export function PurchaseReceivePage() {
       setIsLoading(true);
       setError('');
       try {
-        const [orderRow, warehouseRows] = await Promise.all([purchasingService.getPurchaseOrder(accessToken, id), warehouseService.listWarehouses(accessToken)]);
+        const [orderRow, warehouseRows, productRows] = await Promise.all([purchasingService.getPurchaseOrder(accessToken, id), warehouseService.listWarehouses(accessToken), catalogService.listProducts(accessToken)]);
         const locationPairs = await Promise.all(warehouseRows.map(async (warehouse) => [warehouse.id, await warehouseService.listWarehouseLocations(accessToken, warehouse.id)]));
         const locationMap = Object.fromEntries(locationPairs);
         const defaultWarehouse = warehouseRows[0]?.id ? String(warehouseRows[0].id) : '';
         const defaultLocation = defaultWarehouse && locationMap[defaultWarehouse]?.[0]?.id ? String(locationMap[defaultWarehouse][0].id) : '';
         setOrder(orderRow);
+        setProductsById(Object.fromEntries(productRows.map((product) => [product.id, product])));
         setWarehouses(warehouseRows);
         setLocationsByWarehouse(locationMap);
-        setLines(orderRow.items.map((item) => ({ purchase_order_item_id: item.id, product_id: item.product_id, warehouse_id: defaultWarehouse, location_id: defaultLocation, received_quantity: Math.max(0, Number(item.ordered_quantity) - Number(item.received_quantity)).toString(), unit_cost: item.unit_cost })));
+        setLines(orderRow.items.map((item) => ({ purchase_order_item_id: item.id, product_id: item.product_id, warehouse_id: defaultWarehouse, location_id: defaultLocation, received_quantity: Math.max(0, Number(item.ordered_quantity) - Number(item.received_quantity)).toString(), unit_cost: item.unit_cost, batch_number: '', supplier_batch_number: '', manufacture_date: '', expiry_date: '', warranty_until: '', serial_numbers: '' })));
       } catch (loadError) {
         setError(loadError.message);
       } finally {
@@ -67,7 +70,23 @@ export function PurchaseReceivePage() {
     try {
       const items = lines
         .filter((line, index) => Number(line.received_quantity) > 0 && Number(line.received_quantity) <= Number(order.items[index].ordered_quantity) - Number(order.items[index].received_quantity))
-        .map((line) => ({ ...line, warehouse_id: Number(line.warehouse_id), location_id: Number(line.location_id), received_quantity: line.received_quantity, product_id: Number(line.product_id), purchase_order_item_id: Number(line.purchase_order_item_id) }));
+        .map((line) => {
+          const serialNumbers = line.serial_numbers.split(/[\n,]+/).map((value) => value.trim()).filter(Boolean);
+          return {
+            ...line,
+            warehouse_id: Number(line.warehouse_id),
+            location_id: Number(line.location_id),
+            received_quantity: line.received_quantity,
+            product_id: Number(line.product_id),
+            purchase_order_item_id: Number(line.purchase_order_item_id),
+            batch_number: line.batch_number || null,
+            supplier_batch_number: line.supplier_batch_number || null,
+            manufacture_date: line.manufacture_date || null,
+            expiry_date: line.expiry_date || null,
+            warranty_until: line.warranty_until || null,
+            serial_numbers: serialNumbers.length ? serialNumbers : null,
+          };
+        });
       const receipt = await purchasingService.createPurchaseReceipt(accessToken, id, { receipt_number: receiptNumber, items });
       navigate(`/purchase-receipts/${receipt.id}`);
     } catch (saveError) {
@@ -98,13 +117,16 @@ export function PurchaseReceivePage() {
           <CardBody className="space-y-4">
             {lines.map((line, index) => {
               const item = order.items[index];
+              const product = productsById[line.product_id];
               const remaining = Number(item.ordered_quantity) - Number(item.received_quantity);
+              const isTracked = product?.track_batch || product?.track_expiry || product?.track_serial;
               return (
                 <div className="grid gap-3 rounded-xl border border-warelyn-border p-4 lg:grid-cols-[1fr_1fr_1fr_1fr]" key={line.purchase_order_item_id}>
-                  <div><span className="text-xs font-semibold uppercase tracking-wide text-warelyn-muted">Product</span><p className="mt-2 font-semibold text-warelyn-text">#{line.product_id}</p><p className="text-sm text-warelyn-muted">Remaining {remaining.toFixed(3)}</p></div>
+                  <div><span className="text-xs font-semibold uppercase tracking-wide text-warelyn-muted">Product</span><p className="mt-2 font-semibold text-warelyn-text">{product?.name ?? `#${line.product_id}`}</p><p className="text-sm text-warelyn-muted">Remaining {remaining.toFixed(3)}</p>{isTracked ? <p className="mt-2 text-xs font-semibold text-warelyn-primary">Tracking: {[product.track_batch ? 'batch' : null, product.track_expiry ? 'expiry' : null, product.track_serial ? 'serial' : null].filter(Boolean).join(', ')}</p> : null}</div>
                   <Input label="Receive quantity" max={remaining} min="0" step="0.001" type="number" value={line.received_quantity} onChange={(event) => updateLine(index, 'received_quantity', event.target.value)} />
                   <label className="block"><span className="mb-2 block text-sm font-medium text-warelyn-text">Warehouse</span><select className={selectClass} required value={line.warehouse_id} onChange={(event) => updateLine(index, 'warehouse_id', event.target.value)}><option value="">Select warehouse</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label>
                   <label className="block"><span className="mb-2 block text-sm font-medium text-warelyn-text">Location</span><select className={selectClass} required value={line.location_id} onChange={(event) => updateLine(index, 'location_id', event.target.value)}><option value="">Select location</option>{(locationsByWarehouse[line.warehouse_id] ?? []).map((location) => <option key={location.id} value={location.id}>{location.name} ({location.location_type})</option>)}</select></label>
+                  {isTracked ? <div className="grid gap-3 lg:col-span-4 lg:grid-cols-5"><Input label="Batch number" required={product?.track_batch || product?.track_expiry} value={line.batch_number} onChange={(event) => updateLine(index, 'batch_number', event.target.value)} /><Input label="Supplier batch" value={line.supplier_batch_number} onChange={(event) => updateLine(index, 'supplier_batch_number', event.target.value)} /><Input label="Manufacture date" type="date" value={line.manufacture_date} onChange={(event) => updateLine(index, 'manufacture_date', event.target.value)} /><Input label="Expiry date" required={product?.track_expiry} type="date" value={line.expiry_date} onChange={(event) => updateLine(index, 'expiry_date', event.target.value)} /><Input label="Warranty until" type="date" value={line.warranty_until} onChange={(event) => updateLine(index, 'warranty_until', event.target.value)} />{product?.track_serial ? <label className="block lg:col-span-5"><span className="mb-2 block text-sm font-medium text-warelyn-text">Serial numbers</span><textarea className={selectClass} placeholder="One per line or comma-separated" required rows="3" value={line.serial_numbers} onChange={(event) => updateLine(index, 'serial_numbers', event.target.value)} /></label> : null}</div> : null}
                 </div>
               );
             })}

@@ -144,6 +144,23 @@ class InventoryEngine:
         stock = self.repository.lock_stock(tenant_id, reservation.product_id, reservation.warehouse_id, reservation.location_id)
         if stock is None:
             raise AppError("STOCK_NOT_FOUND", "Stock was not found for this tenant.", 404)
+        product = self.repository.get_product(tenant_id, reservation.product_id)
+        if product is None:
+            raise AppError("PRODUCT_NOT_FOUND", "Product was not found for this tenant.", 404)
+        if product.track_serial:
+            serial_id = payload.get("serial_id")
+            if serial_id is None:
+                raise AppError("SERIAL_SELECTION_REQUIRED", "Serial-tracked deduction requires a picked serial allocation.", 400)
+            if reservation.quantity != Decimal("1"):
+                raise AppError("SERIAL_RESERVATION_QUANTITY_INVALID", "Serial reservations must be deducted one unit at a time.", 409)
+            serial = self.repository.get_serial(tenant_id, int(serial_id))
+            if serial is None:
+                raise AppError("SERIAL_NOT_FOUND", "Serial was not found for this tenant.", 404)
+            if serial.product_id != reservation.product_id or serial.warehouse_id != reservation.warehouse_id or serial.location_id != reservation.location_id:
+                raise AppError("SERIAL_RESERVATION_MISMATCH", "Picked serial must match the reservation dimensions.", 400)
+            if serial.status != InventorySerialStatus.IN_STOCK:
+                raise AppError("SERIAL_NOT_AVAILABLE", "Picked serial must be in stock before deduction.", 409)
+            serial.status = InventorySerialStatus.SOLD
         reservation.status = ReservationStatus.DEDUCTED
         reservation.deducted_at = datetime.now(UTC)
         stock.quantity_on_hand -= reservation.quantity

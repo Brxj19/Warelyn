@@ -7,6 +7,9 @@ import { BrandsPage, CategoriesPage, CustomersPage, ProductsPage, VendorsPage } 
 import { DashboardPage } from '../pages/DashboardPage.jsx';
 import { LoginPage } from '../pages/LoginPage.jsx';
 import { NotFoundPage } from '../pages/NotFoundPage.jsx';
+import { PackageDetailPage } from '../pages/PackageDetailPage.jsx';
+import { PickTaskDetailPage } from '../pages/PickTaskDetailPage.jsx';
+import { PickTasksPage } from '../pages/PickTasksPage.jsx';
 import { ProductImportPage } from '../pages/ProductImportPage.jsx';
 import { PurchaseOrderDetailPage } from '../pages/PurchaseOrderDetailPage.jsx';
 import { PurchaseOrderFormPage } from '../pages/PurchaseOrderFormPage.jsx';
@@ -18,7 +21,9 @@ import { SalesFulfillPage } from '../pages/SalesFulfillPage.jsx';
 import { SalesFulfillmentDetailPage } from '../pages/SalesFulfillmentDetailPage.jsx';
 import { SalesOrderDetailPage } from '../pages/SalesOrderDetailPage.jsx';
 import { SalesOrderFormPage } from '../pages/SalesOrderFormPage.jsx';
+import { SalesPackagePage } from '../pages/SalesPackagePage.jsx';
 import { SalesPage } from '../pages/SalesPage.jsx';
+import { SalesPickPage } from '../pages/SalesPickPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
@@ -48,7 +53,12 @@ export function AppRoutes() {
           <Route path="sales" element={<SalesPage />} />
           <Route path="sales/new" element={<SalesOrderFormPage />} />
           <Route path="sales/:id" element={<SalesOrderDetailPage />} />
+          <Route path="sales/:id/pick" element={<SalesPickPage />} />
+          <Route path="sales/:id/package" element={<SalesPackagePage />} />
           <Route path="sales/:id/fulfill" element={<SalesFulfillPage />} />
+          <Route path="pick-tasks" element={<PickTasksPage />} />
+          <Route path="pick-tasks/:id" element={<PickTaskDetailPage />} />
+          <Route path="packages/:id" element={<PackageDetailPage />} />
           <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
           <Route path="reports" element={<DashboardPage />} />

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
 from app.models.inventory import ReferenceType, ReservationStatus
 from app.models.sales import SalesFulfillment, SalesFulfillmentStatus, SalesOrder, SalesOrderItem, SalesOrderStatus
+from app.repositories.fulfillment import FulfillmentRepository
 from app.repositories.sales import SalesRepository
 from app.services.inventory import InventoryService
 
@@ -19,6 +20,7 @@ class SalesService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repository = SalesRepository(db)
+        self.fulfillment_repository = FulfillmentRepository(db)
 
     def list_sales_orders(self, tenant_id: int) -> list[SalesOrder]:
         return self.repository.list_sales_orders(tenant_id)
@@ -182,6 +184,10 @@ class SalesService:
                 order_item = self.repository.lock_sales_order_item(tenant_id, item.sales_order_item_id)
                 if order_item is None or order_item.sales_order_id != order.id:
                     raise AppError("SALES_ORDER_ITEM_NOT_FOUND", "Sales order item was not found for this sales order.", 404)
+                picked_item = self.fulfillment_repository.get_picked_item_for_reservation(tenant_id, item.reservation_id)
+                tracking_payload = {}
+                if picked_item is not None:
+                    tracking_payload = {"batch_id": picked_item.batch_id, "serial_id": picked_item.serial_id}
                 result = InventoryService(self.db).deduct_reserved_stock(
                     tenant_id,
                     actor_id,
@@ -189,6 +195,7 @@ class SalesService:
                     {
                         "note": values.get("note") or fulfillment.notes,
                         "idempotency_key": f"{values['idempotency_key']}:sales-fulfillment:{fulfillment.id}:item:{item.id}",
+                        **tracking_payload,
                     },
                     auto_commit=False,
                 )
@@ -225,8 +232,8 @@ class SalesService:
                 raise AppError("SALES_ALLOCATION_ITEM_MISMATCH", "Allocation line must reference this sales order's items.", 400)
             item = next(order_item for order_item in order.items if order_item.id == allocation["sales_order_item_id"])
             product = self._require_product(tenant_id, item.product_id)
-            if product.track_serial:
-                raise AppError("SERIAL_SALES_NOT_SUPPORTED", "Serial-tracked sales allocation is not supported until explicit serial picking is implemented.", 400)
+            if product.track_serial and Decimal(str(allocation["quantity"])) != Decimal("1"):
+                raise AppError("SERIAL_ALLOCATION_MUST_BE_UNIT", "Serial-tracked sales allocations must be split into one-unit reservation lines.", 400)
             self._require_warehouse(tenant_id, allocation["warehouse_id"])
             self._require_location(tenant_id, allocation["warehouse_id"], allocation["location_id"])
             totals[item.id] = totals.get(item.id, ZERO) + Decimal(str(allocation["quantity"]))
@@ -251,6 +258,9 @@ class SalesService:
                 raise AppError("SALES_FULFILLMENT_RESERVATION_MISMATCH", "Fulfillment item must match the selected reservation dimensions.", 400)
             if Decimal(str(item["fulfilled_quantity"])) != reservation.quantity:
                 raise AppError("SALES_FULFILLMENT_RESERVATION_QUANTITY", "Phase 6 fulfillment quantity must match the selected reservation quantity.", 400)
+            product = self._require_product(tenant_id, item["product_id"])
+            if product.track_serial and self.fulfillment_repository.get_picked_item_for_reservation(tenant_id, reservation.id) is None:
+                raise AppError("SERIAL_PICK_REQUIRED", "Serial-tracked fulfillment requires explicit serial picking first.", 409)
             self._require_warehouse(tenant_id, item["warehouse_id"])
             self._require_location(tenant_id, item["warehouse_id"], item["location_id"])
             pending_by_item[order_item.id] = pending_by_item.get(order_item.id, ZERO) + Decimal(str(item["fulfilled_quantity"]))

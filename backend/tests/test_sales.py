@@ -251,7 +251,7 @@ def test_sales_roles(client: TestClient, db_session: Session) -> None:
     assert commit.status_code == 200
 
 
-def test_serial_tracked_product_confirmation_is_blocked(client: TestClient) -> None:
+def test_serial_tracked_product_confirmation_requires_unit_allocations(client: TestClient) -> None:
     login = register_and_login(client)
     dimension = setup_sales_dimension(client, login["access_token"], "SER", {"name": "Serial Product", "sku": "SER-SALES", "track_serial": True})
     response = client.post("/api/inventory/stock-in", json={"product_id": dimension["product_id"], "warehouse_id": dimension["warehouse_id"], "location_id": dimension["location_id"], "quantity": "1", "serial_numbers": ["SER-SALES-1"], "idempotency_key": "serial-sales-in"}, headers=auth_headers(login["access_token"]))
@@ -260,8 +260,12 @@ def test_serial_tracked_product_confirmation_is_blocked(client: TestClient) -> N
 
     confirm = client.post(f"/api/sales-orders/{order['id']}/confirm", json={"idempotency_key": "confirm-serial", "allocations": [{"sales_order_item_id": order["items"][0]["id"], "warehouse_id": dimension["warehouse_id"], "location_id": dimension["location_id"], "quantity": "1"}]}, headers=auth_headers(login["access_token"]))
 
-    assert confirm.status_code == 400
-    assert confirm.json()["error"]["code"] == "SERIAL_SALES_NOT_SUPPORTED"
+    assert confirm.status_code == 200
+
+    order_two = create_sales_order(client, login["access_token"], dimension, "2", "SO-SERIAL-2")
+    invalid = client.post(f"/api/sales-orders/{order_two['id']}/confirm", json={"idempotency_key": "confirm-serial-two", "allocations": [{"sales_order_item_id": order_two["items"][0]["id"], "warehouse_id": dimension["warehouse_id"], "location_id": dimension["location_id"], "quantity": "2"}]}, headers=auth_headers(login["access_token"]))
+    assert invalid.status_code == 400
+    assert invalid.json()["error"]["code"] == "SERIAL_ALLOCATION_MUST_BE_UNIT"
 
 
 def test_sales_models_statuses_persist(client: TestClient, db_session: Session) -> None:

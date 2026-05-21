@@ -1,4 +1,5 @@
 from app.models.auth import RefreshToken, Tenant, TenantStatus, User, UserRole, UserStatus
+from app.models.fulfillment import Package, PackageItem, PackageStatus, PickTask, PickTaskItem, PickTaskItemStatus, PickTaskStatus
 from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportRowStatus, ProductImportMode
 from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Brand, Category, Customer, LocationType, Product, RecordStatus, Vendor, Warehouse, WarehouseLocation
@@ -21,6 +22,13 @@ __all__ = [
     "InventorySerialStatus",
     "LocationType",
     "MovementType",
+    "Package",
+    "PackageItem",
+    "PackageStatus",
+    "PickTask",
+    "PickTaskItem",
+    "PickTaskItemStatus",
+    "PickTaskStatus",
     "Product",
     "ProductImportMode",
     "PurchaseOrder",

@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 6 sales reservation and fulfillment foundation is complete.
+Phase 7 picking, packing, and serial allocation foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Picking/packing, carrier shipment, invoice accounting, payment collection, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, serial-specific sales allocation, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving and sales fulfillment mutate stock only through `InventoryEngine`.
+Carrier shipment, invoice accounting, payment collection, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, full mobile scanner workflow, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving and sales fulfillment mutate stock only through `InventoryEngine`; picking and packing do not mutate stock.
 
 Current implemented models:
 
@@ -41,8 +41,12 @@ Current implemented models:
 - `SalesOrderItem`
 - `SalesFulfillment`
 - `SalesFulfillmentItem`
+- `PickTask`
+- `PickTaskItem`
+- `Package`
+- `PackageItem`
 
-Next recommended phase: `Phase 7 - Picking, Packing, and Serial Allocation Foundation` or `Phase 7 - Returns QC Foundation`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 8 - Returns QC Foundation` or `Phase 8 - Reports, Reorder Rules, and Operational Dashboards`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -157,6 +161,17 @@ Tenant-scoped sales tables added by `20260521_0007_sales_reservation_fulfillment
 - `sales_fulfillment_items`: tenant, fulfillment, sales order item, product, warehouse, location, reservation, fulfilled quantity, and timestamps.
 
 Sales confirmation creates `stock_reservations` and `SALES_RESERVE` ledger entries through `InventoryEngine.reserve_stock()`. Sales cancellation/close releases active reservations through `InventoryEngine.release_reservation()`. Fulfillment commit deducts reserved stock through `InventoryEngine.deduct_reserved_stock()`.
+
+### Picking, Packing, And Serial Allocation Foundation
+
+Tenant-scoped fulfillment operations tables added by `20260521_0008_picking_packing_serial_allocation_foundation.py`:
+
+- `pick_tasks`: tenant, sales order, pick number, status, assignee, workflow timestamps, notes, creator, and timestamps; unique `(tenant_id, pick_number)`.
+- `pick_task_items`: tenant, pick task, sales order item, reservation, product, warehouse, location, optional batch, optional serial, required quantity, picked quantity, status, and timestamps.
+- `packages`: tenant, sales order, package number, status, packer, workflow timestamps, notes, and timestamps; unique `(tenant_id, package_number)`.
+- `package_items`: tenant, package, pick task item, sales order item, product, optional batch, optional serial, quantity, and timestamps.
+
+Picking and packing do not update `warehouse_stock`, `stock_reservations`, or `stock_ledger_entries`. Explicit serial allocation is stored on `pick_task_items.serial_id`; final serial status changes happen only during fulfillment deduction through `InventoryEngine.deduct_reserved_stock()`.
 
 ## Enums
 
@@ -305,6 +320,25 @@ Sales confirmation creates `stock_reservations` and `SALES_RESERVE` ledger entri
 - `COMMITTED`
 - `CANCELLED`
 
+### `PickTaskStatus`
+
+- `PENDING`
+- `IN_PROGRESS`
+- `PICKED`
+- `CANCELLED`
+
+### `PickTaskItemStatus`
+
+- `PENDING`
+- `PICKED`
+- `CANCELLED`
+
+### `PackageStatus`
+
+- `DRAFT`
+- `PACKED`
+- `CANCELLED`
+
 ## Migration
 
 Current migration:
@@ -316,6 +350,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0005_purchase_receiving_foundation.py`
 - `backend/alembic/versions/20260521_0006_batch_expiry_serial_foundation.py`
 - `backend/alembic/versions/20260521_0007_sales_reservation_fulfillment_foundation.py`
+- `backend/alembic/versions/20260521_0008_picking_packing_serial_allocation_foundation.py`
 
 Apply migrations:
 

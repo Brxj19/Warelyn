@@ -476,11 +476,76 @@ Rules:
 - Sales orders must reference a tenant-owned customer and tenant-owned products.
 - Sales order updates are allowed only while `DRAFT`.
 - Confirmation requires explicit allocation lines with `sales_order_item_id`, `warehouse_id`, `location_id`, and `quantity`.
-- Allocated quantity must equal ordered quantity for each order item in Phase 6.
+- Allocated quantity must equal ordered quantity for each order item.
 - Warehouse and location must belong to the tenant; location must belong to the selected warehouse.
-- Serial-tracked products are blocked from sales confirmation until explicit serial allocation is implemented.
+- Serial-tracked products can be confirmed only with one-unit reservation lines; explicit `serial_id` selection happens during picking.
 - Fulfillment requires active reservations for the same sales order.
+- Serial-tracked fulfillment requires a picked serial allocation for the reservation.
 - Fulfillment commit creates `SALES_DEDUCT` ledger entries and updates order fulfillment status.
 - Cancelled fulfillments do not mutate stock.
 
-Phase 6 limitations: no picking workflow, packing workflow, carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, mobile scanner workflow, advanced reports, or serial-specific allocation/picking.
+## Picking, Packing, And Serial Allocation Foundation
+
+All picking and packing routes require a bearer token and derive `tenant_id` from authenticated user context. Picking and packing are operational allocation workflows only: they do not mutate `warehouse_stock`, do not release reservations, and do not create `stock_ledger_entries`. Final deduction remains `InventoryEngine.deduct_reserved_stock()` during sales fulfillment commit. Package data is optional in Phase 7.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`, `VIEWER`.
+
+Write roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`.
+
+`VIEWER` is read-only. `PURCHASE_STAFF` cannot manage picking or packing. `SUPER_ADMIN` does not use normal tenant picking and packing APIs.
+
+Implemented endpoints:
+
+- `GET /api/pick-tasks`
+- `POST /api/sales-orders/{order_id}/pick-tasks`
+- `GET /api/sales-orders/{order_id}/pick-tasks`
+- `GET /api/pick-tasks/{pick_task_id}`
+- `PATCH /api/pick-tasks/{pick_task_id}`
+- `POST /api/pick-tasks/{pick_task_id}/start`
+- `POST /api/pick-tasks/{pick_task_id}/pick`
+- `POST /api/pick-tasks/{pick_task_id}/cancel`
+- `POST /api/sales-orders/{order_id}/packages`
+- `GET /api/sales-orders/{order_id}/packages`
+- `GET /api/packages/{package_id}`
+- `PATCH /api/packages/{package_id}`
+- `POST /api/packages/{package_id}/pack`
+- `POST /api/packages/{package_id}/cancel`
+
+Pick task statuses:
+
+- `PENDING`
+- `IN_PROGRESS`
+- `PICKED`
+- `CANCELLED`
+
+Pick task item statuses:
+
+- `PENDING`
+- `PICKED`
+- `CANCELLED`
+
+Package statuses:
+
+- `DRAFT`
+- `PACKED`
+- `CANCELLED`
+
+Picking rules:
+
+- Pick tasks can be generated only for `CONFIRMED` or `PARTIALLY_FULFILLED` sales orders.
+- Pick tasks are generated from active `StockReservation` rows.
+- Duplicate active pick tasks for the same reservation are blocked.
+- Picked quantity cannot exceed required quantity or active reservation quantity.
+- Serial-tracked products require explicit `serial_id` during picking.
+- Selected serial must belong to the same tenant, product, warehouse, and location, and must be `IN_STOCK`.
+- Duplicate serial allocation is blocked within a pick request and across non-cancelled pick tasks.
+- Batch allocation is explicit/manual only; selected batch must match tenant, product, warehouse, and location.
+
+Packing rules:
+
+- Packages can be created only from picked task items.
+- Package creation and pack action do not deduct stock.
+- Cancelled packages do not mutate stock.
+- Packages remain optional before fulfillment commit in Phase 7.
+
+Phase 7 limitations: no carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, delivery tracking with external carriers, full mobile scanner workflow, advanced reports, or mandatory package-before-fulfillment enforcement.

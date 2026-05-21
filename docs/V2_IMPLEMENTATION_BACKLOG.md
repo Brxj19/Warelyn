@@ -21,6 +21,7 @@ Completed:
 - Phase 4 purchase receiving workflow: purchase orders, purchase receipts, partial receiving, warehouse/location receiving, receipt commit through `InventoryEngine.stock_in()`, and purchase ledger references.
 - Phase 5 batch, expiry, and serial tracking foundation: traceability tables, tracked receiving validation, ledger batch/serial references, read-only batch/serial APIs, and receiving UI fields.
 - Phase 6 sales reservation and fulfillment foundation: sales orders, explicit location allocation, reservation/release/deduction through `InventoryEngine`, sales fulfillment drafts/commit, frontend sales screens, and sales workflow tests.
+- Phase 7 picking, packing, and serial allocation foundation: pick tasks, pick task items, explicit serial allocation during picking, optional batch allocation, packages, package items, frontend picking/packing screens, and workflow tests.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -38,7 +39,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 7 - Picking, Packing, and Serial Allocation Foundation` or `Phase 7 - Returns QC Foundation`.
+Next recommended phase: `Phase 8 - Returns QC Foundation` or `Phase 8 - Reports, Reorder Rules, and Operational Dashboards`.
 
 ## Required Phase Order
 
@@ -137,6 +138,18 @@ Phase 5 intentionally keeps `warehouse_stock` location-level only and does not a
 - Frontend sales order and fulfillment screens.
 
 Phase 6 does not implement picking, packing, carrier shipment, invoice accounting, payment collection, returns QC, FEFO auto-allocation, mobile scanner workflow, or serial-specific allocation/picking. Serial-tracked products are blocked from sales confirmation until explicit serial allocation is implemented.
+
+`Phase 7 - Picking, Packing, and Serial Allocation Foundation` is completed and includes:
+
+- Tenant-scoped `pick_tasks`, `pick_task_items`, `packages`, and `package_items`.
+- Pick tasks generated from active sales order reservations.
+- Explicit serial allocation during picking for serial-tracked products.
+- Optional explicit batch allocation during picking.
+- Picking and packing as non-stock-mutating operational workflows.
+- Package records remain optional before fulfillment commit in Phase 7.
+- Fulfillment commit remains backward compatible for non-serial products and deducts only through `InventoryEngine.deduct_reserved_stock()`.
+
+Phase 7 does not implement carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, delivery tracking with external carriers, or full mobile scanner workflow.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|

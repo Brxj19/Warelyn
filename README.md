@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 6 - Sales Reservation and Fulfillment Foundation**.
+This repository has completed **Phase 7 - Picking, Packing, and Serial Allocation Foundation**.
 
 Related commits:
 
@@ -23,27 +23,29 @@ The current implementation provides:
 - Tenant-scoped purchase orders, purchase order items, purchase receipts, partial receiving, and receipt commit through `InventoryEngine.stock_in()`.
 - Batch, expiry, and serial traceability records for tracked products, with ledger references created by `InventoryEngine.stock_in()`.
 - Tenant-scoped sales orders, explicit location-level sales reservation, reservation release, and fulfillment deduction through `InventoryEngine`.
+- Tenant-scoped pick tasks, pick task items, explicit serial allocation during picking, optional batch allocation, packages, and package items.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - Product import UI with CSV dropzone, preview table, import modes, and reusable scanner-friendly barcode input.
 - Purchase order, receiving, and receipt detail screens with warehouse/location receiving and committed stock impact.
 - Purchase receiving fields for batch number, expiry, warranty, and serial capture on tracked products.
 - Sales order, sales confirmation allocation, fulfillment draft, and fulfillment commit screens.
+- Picking queue, pick task detail, sales pick, sales package, and package detail screens.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
 - XLSX import and import column mapping UI.
 - Vendor bills, supplier payments, invoice accounting, and purchase PDFs.
-- Full picking, packing, carrier shipment, invoice accounting, payment collection, or returns QC workflows.
-- FEFO auto-allocation, expiry background jobs, and serial-specific sales allocation/picking.
+- Carrier shipment, invoice accounting, payment collection, or returns QC workflows.
+- FEFO auto-allocation, expiry background jobs, package-mandatory fulfillment, and full mobile scanner workflow.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **Phase 7 - Picking, Packing, and Serial Allocation Foundation** or **Phase 7 - Returns QC Foundation**.
+Next recommended phase: **Phase 8 - Returns QC Foundation** or **Phase 8 - Reports, Reorder Rules, and Operational Dashboards**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()`, sales confirmation reserves through `InventoryEngine.reserve_stock()`, sales cancellation/close releases through `InventoryEngine.release_reservation()`, and fulfillment commit deducts through `InventoryEngine.deduct_reserved_stock()`.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()`, sales confirmation reserves through `InventoryEngine.reserve_stock()`, sales cancellation/close releases through `InventoryEngine.release_reservation()`, picking and packing do not mutate stock, and fulfillment commit deducts through `InventoryEngine.deduct_reserved_stock()`.
 
 ## Tech Stack
 
@@ -192,6 +194,23 @@ Sales endpoints:
 - `GET|PATCH /api/sales-fulfillments/{fulfillment_id}`
 - `POST /api/sales-fulfillments/{fulfillment_id}/commit`
 - `POST /api/sales-fulfillments/{fulfillment_id}/cancel`
+
+Picking and packing endpoints:
+
+- `GET /api/pick-tasks`
+- `POST /api/sales-orders/{order_id}/pick-tasks`
+- `GET /api/sales-orders/{order_id}/pick-tasks`
+- `GET /api/pick-tasks/{pick_task_id}`
+- `PATCH /api/pick-tasks/{pick_task_id}`
+- `POST /api/pick-tasks/{pick_task_id}/start`
+- `POST /api/pick-tasks/{pick_task_id}/pick`
+- `POST /api/pick-tasks/{pick_task_id}/cancel`
+- `POST /api/sales-orders/{order_id}/packages`
+- `GET /api/sales-orders/{order_id}/packages`
+- `GET /api/packages/{package_id}`
+- `PATCH /api/packages/{package_id}`
+- `POST /api/packages/{package_id}/pack`
+- `POST /api/packages/{package_id}/cancel`
 
 Warehouse endpoints:
 

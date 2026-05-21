@@ -16,6 +16,8 @@ Phase 5 adds batch, expiry, and serial tracking foundation to `InventoryEngine.s
 
 Phase 6 adds sales reservation and fulfillment foundation. Sales confirmation calls `InventoryEngine.reserve_stock()`, sales cancellation/close calls `InventoryEngine.release_reservation()`, and fulfillment commit calls `InventoryEngine.deduct_reserved_stock()`. Sales services own sales workflow state but do not directly mutate `warehouse_stock`, `stock_reservations`, or `stock_ledger_entries` outside the engine.
 
+Phase 7 adds picking, packing, and explicit serial allocation foundation. Pick task creation, picking, package creation, and packing do not mutate `warehouse_stock`, do not release reservations, and do not create stock ledger entries. Serial-tracked sales reservations must be split into one-unit reservation lines; picking stores the selected `serial_id`, and fulfillment commit passes that allocation into `InventoryEngine.deduct_reserved_stock()`, which marks the serial as `SOLD` while deducting reserved stock. Package data remains optional before fulfillment in Phase 7.
+
 ## Required Public Methods
 
 ```python

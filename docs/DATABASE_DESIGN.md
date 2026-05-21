@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 1B tenant-scoped catalog and warehouse foundation is complete.
+Phase 2 InventoryEngine and stock ledger foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Inventory quantities, stock ledger, purchase, sales, and returns workflow tables are not implemented yet.
+Product import, purchase receiving, sales order, picking/packing/delivery, returns QC, batch/expiry/serial, and advanced report tables are not implemented yet.
 
 Current implemented models:
 
@@ -25,8 +25,12 @@ Current implemented models:
 - `Product`
 - `Warehouse`
 - `WarehouseLocation`
+- `WarehouseStock`
+- `StockLedgerEntry`
+- `StockReservation`
+- `IdempotencyKey`
 
-Next recommended phase: `Phase 2 - Inventory Engine and stock ledger`. Product, warehouse, and location master data do not hold stock balances or mutate stock.
+Next recommended phase: `Phase 3 - Product import and barcode-ready catalog`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -92,6 +96,15 @@ Tenant-scoped master data tables added by `20260521_0002_catalog_warehouse_found
 - `warehouses`: tenant, name, code, address, status, timestamps; unique `(tenant_id, code)`.
 - `warehouse_locations`: tenant, warehouse, optional parent location, code, name, barcode, location type, sort order, status, timestamps; unique `(tenant_id, warehouse_id, code)` and `(tenant_id, warehouse_id, barcode)`.
 
+### Inventory Foundation
+
+Tenant-scoped inventory tables added by `20260521_0003_inventory_engine_foundation.py`:
+
+- `warehouse_stock`: tenant, product, warehouse, required location, on-hand quantity, reserved quantity, available quantity, updated timestamp; unique `(tenant_id, product_id, warehouse_id, location_id)`.
+- `stock_ledger_entries`: immutable movement history with tenant, product, warehouse, required location, movement type, quantity/reserved/available deltas, reference, idempotency key, note, actor, and timestamp.
+- `stock_reservations`: active/released/deducted reservation foundation with tenant, product, warehouse, required location, quantity, status, reference, actor, and timestamps.
+- `idempotency_keys`: tenant-scoped mutation replay protection keyed by `(tenant_id, key, operation)` with request hash and stored response JSON.
+
 ## Enums
 
 ### `UserRole`
@@ -136,12 +149,41 @@ Tenant-scoped master data tables added by `20260521_0002_catalog_warehouse_found
 - `SCRAP`
 - `VIRTUAL`
 
+### `MovementType`
+
+- `STOCK_IN`
+- `STOCK_OUT`
+- `ADJUSTMENT_IN`
+- `ADJUSTMENT_OUT`
+- `SALES_RESERVE`
+- `SALES_RELEASE`
+- `SALES_DEDUCT`
+- `TRANSFER_OUT`
+- `TRANSFER_IN`
+- `CYCLE_COUNT_ADJUSTMENT`
+
+### `ReservationStatus`
+
+- `ACTIVE`
+- `RELEASED`
+- `DEDUCTED`
+- `CANCELLED`
+
+### `ReferenceType`
+
+- `MANUAL`
+- `SALES_ORDER`
+- `TRANSFER`
+- `ADJUSTMENT`
+- `RECONCILIATION`
+
 ## Migration
 
 Current migration:
 
 - `backend/alembic/versions/20260521_0001_auth_tenant_foundation.py`
 - `backend/alembic/versions/20260521_0002_catalog_warehouse_foundation.py`
+- `backend/alembic/versions/20260521_0003_inventory_engine_foundation.py`
 
 Apply migrations:
 
@@ -167,3 +209,5 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 - `users.email` is globally unique in this foundation to simplify login and avoid cross-tenant ambiguity.
 - Repository methods for future business tables should require tenant context by default.
 - Catalog and warehouse master data use tenant-scoped repository helpers and tenant-scoped unique constraints.
+- Inventory stock records are tenant-scoped and location-scoped. `InventoryEngine` is the only allowed stock mutation path.
+- `warehouse_stock.quantity_available` is a projection that must equal `quantity_on_hand - quantity_reserved` in Phase 2.

@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 1B - Tenant-scoped catalog and warehouse foundation**.
+This repository has completed **Phase 2 - InventoryEngine and stock ledger foundation**.
 
 Related commits:
 
@@ -18,22 +18,24 @@ The current implementation provides:
 - FastAPI backend scaffold with health endpoint, settings, middleware, exception handling, database session setup, and Alembic foundation.
 - `Tenant`, `User`, and `RefreshToken` models with roles, statuses, password hashing, JWT access tokens, JWT refresh tokens, login, registration, logout, refresh, and `auth/me` backend foundation.
 - Tenant-scoped category, brand, vendor, customer, product, warehouse, and warehouse location master data APIs.
+- Tenant-scoped `InventoryEngine`, stock ledger, warehouse stock projection, stock reservation foundation, idempotency, and reconciliation dry-run APIs.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
-- Inventory workflows.
-- Stock ledger and `InventoryEngine`.
-- Purchase, sales, or returns flows.
+- Product import.
+- Purchase receiving workflow.
+- Sales order, picking, packing, delivery, or returns QC workflows.
+- Batch, expiry, and serial tracking.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **Phase 2 - Inventory Engine and stock ledger**.
+Next recommended phase: **Phase 3 - Product import and barcode-ready catalog**.
 
-Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. Product CRUD and warehouse CRUD do not mutate stock; actual stock quantities, `InventoryEngine`, and stock ledger wait for Phase 2.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receiving, sales fulfillment, returns QC, product import, batch/expiry/serial tracking, and advanced reports remain later phases.
 
 ## Tech Stack
 
@@ -52,14 +54,15 @@ Before adding inventory workflows, keep tenant context backend-derived from auth
   logo/                         Brand assets
   backend/
     app/
-      api/                      Root API router, health, auth, catalog, warehouse routes
+      api/                      Root API router, health, auth, catalog, warehouse, inventory routes
       core/                     Settings, middleware, exceptions, security helpers
       db/                       SQLAlchemy Base and session setup
       dependencies/             Current user, role, tenant dependencies
-      models/                   Auth, tenant, catalog, warehouse models
-      repositories/             Auth, tenant, catalog, warehouse DB access layer
-      schemas/                  Auth, catalog, warehouse request/response schemas
-      services/                 Auth, catalog, warehouse business services
+      domain/                   Inventory engine domain logic
+      models/                   Auth, tenant, catalog, warehouse, inventory models
+      repositories/             Auth, tenant, catalog, warehouse, inventory DB access layer
+      schemas/                  Auth, catalog, warehouse, inventory request/response schemas
+      services/                 Auth, catalog, warehouse, inventory business services
       utils/                    Shared backend utilities
       main.py                   FastAPI app factory
     alembic/                    Migration environment
@@ -156,6 +159,19 @@ Warehouse endpoints:
 - `GET|POST /api/warehouses/{warehouse_id}/locations`
 - `PATCH /api/warehouses/{warehouse_id}/locations/{location_id}`
 
+Inventory endpoints:
+
+- `GET /api/inventory/stock`
+- `GET /api/inventory/ledger`
+- `GET /api/inventory/reconciliation/dry-run`
+- `POST /api/inventory/stock-in`
+- `POST /api/inventory/stock-out`
+- `POST /api/inventory/adjust`
+- `POST /api/inventory/reserve`
+- `POST /api/inventory/reservations/{id}/release`
+- `POST /api/inventory/reservations/{id}/deduct`
+- `POST /api/inventory/transfer`
+
 Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings.
 
 ## Frontend Commands
@@ -189,5 +205,6 @@ Development URLs:
 - Backend enforces tenant isolation.
 - Tenant ID for normal tenant business APIs must come from the authenticated user context, not arbitrary frontend input.
 - `InventoryEngine` will be the only stock mutation path once inventory workflows begin.
+- Phase 2 inventory mutation endpoints require idempotency keys and location-level stock dimensions.
 - Frontend pages stay thin and call service/API wrappers.
 - Frontend never calculates authoritative stock.

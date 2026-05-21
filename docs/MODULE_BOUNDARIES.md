@@ -4,11 +4,10 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 
 ## Current Repo State
 
-- This checkout currently has no `backend/` directory.
-- This checkout currently has no `frontend/` directory.
-- This checkout currently has no runnable app manifests, migrations, CI config, lint config, or test config.
-- The only verified product/architecture source is `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
-- The backend and frontend structures below are target structures for future Warelyn V2 implementation, not observed code.
+- This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, and Phase 2 InventoryEngine/stock ledger foundation are implemented.
+- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, and reconciliation dry-run.
+- The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
 ## Target Backend Folder Structure
 
@@ -301,7 +300,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 ## InventoryEngine Ownership Rules
 
 - `InventoryEngine` is the only backend module allowed to change stock quantities or stock state.
-- Purchase receiving, sales reservation, sales delivery, stock adjustment, transfer, return QC, damaged stock, expired stock, quarantine, and reconciliation fixes must call `InventoryEngine`.
+- Stock in/out, adjustment, reservation, reservation release, reserved deduction, transfer, and future purchase receiving, sales delivery, return QC, damaged stock, expired stock, quarantine, and reconciliation fixes must call `InventoryEngine`.
 - Every `InventoryEngine` mutation must create a stock ledger entry.
 - Important stock mutations must create audit logs and notifications where appropriate.
 - Services may orchestrate inventory use cases, but they must delegate stock math and persistence updates to `InventoryEngine`.

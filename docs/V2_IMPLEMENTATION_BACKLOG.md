@@ -16,6 +16,7 @@ Completed:
 - Phase 0 foundation: root docs/config, FastAPI shell, React/Vite/Tailwind shell, Docker Compose.
 - Phase 1A auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
 - Phase 1B tenant-scoped catalog and warehouse foundation: tenant-scoped repository helpers, catalog and warehouse master data APIs, frontend module shells.
+- Phase 2 InventoryEngine and stock ledger foundation: centralized stock mutation, warehouse stock projection, ledger entries, reservations, idempotency, reconciliation dry-run.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -33,7 +34,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 2 - Inventory Engine and stock ledger`.
+Next recommended phase: `Phase 3 - Product import and barcode-ready catalog`.
 
 ## Required Phase Order
 
@@ -69,6 +70,18 @@ Phase 1A is now completed. Future tenant-owned modules must derive `tenant_id` f
 - Frontend module shells for catalog and warehouses.
 
 Phase 1B does not implement stock mutation. Product CRUD does not change stock. Warehouse CRUD does not change stock. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
+
+`Phase 2 - Inventory Engine and stock ledger` is completed and includes:
+
+- `InventoryEngine` as the only stock mutation path.
+- `warehouse_stock` projection.
+- Immutable `stock_ledger_entries`.
+- `stock_reservations` foundation.
+- Tenant-scoped `idempotency_keys`.
+- Reconciliation dry-run comparing ledger totals to projection.
+- Backend tests for stock invariants, role access, tenant isolation, idempotency, ledger behavior, and reconciliation.
+
+Phase 2 does not implement product import, purchase receiving workflow, sales order workflow, picking/packing/delivery workflow, returns QC workflow, batch/expiry/serial tracking, advanced reports, AI assistant, or subscription expansion.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|

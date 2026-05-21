@@ -249,4 +249,31 @@ Implemented endpoints:
 - `POST /api/warehouses/{warehouse_id}/locations`
 - `PATCH /api/warehouses/{warehouse_id}/locations/{location_id}`
 
-`InventoryEngine`, stock ledger, and actual stock quantities are not implemented yet and must wait for Phase 2.
+## InventoryEngine And Stock Ledger Foundation
+
+All inventory routes require a bearer token and derive `tenant_id` from authenticated user context. Normal tenant APIs never accept `tenant_id`.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`, `SALES_STAFF`, `PURCHASE_STAFF`.
+
+Stock mutation roles for stock in/out/adjust/transfer/reconciliation: `TENANT_ADMIN`, `INVENTORY_MANAGER`.
+
+Reservation roles for reserve/release/deduct: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`.
+
+Implemented endpoints:
+
+- `GET /api/inventory/stock`
+- `GET /api/inventory/ledger`
+- `GET /api/inventory/reconciliation/dry-run`
+- `POST /api/inventory/stock-in`
+- `POST /api/inventory/stock-out`
+- `POST /api/inventory/adjust`
+- `POST /api/inventory/reserve`
+- `POST /api/inventory/reservations/{id}/release`
+- `POST /api/inventory/reservations/{id}/deduct`
+- `POST /api/inventory/transfer`
+
+Mutation requests require `idempotency_key`. Reusing the same tenant, operation, and idempotency key with the same request returns the stored response. Reusing the same key with a different request returns `409 IDEMPOTENCY_CONFLICT`.
+
+Phase 2 stock operations require `product_id`, `warehouse_id`, and `location_id`; `location_id` is required to avoid ambiguous stock dimensions.
+
+Phase 2 limitations: this is not product import, purchase receiving, sales order fulfillment, picking/packing/delivery, returns QC, batch/expiry/serial tracking, or advanced reporting.

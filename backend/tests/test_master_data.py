@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
 from app.models.auth import Tenant, User, UserRole, UserStatus
+from app.models.inventory import WarehouseStock
 from app.models.master_data import Product, WarehouseLocation
 
 
@@ -117,4 +118,4 @@ def test_product_and_warehouse_setup_does_not_create_stock_rows(client: TestClie
     assert location.status_code == 201
     assert db_session.query(Product).count() == 1
     assert db_session.query(WarehouseLocation).count() == 1
-    assert "warehouse_stock" not in db_session.bind.dialect.get_table_names(db_session.bind.connect())
+    assert db_session.query(WarehouseStock).count() == 0

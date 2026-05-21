@@ -20,8 +20,8 @@ class InventoryEngine:
         self.db = db
         self.repository = InventoryRepository(db)
 
-    def stock_in(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
-        return self._run_idempotent("stock_in", tenant_id, actor_id, payload, lambda: self._stock_in(tenant_id, actor_id, payload))
+    def stock_in(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("stock_in", tenant_id, actor_id, payload, lambda: self._stock_in(tenant_id, actor_id, payload), auto_commit=auto_commit)
 
     def stock_out(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         return self._run_idempotent("stock_out", tenant_id, actor_id, payload, lambda: self._stock_out(tenant_id, actor_id, payload))
@@ -182,7 +182,7 @@ class InventoryEngine:
         if self.repository.get_location(tenant_id, warehouse_id, location_id) is None:
             raise AppError("LOCATION_NOT_FOUND", "Location was not found for this tenant warehouse.", 404)
 
-    def _run_idempotent(self, operation: str, tenant_id: int, actor_id: int, payload: dict[str, Any], handler: Any) -> dict:
+    def _run_idempotent(self, operation: str, tenant_id: int, actor_id: int, payload: dict[str, Any], handler: Any, auto_commit: bool = True) -> dict:
         key = payload.get("idempotency_key")
         if not key:
             raise AppError("IDEMPOTENCY_KEY_REQUIRED", "Idempotency key is required.", 400)
@@ -195,13 +195,16 @@ class InventoryEngine:
         try:
             response = handler()
             self.repository.store_idempotency(tenant_id, key, operation, request_hash, response, actor_id)
-            self.db.commit()
+            if auto_commit:
+                self.db.commit()
             return response
         except AppError:
-            self.db.rollback()
+            if auto_commit:
+                self.db.rollback()
             raise
         except IntegrityError as exc:
-            self.db.rollback()
+            if auto_commit:
+                self.db.rollback()
             raise AppError("IDEMPOTENCY_CONFLICT", "Idempotency key was already used.", 409) from exc
 
     def _ledger(self, stock: WarehouseStock, movement_type: MovementType, quantity_delta: Decimal, reserved_delta: Decimal, available_delta: Decimal, actor_id: int, payload: dict[str, Any]) -> StockLedgerEntry:

@@ -19,8 +19,8 @@ class InventoryService:
     def list_ledger(self, tenant_id: int) -> list[StockLedgerEntry]:
         return self.repository.list_ledger(tenant_id)
 
-    def stock_in(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
-        return self.engine.stock_in(tenant_id, actor_id, values)
+    def stock_in(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.stock_in(tenant_id, actor_id, values, auto_commit=auto_commit)
 
     def stock_out(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
         return self.engine.stock_out(tenant_id, actor_id, values)

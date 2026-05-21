@@ -349,3 +349,60 @@ Mutation requests require `idempotency_key`. Reusing the same tenant, operation,
 Phase 2 stock operations require `product_id`, `warehouse_id`, and `location_id`; `location_id` is required to avoid ambiguous stock dimensions.
 
 Phase 2 limitations: this is not product import, purchase receiving, sales order fulfillment, picking/packing/delivery, returns QC, batch/expiry/serial tracking, or advanced reporting.
+
+## Purchase Receiving Workflow
+
+All purchase routes require a bearer token and derive `tenant_id` from authenticated user context. Purchase order status alone does not mutate stock. Stock increases only when a purchase receipt is committed, and commit calls `InventoryEngine.stock_in()` for each receipt item. Purchase receiving must not directly update `warehouse_stock` or directly insert `stock_ledger_entries`.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `PURCHASE_STAFF`, `VIEWER`.
+
+Write roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `PURCHASE_STAFF`.
+
+`VIEWER` is read-only. `SALES_STAFF` cannot manage purchase orders. `SUPER_ADMIN` does not use normal tenant purchase APIs.
+
+Implemented endpoints:
+
+- `GET /api/purchase-orders`
+- `POST /api/purchase-orders`
+- `GET /api/purchase-orders/{po_id}`
+- `PATCH /api/purchase-orders/{po_id}`
+- `POST /api/purchase-orders/{po_id}/submit`
+- `POST /api/purchase-orders/{po_id}/cancel`
+- `POST /api/purchase-orders/{po_id}/close`
+- `POST /api/purchase-orders/{po_id}/receipts`
+- `GET /api/purchase-orders/{po_id}/receipts`
+- `GET /api/purchase-receipts/{receipt_id}`
+- `PATCH /api/purchase-receipts/{receipt_id}`
+- `POST /api/purchase-receipts/{receipt_id}/commit`
+- `POST /api/purchase-receipts/{receipt_id}/cancel`
+
+Purchase order statuses:
+
+- `DRAFT`
+- `SUBMITTED`
+- `PARTIALLY_RECEIVED`
+- `RECEIVED`
+- `CANCELLED`
+- `CLOSED`
+
+Purchase receipt statuses:
+
+- `DRAFT`
+- `COMMITTED`
+- `CANCELLED`
+
+Rules:
+
+- Purchase orders must reference a tenant-owned vendor and tenant-owned products.
+- Purchase order updates are allowed only while `DRAFT`.
+- Submit requires at least one item.
+- Receiving is allowed only for `SUBMITTED` or `PARTIALLY_RECEIVED` purchase orders.
+- Cancelled, closed, and fully received purchase orders cannot be received.
+- Receipt items must reference tenant-owned products, warehouses, and locations; location must belong to the selected warehouse.
+- Received quantity must be positive and cannot exceed the remaining ordered quantity. Phase 4 blocks over-receiving.
+- Draft receipts can be edited or cancelled.
+- Committed receipts cannot be edited.
+- Cancelled receipts do not mutate stock.
+- Receipt commit uses `reference_type=PURCHASE_RECEIPT` and `reference_id=receipt_number` on stock ledger entries.
+
+Phase 4 limitations: no vendor bills, supplier payments, invoice accounting, purchase PDFs, sales workflow, returns QC, advanced reports, or full batch/expiry/serial receiving workflow.

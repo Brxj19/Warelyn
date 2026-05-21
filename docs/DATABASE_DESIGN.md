@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 3 product import and barcode-ready catalog is complete.
+Phase 4 purchase receiving workflow is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Purchase receiving, sales order, picking/packing/delivery, returns QC, batch/expiry/serial, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows.
+Sales order, picking/packing/delivery, returns QC, batch/expiry/serial, vendor bill/accounting, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving increases stock only through `InventoryEngine.stock_in()`.
 
 Current implemented models:
 
@@ -31,8 +31,12 @@ Current implemented models:
 - `IdempotencyKey`
 - `ImportJob`
 - `ImportJobRow`
+- `PurchaseOrder`
+- `PurchaseOrderItem`
+- `PurchaseReceipt`
+- `PurchaseReceiptItem`
 
-Next recommended phase: `Phase 4 - Warehouse locations and bin tracking`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 5 - Batch, expiry, and serial tracking foundation` or `Phase 5 - Sales reservation and fulfillment foundation`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -116,6 +120,17 @@ Tenant-scoped import tables added by `20260521_0004_product_import_foundation.py
 
 Import jobs and rows are scoped by `tenant_id`. They support preview and validation before commit. Product import commit creates or updates `products`, may create missing category, brand, or vendor master records when requested, and does not touch inventory stock tables.
 
+### Purchase Receiving Foundation
+
+Tenant-scoped purchase tables added by `20260521_0005_purchase_receiving_foundation.py`:
+
+- `purchase_orders`: tenant, vendor, PO number, status, dates, notes, creator, workflow timestamps, and timestamps; unique `(tenant_id, po_number)`.
+- `purchase_order_items`: tenant, purchase order, product, ordered quantity, received quantity, unit cost, notes, and timestamps.
+- `purchase_receipts`: tenant, purchase order, receipt number, status, receiver, received/committed/cancelled timestamps, notes, and timestamps; unique `(tenant_id, receipt_number)`.
+- `purchase_receipt_items`: tenant, receipt, purchase order item, product, warehouse, location, received quantity, unit cost, and timestamps.
+
+Purchase receipt commit updates `purchase_order_items.received_quantity` and purchase order status in the purchasing workflow transaction, while stock projection and ledger entries are created only through `InventoryEngine.stock_in()`.
+
 ## Enums
 
 ### `UserRole`
@@ -183,6 +198,7 @@ Import jobs and rows are scoped by `tenant_id`. They support preview and validat
 ### `ReferenceType`
 
 - `MANUAL`
+- `PURCHASE_RECEIPT`
 - `SALES_ORDER`
 - `TRANSFER`
 - `ADJUSTMENT`
@@ -213,6 +229,21 @@ Import jobs and rows are scoped by `tenant_id`. They support preview and validat
 - `update_existing`
 - `upsert`
 
+### `PurchaseOrderStatus`
+
+- `DRAFT`
+- `SUBMITTED`
+- `PARTIALLY_RECEIVED`
+- `RECEIVED`
+- `CANCELLED`
+- `CLOSED`
+
+### `PurchaseReceiptStatus`
+
+- `DRAFT`
+- `COMMITTED`
+- `CANCELLED`
+
 ## Migration
 
 Current migration:
@@ -221,6 +252,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0002_catalog_warehouse_foundation.py`
 - `backend/alembic/versions/20260521_0003_inventory_engine_foundation.py`
 - `backend/alembic/versions/20260521_0004_product_import_foundation.py`
+- `backend/alembic/versions/20260521_0005_purchase_receiving_foundation.py`
 
 Apply migrations:
 
@@ -249,3 +281,4 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 - Inventory stock records are tenant-scoped and location-scoped. `InventoryEngine` is the only allowed stock mutation path.
 - `warehouse_stock.quantity_available` is a projection that must equal `quantity_on_hand - quantity_reserved` in Phase 2.
 - Product import records are tenant-scoped and catalog-only. Import commit must not write `warehouse_stock`, `stock_ledger_entries`, or `stock_reservations`.
+- Purchase records are tenant-scoped. Receipt commit must call `InventoryEngine.stock_in()` and write ledger rows with `PURCHASE_RECEIPT` reference type.

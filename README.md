@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 3 - Product import and barcode-ready catalog**.
+This repository has completed **Phase 4 - Purchase Receiving Workflow**.
 
 Related commits:
 
@@ -20,24 +20,27 @@ The current implementation provides:
 - Tenant-scoped category, brand, vendor, customer, product, warehouse, and warehouse location master data APIs.
 - Tenant-scoped `InventoryEngine`, stock ledger, warehouse stock projection, stock reservation foundation, idempotency, and reconciliation dry-run APIs.
 - CSV product import with upload, validation, preview, commit, cancel, duplicate checks, tenant isolation, and barcode-ready product search.
+- Tenant-scoped purchase orders, purchase order items, purchase receipts, partial receiving, and receipt commit through `InventoryEngine.stock_in()`.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - Product import UI with CSV dropzone, preview table, import modes, and reusable scanner-friendly barcode input.
+- Purchase order, receiving, and receipt detail screens with warehouse/location receiving and committed stock impact.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
 - XLSX import and import column mapping UI.
 - Purchase receiving workflow.
+- Vendor bills, supplier payments, invoice accounting, and purchase PDFs.
 - Sales order, picking, packing, delivery, or returns QC workflows.
 - Batch, expiry, and serial tracking.
 - Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **Phase 4 - Warehouse locations and bin tracking**.
+Next recommended phase: **Phase 5 - Batch, expiry, and serial tracking foundation** or **Phase 5 - Sales reservation and fulfillment foundation**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; product import only creates or updates product master data and must not create stock records or ledger entries.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()` and writes `PURCHASE_RECEIPT` ledger references.
 
 ## Tech Stack
 
@@ -56,15 +59,15 @@ Before adding later workflows, keep tenant context backend-derived from authenti
   logo/                         Brand assets
   backend/
     app/
-      api/                      Root API router, health, auth, catalog, warehouse, inventory, import routes
+      api/                      Root API router, health, auth, catalog, warehouse, inventory, import, purchase routes
       core/                     Settings, middleware, exceptions, security helpers
       db/                       SQLAlchemy Base and session setup
       dependencies/             Current user, role, tenant dependencies
       domain/                   Inventory engine domain logic
-      models/                   Auth, tenant, catalog, warehouse, inventory, import models
-      repositories/             Auth, tenant, catalog, warehouse, inventory, import DB access layer
-      schemas/                  Auth, catalog, warehouse, inventory, import request/response schemas
-      services/                 Auth, catalog, warehouse, inventory, import business services
+      models/                   Auth, tenant, catalog, warehouse, inventory, import, purchase models
+      repositories/             Auth, tenant, catalog, warehouse, inventory, import, purchase DB access layer
+      schemas/                  Auth, catalog, warehouse, inventory, import, purchase request/response schemas
+      services/                 Auth, catalog, warehouse, inventory, import, purchase business services
       utils/                    Shared backend utilities
       main.py                   FastAPI app factory
     alembic/                    Migration environment
@@ -163,6 +166,18 @@ Product import endpoints:
 - `POST /api/imports/products/{job_id}/commit`
 - `POST /api/imports/products/{job_id}/cancel`
 
+Purchase endpoints:
+
+- `GET|POST /api/purchase-orders`
+- `GET|PATCH /api/purchase-orders/{po_id}`
+- `POST /api/purchase-orders/{po_id}/submit`
+- `POST /api/purchase-orders/{po_id}/cancel`
+- `POST /api/purchase-orders/{po_id}/close`
+- `GET|POST /api/purchase-orders/{po_id}/receipts`
+- `GET|PATCH /api/purchase-receipts/{receipt_id}`
+- `POST /api/purchase-receipts/{receipt_id}/commit`
+- `POST /api/purchase-receipts/{receipt_id}/cancel`
+
 Warehouse endpoints:
 
 - `GET|POST /api/warehouses`
@@ -218,5 +233,6 @@ Development URLs:
 - `InventoryEngine` will be the only stock mutation path once inventory workflows begin.
 - Phase 2 inventory mutation endpoints require idempotency keys and location-level stock dimensions.
 - Product import does not call `InventoryEngine` because it does not mutate stock.
+- Purchase receipt commit calls `InventoryEngine.stock_in()` and does not directly update stock tables.
 - Frontend pages stay thin and call service/API wrappers.
 - Frontend never calculates authoritative stock.

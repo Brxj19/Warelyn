@@ -18,6 +18,7 @@ Completed:
 - Phase 1B tenant-scoped catalog and warehouse foundation: tenant-scoped repository helpers, catalog and warehouse master data APIs, frontend module shells.
 - Phase 2 InventoryEngine and stock ledger foundation: centralized stock mutation, warehouse stock projection, ledger entries, reservations, idempotency, reconciliation dry-run.
 - Phase 3 product import and barcode-ready catalog: CSV product import jobs, validation, preview, commit, cancel, product search by name/SKU/barcode, scanner-friendly barcode input.
+- Phase 4 purchase receiving workflow: purchase orders, purchase receipts, partial receiving, warehouse/location receiving, receipt commit through `InventoryEngine.stock_in()`, and purchase ledger references.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -35,7 +36,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 4 - Warehouse locations and bin tracking`.
+Next recommended phase: `Phase 5 - Batch, expiry, and serial tracking foundation` or `Phase 5 - Sales reservation and fulfillment foundation`.
 
 ## Required Phase Order
 
@@ -96,6 +97,20 @@ Phase 2 does not implement product import, purchase receiving workflow, sales or
 
 Phase 3 does not implement XLSX import, column mapping UI, stock import, purchase receiving workflow, sales order workflow, picking/packing/delivery workflow, returns QC workflow, full batch/expiry/serial workflow, advanced reports, AI assistant, or subscription expansion. Product import does not call `InventoryEngine` and does not create `warehouse_stock`, `stock_ledger_entries`, or `stock_reservations`.
 
+`Phase 4 - Purchase Receiving Workflow` is completed and includes:
+
+- Tenant-scoped `purchase_orders`, `purchase_order_items`, `purchase_receipts`, and `purchase_receipt_items`.
+- Purchase order create, submit, cancel, close, read, and draft update APIs.
+- Purchase receipt create, update, cancel, commit, and read APIs.
+- Partial receiving into tenant-owned warehouse/location dimensions.
+- Over-receiving blocked by default.
+- Receipt commit through `InventoryEngine.stock_in()` only.
+- Stock ledger entries with `PURCHASE_RECEIPT` reference type.
+- Backend tests for tenant isolation, roles, receipt commit, stock correctness, ledger references, and reconciliation.
+- Frontend purchase order, receiving, and receipt screens.
+
+Warehouse/location foundation already exists from Phase 1B and Phase 2 stock dimensions, so the approved implemented Phase 4 scope is purchase receiving. Phase 4 does not implement vendor bills, supplier payments, invoice accounting, purchase PDFs, sales workflow, picking/packing/delivery, returns QC, full batch/expiry/serial receiving workflow, advanced reports, AI assistant, or subscription expansion.
+
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|
 | V2-000 | Phase 0 - Foundation audit and cleanup | P0 | Repo baseline | Current checkout has planning docs but no backend/frontend source to verify. | Confirm source location, add missing root docs/config only when requested, document real commands once manifests exist, keep PRD path as `docs/WARELYN_REAL_WORLD_V2_PRD.md`. | `README.md`, `AGENTS.md`, `opencode.json`, `docs/*` | Future agents know what exists, what is target-only, and which commands are verified. | Documentation review; no app tests until app exists. |
@@ -119,8 +134,8 @@ Phase 3 does not implement XLSX import, column mapping UI, stock import, purchas
 | V2-022 | Phase 2 - Inventory Engine and stock ledger | P0 | Reconciliation | Projection can drift from ledger if no comparison exists. | Add reconciliation service/CLI with dry-run first, then controlled fix mode. | `backend/app/domain/inventory/reconciliation.py`, `backend/app/cli/reconcile_inventory.py`, report repository | Dry-run reports mismatches by tenant; fix mode creates correction entries. | Reconciliation mismatch/fix tests. |
 | V2-030 | Phase 3 - Product import and barcode-ready catalog | P1 | Product onboarding | Real users need CSV/XLSX import, duplicate detection, and barcode capture. | Build import jobs with upload, column mapping, validation, preview, duplicate review, and commit. | `domain/catalog/import_service.py`, `models/import_job.py`, `models/import_job_row.py`, `api/routers/imports.py`, `frontend/src/modules/catalog/*` | Completed for CSV without mapping UI or XLSX. Users can validate before commit; invalid rows are skipped on commit; tenant duplicate checks are enforced. | Import validation tests and duplicate checks pass; UI flow build passes. |
 | V2-031 | Phase 3 - Product import and barcode-ready catalog | P1 | Barcode readiness | Products, locations, batches, serials, packages, and shipments need barcode fields. | Add barcode fields/contracts to catalog and scanner-ready frontend input patterns. | product models/schemas, warehouse location models/schemas, `frontend/src/components/scanner/BarcodeInput.*` | Completed for product search and reusable product barcode input. Later workflow-specific scanning remains future work. | API tests for barcode uniqueness/search pass; frontend build passes. |
-| V2-040 | Phase 4 - Warehouse locations and bin tracking | P1 | Physical stock location | Warehouse-level stock is not enough for real operations. | Add `warehouse_locations` tree with type, barcode, status, and location-level stock movement. | warehouse models/schemas/repositories, `domain/inventory/engine.py`, `api/routers/warehouses.py`, warehouse frontend module | Stock can be associated with receiving, storage, picking, packing, shipping, return, QC, damaged, expired, quarantine, scrap, or virtual locations. | Location CRUD tests; location transfer tests; tenant isolation tests. |
-| V2-041 | Phase 4 - Warehouse locations and bin tracking | P1 | Putaway foundation | Receiving needs a path from receiving area to storage bins. | Add putaway task models/services after location model exists. | `models/putaway_task.py`, `domain/purchasing/receiving_service.py`, `domain/inventory/engine.py`, frontend receiving/warehouse modules | Received stock can be moved from receiving to storage with ledger entries. | Putaway service tests; stock movement tests. |
+| V2-040 | Phase 4 - Purchase Receiving Workflow | P1 | Purchase receiving | Purchase order status alone must not increase stock; goods need a committed receiving workflow. | Add purchase orders, purchase receipts, partial receiving, warehouse/location receipt items, and receipt commit through `InventoryEngine.stock_in()`. | purchasing models/schemas/repositories/services/router, `domain/inventory/engine.py`, frontend purchasing pages | Completed for purchase order and receipt foundation. Receipt commit increases stock only through `InventoryEngine.stock_in()` and writes `PURCHASE_RECEIPT` ledger references. | Purchase receiving, tenant isolation, role, ledger, stock projection, and reconciliation tests pass. |
+| V2-041 | Future - Putaway foundation | P1 | Putaway foundation | Receiving needs a path from receiving area to storage bins. | Add putaway task models/services after receiving foundation exists. | `models/putaway_task.py`, `domain/purchasing/receiving_service.py`, `domain/inventory/engine.py`, frontend receiving/warehouse modules | Received stock can be moved from receiving to storage with ledger entries. | Putaway service tests; stock movement tests. |
 | V2-050 | Phase 5 - Batch, expiry, and serial tracking | P1 | Traceability | Batch/expiry/serial support must be first-class for regulated or warranty-heavy items. | Add batch and serial models, validation rules, receive forms, detail tabs, and status transitions. | `models/inventory_batch.py`, `models/inventory_serial.py`, inventory schemas/repositories, frontend product/inventory detail pages | Tracked products require batch/expiry/serial data before stock becomes available. | Batch required; expiry required; serial uniqueness; serial status transition tests. |
 | V2-051 | Phase 5 - Batch, expiry, and serial tracking | P1 | Expiry handling | Expired stock must not be sold and FEFO should guide allocation. | Add expiry alerts, FEFO allocation strategy, and expired stock state transitions. | `domain/inventory/allocation_service.py`, `picking_strategy.py`, `jobs/expire_batches.py`, reports | Expired batches are blocked; expiring-soon batches can be reported; FEFO allocation works. | FEFO allocation tests; expiry job tests. |
 | V2-060 | Phase 6 - Purchase receiving workflow | P1 | Purchase receive realism | Receiving is more than changing PO status. | Implement partial receive, accepted/rejected/damaged quantities, receiving location, batch/expiry/serial capture, and putaway creation. | `domain/purchasing/receiving_service.py`, `domain/inventory/engine.py`, purchase receive models/schemas, frontend purchasing module | Posted receiving increases accepted stock; damaged/rejected quantities do not become sellable. | Purchase receive integration tests; damaged/rejected tests; idempotency tests. |
@@ -156,7 +171,7 @@ Phase 3 does not implement XLSX import, column mapping UI, stock import, purchas
 | Phase 1B | `add tenant scoped catalog and warehouse foundation` |
 | Phase 2 | `centralize inventory mutations in inventory engine` |
 | Phase 3 | `add product import and barcode ready catalog` |
-| Phase 4 | `add warehouse location and bin tracking foundation` |
+| Phase 4 | `add purchase receiving workflow` |
 | Phase 5 | `add batch expiry and serial tracking foundation` |
 | Phase 6 | `implement purchase receiving stock workflow` |
 | Phase 7 | `implement sales reservation and fulfillment workflow` |

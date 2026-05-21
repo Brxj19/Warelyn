@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Vendors', to: '/catalog/vendors' },
   { label: 'Customers', to: '/catalog/customers' },
   { label: 'Warehouses', to: '/warehouses' },
+  { label: 'Purchases', to: '/purchases', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'VIEWER'] },
 ];
 
 export function MainLayout() {
@@ -42,7 +43,7 @@ export function MainLayout() {
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[240px_1fr]">
         <aside className="rounded-2xl border border-warelyn-border bg-white p-3 shadow-sm">
           <nav className="space-y-1">
-            {navItems.map((item) => (
+            {navItems.filter((item) => !item.roles || item.roles.includes(user?.role)).map((item) => (
               <NavLink
                 className={({ isActive }) =>
                   `block rounded-xl px-3 py-2.5 text-sm font-semibold transition ${

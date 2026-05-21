@@ -30,6 +30,7 @@ class ReservationStatus(str, enum.Enum):
 
 class ReferenceType(str, enum.Enum):
     MANUAL = "MANUAL"
+    PURCHASE_RECEIPT = "PURCHASE_RECEIPT"
     SALES_ORDER = "SALES_ORDER"
     TRANSFER = "TRANSFER"
     ADJUSTMENT = "ADJUSTMENT"

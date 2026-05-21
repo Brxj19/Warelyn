@@ -10,6 +10,8 @@ Any workflow that changes stock must call `InventoryEngine`, including purchase 
 
 Product import is catalog-only in Phase 3. It creates or updates product master data and must not call `InventoryEngine`, create `warehouse_stock`, create `stock_ledger_entries`, or create `stock_reservations`.
 
+Purchase receiving is implemented in Phase 4 through purchase receipt commit. Commit calls `InventoryEngine.stock_in()` for accepted receipt quantities, uses `STOCK_IN` movement entries with `PURCHASE_RECEIPT` reference type, and must not directly update stock projection or ledger rows outside the engine.
+
 ## Required Public Methods
 
 ```python
@@ -245,6 +247,7 @@ Batch and serial rules:
 - Stock increases only when goods are received and posted.
 - Receiving supports partial quantity, accepted quantity, rejected quantity, damaged quantity, batch, expiry, serials, and receiving location.
 - Accepted quantity creates `PURCHASE_RECEIVE` ledger entries and updates stock projection.
+- Phase 4 records accepted quantity as `STOCK_IN` ledger entries with `PURCHASE_RECEIPT` references until a dedicated purchase movement type is introduced.
 - Damaged received quantity must enter damaged or QC state, not sellable available stock.
 - Rejected quantity should be recorded against receiving workflow but should not increase sellable stock.
 - Received tracked products must satisfy required batch, expiry, and serial data before posting.

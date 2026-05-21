@@ -1,0 +1,326 @@
+# Warelyn V2 Module Boundaries
+
+Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
+
+## Current Repo State
+
+- This checkout currently has no `backend/` directory.
+- This checkout currently has no `frontend/` directory.
+- This checkout currently has no runnable app manifests, migrations, CI config, lint config, or test config.
+- The only verified product/architecture source is `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
+- The backend and frontend structures below are target structures for future Warelyn V2 implementation, not observed code.
+
+## Target Backend Folder Structure
+
+```text
+backend/app/
+  api/
+    routers/
+      auth.py
+      tenants.py
+      catalog.py
+      warehouses.py
+      inventory.py
+      purchasing.py
+      receiving.py
+      sales.py
+      fulfillment.py
+      returns.py
+      documents.py
+      reports.py
+      imports.py
+      notifications.py
+      audit.py
+  core/
+    config.py
+    database.py
+    errors.py
+    security.py
+    permissions.py
+    pagination.py
+    idempotency.py
+  domain/
+    inventory/
+      engine.py
+      ledger.py
+      reservation_service.py
+      allocation_service.py
+      picking_strategy.py
+      reconciliation.py
+      exceptions.py
+    purchasing/
+      purchase_order_service.py
+      receiving_service.py
+    sales/
+      sales_order_service.py
+      fulfillment_service.py
+      return_service.py
+    catalog/
+      product_service.py
+      import_service.py
+    documents/
+      pdf_service.py
+      email_document_service.py
+  repositories/
+    base.py
+    product_repository.py
+    warehouse_repository.py
+    stock_repository.py
+    order_repository.py
+    report_repository.py
+  models/
+  schemas/
+  events/
+    event_bus.py
+    event_types.py
+    outbox.py
+  jobs/
+    expire_batches.py
+    reorder_suggestions.py
+    send_email.py
+    cleanup_otp.py
+  services/
+    email_service.py
+    sms_service.py
+    otp_service.py
+  cli/
+    seed_from_csv.py
+    reconcile_inventory.py
+    create_demo_data.py
+```
+
+## Target Frontend Folder Structure
+
+```text
+frontend/src/
+  app/
+    routes.jsx
+    providers.jsx
+  api/
+    client.js
+    authApi.js
+    catalogApi.js
+    warehouseApi.js
+    inventoryApi.js
+    purchasingApi.js
+    salesApi.js
+    reportsApi.js
+    importsApi.js
+  modules/
+    auth/
+    dashboard/
+    catalog/
+    warehouses/
+    inventory/
+    purchasing/
+    sales/
+    fulfillment/
+    returns/
+    documents/
+    reports/
+    admin/
+  components/
+    common/
+    layout/
+    forms/
+    tables/
+    feedback/
+    scanner/
+  hooks/
+  stores/
+  utils/
+  styles/
+```
+
+## Separation Of Concerns Rules
+
+- Routers handle HTTP concerns only: paths, request schemas, current user, dependencies, service calls, response schemas.
+- Services coordinate business workflows, permissions beyond route-level checks, transactions, events, audit logs, and repository calls.
+- Repositories own database access, tenant filters, row locks, query shape, and persistence details.
+- Domain engines enforce business invariants that must not be duplicated across services.
+- Models define persistence shape, constraints, indexes, and relationships; they do not own workflow decisions.
+- Schemas define public request/response contracts; they do not import ORM query logic or domain algorithms.
+- Events record side effects; jobs process asynchronous or scheduled work such as expired stock and reorder suggestions.
+- Frontend pages orchestrate UI state and call hooks/services; they do not own backend business decisions.
+- Frontend API clients are grouped by module and hide transport details from pages and reusable components.
+- Reusable UI components are presentation-first and must not know inventory workflow rules.
+
+## Backend Boundaries
+
+### Routers
+
+Routers may:
+
+- Define endpoint paths and HTTP methods.
+- Parse and validate request schemas.
+- Read authenticated user and tenant context.
+- Call one service or explicit use-case method.
+- Convert known domain errors into structured API errors.
+- Return response schemas.
+
+Routers must not:
+
+- Directly mutate stock.
+- Contain pricing, reservation, allocation, picking, receiving, or return QC calculations.
+- Build complex ORM queries inline.
+- Bypass tenant isolation checks.
+- Emit audit logs without the service/domain workflow that caused them.
+
+### Services
+
+Services may:
+
+- Coordinate one business use case such as confirm order, receive purchase order, commit import, or complete return QC.
+- Validate permissions and workflow transitions.
+- Open and commit database transactions through the app's chosen transaction pattern.
+- Call repositories and domain engines.
+- Emit domain events, notifications, and audit logs.
+- Enforce idempotency for critical actions.
+
+Services must not:
+
+- Reimplement stock math owned by `InventoryEngine`.
+- Return raw database models directly to API callers unless the router/schema layer is designed for that.
+- Hide cross-tenant reads or writes behind convenience helpers.
+
+### Repositories
+
+Repositories may:
+
+- Encapsulate SQLAlchemy queries and persistence operations.
+- Apply tenant filters by default for tenant-owned data.
+- Use row locks where stock or workflow state can be concurrently mutated.
+- Return model objects or persistence DTOs to services.
+
+Repositories must not:
+
+- Decide business workflow transitions.
+- Decide whether a stock mutation is allowed.
+- Create ledger entries without being called by `InventoryEngine` or its collaborators.
+
+### Models
+
+Models may:
+
+- Define tables, columns, relationships, indexes, and constraints.
+- Represent tenant-owned persistence with `tenant_id` where required.
+- Carry enum fields for workflow state.
+
+Models must not:
+
+- Contain HTTP concerns.
+- Contain user-interface concerns.
+- Mutate inventory quantities through model helper methods that bypass `InventoryEngine`.
+
+### Schemas
+
+Schemas may:
+
+- Validate input shape.
+- Define response shape.
+- Document API contracts.
+- Carry explicit action request objects such as `ReceivePurchaseRequest` or `ReserveStockRequest`.
+
+Schemas must not:
+
+- Import repositories.
+- Query the database.
+- Calculate true available stock.
+
+## Frontend Boundaries
+
+### Pages
+
+Pages may:
+
+- Compose module-level UI.
+- Read route params.
+- Call module hooks or API services.
+- Render loading, empty, error, and success states.
+- Present confirmation dialogs for destructive or stock-changing actions.
+
+Pages must not:
+
+- Calculate authoritative stock numbers.
+- Decide whether stock can be reserved, deducted, restocked, or transferred.
+- Embed raw API URLs throughout the component tree.
+- Duplicate workflow state machines that belong on the backend.
+
+### Components
+
+Components may:
+
+- Render forms, tables, cards, status badges, scanner inputs, and shared layout.
+- Receive data and callbacks through props.
+- Provide reusable interaction patterns.
+
+Components must not:
+
+- Call unrelated module APIs directly.
+- Know tenant authorization rules beyond displaying already-authorized actions.
+- Contain inventory mutation rules.
+
+### API Clients
+
+API clients may:
+
+- Centralize endpoint paths by module.
+- Attach auth headers and request IDs through a shared client.
+- Normalize transport errors into frontend-friendly errors.
+- Keep request and response shapes close to backend schemas.
+
+API clients must not:
+
+- Patch over backend workflow bugs with frontend-only calculations.
+- Silently swallow failed stock-changing requests.
+
+## Tenant Isolation Rules
+
+- Every tenant-owned table must include `tenant_id` unless there is a documented exception for global platform data.
+- Every tenant-owned repository query must filter by tenant context by default.
+- Natural keys such as SKU, barcode, warehouse code, and location code must be unique per tenant, not globally, unless explicitly required.
+- Backend permissions remain authoritative even if frontend hides actions by role.
+- Audit logs must include tenant context for tenant actions.
+- Cross-tenant reads are platform-admin-only and must be explicit in service method names and authorization checks.
+- Tests for every module must include at least one cross-tenant access denial case.
+
+## InventoryEngine Ownership Rules
+
+- `InventoryEngine` is the only backend module allowed to change stock quantities or stock state.
+- Purchase receiving, sales reservation, sales delivery, stock adjustment, transfer, return QC, damaged stock, expired stock, quarantine, and reconciliation fixes must call `InventoryEngine`.
+- Every `InventoryEngine` mutation must create a stock ledger entry.
+- Important stock mutations must create audit logs and notifications where appropriate.
+- Services may orchestrate inventory use cases, but they must delegate stock math and persistence updates to `InventoryEngine`.
+- Frontend screens may preview expected stock impact, but the backend response is the source of truth after mutation.
+
+## Anti-Patterns To Avoid
+
+- Building V2 as independent CRUD screens without workflow ownership.
+- Updating `warehouse_stock` directly from routers, repositories, models, scripts, or frontend requests.
+- Treating `warehouse_stock` as the only source of truth without immutable ledger entries.
+- Calculating true available stock only in the frontend.
+- Implementing tenant checks only in routers while repositories can still read cross-tenant rows.
+- Mixing SQLAlchemy query logic into schemas or React components.
+- Adding subscription, billing, payment, marketplace, carrier, forecasting, full accounting, or native mobile work during early V2 foundation phases.
+- Rewriting the app from scratch instead of building progressively from verified boundaries.
+- Adding migrations before the target models and workflow ownership are clear.
+- Creating broad generic services that know every module's details.
+
+## Future Module Ownership Table
+
+| Module | Backend Owner | Frontend Owner | Primary Data | Stock Mutation Allowed | Notes |
+|---|---|---|---|---|---|
+| Auth | `api/routers/auth.py`, auth service, security core | `modules/auth`, `api/authApi.js` | users, tokens, OTP | No | Keep JWT and tenant context explicit. |
+| Tenants/Admin | tenant service, permission core | `modules/admin` | tenants, users, roles | No | Platform admin access must be explicit. |
+| Catalog | `domain/catalog`, product repository | `modules/catalog`, `api/catalogApi.js` | products, categories, brands, units | No | Product master does not represent stock location. |
+| Product Import | `domain/catalog/import_service.py`, imports router | `modules/catalog` or `modules/imports` | import jobs, import rows | Only through engine on commit if import creates stock | Preview/validation before commit. |
+| Warehouses | warehouse service/repository | `modules/warehouses`, `api/warehouseApi.js` | warehouses, locations/bins | No direct mutation | Location movement uses inventory engine. |
+| Inventory | `domain/inventory/engine.py`, stock repository | `modules/inventory`, `api/inventoryApi.js` | stock projection, ledger, batches, serials | Yes, only via `InventoryEngine` | Core correctness module. |
+| Purchasing | purchasing and receiving services | `modules/purchasing` | purchase orders, receives, bills | Via `InventoryEngine.receive_purchase_order()` | PO status alone must not increase stock. |
+| Sales | sales order service | `modules/sales` | sales orders, customers | Via reservation engine methods | Confirmation reserves; delivery deducts. |
+| Fulfillment | fulfillment service, picking strategy | `modules/fulfillment` | pick tasks, packages, delivery | Via reservation/deduction engine methods | Scanner-friendly flows. |
+| Returns | return service | `modules/returns` | sales returns, return QC | Via return/QC engine methods | Returns do not go directly to sellable stock. |
+| Documents | document services | `modules/documents` | invoices, bills, PDFs | No | Document generation must reflect committed workflow state. |
+| Reports | report repository/service | `modules/reports`, `api/reportsApi.js` | projections, ledger, audit | No | Reports read ledger/projections; no mutation. |
+| Notifications | notification service/jobs | feedback components, notification UI | notifications, outbox | No | Trigger from domain events or services. |
+| Audit | audit service/repository | audit tabs/activity views | audit logs | No | Critical workflows must record actor and tenant. |

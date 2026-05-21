@@ -6,9 +6,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Catalog', to: '/catalog' },
+  { label: 'Products', to: '/catalog/products' },
+  { label: 'Categories', to: '/catalog/categories' },
+  { label: 'Brands', to: '/catalog/brands' },
+  { label: 'Vendors', to: '/catalog/vendors' },
+  { label: 'Customers', to: '/catalog/customers' },
   { label: 'Warehouses', to: '/warehouses' },
-  { label: 'Inventory', to: '/inventory' },
-  { label: 'Reports', to: '/reports' },
 ];
 
 export function MainLayout() {

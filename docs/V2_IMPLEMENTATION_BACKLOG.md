@@ -15,6 +15,7 @@ Completed:
 
 - Phase 0 foundation: root docs/config, FastAPI shell, React/Vite/Tailwind shell, Docker Compose.
 - Phase 1A auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
+- Phase 1B tenant-scoped catalog and warehouse foundation: tenant-scoped repository helpers, catalog and warehouse master data APIs, frontend module shells.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -32,7 +33,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 1B - Tenant-scoped catalog and warehouse foundation`.
+Next recommended phase: `Phase 2 - Inventory Engine and stock ledger`.
 
 ## Required Phase Order
 
@@ -53,7 +54,7 @@ Do not start product, warehouse, inventory, purchase, sales, returns, or reporti
 
 Phase 1A is now completed. Future tenant-owned modules must derive `tenant_id` from authenticated user context instead of accepting arbitrary tenant IDs from normal tenant user requests.
 
-`Phase 1B - Tenant-scoped catalog and warehouse foundation` should happen next and should include:
+`Phase 1B - Tenant-scoped catalog and warehouse foundation` is completed and includes:
 
 - Base tenant-scoped repository pattern.
 - Base CRUD conventions.
@@ -67,7 +68,7 @@ Phase 1A is now completed. Future tenant-owned modules must derive `tenant_id` f
 - Tenant isolation tests.
 - Frontend module shells for catalog and warehouses.
 
-Phase 1B must not implement stock mutation. Product CRUD must not change stock. Warehouse CRUD must not change stock. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
+Phase 1B does not implement stock mutation. Product CRUD does not change stock. Warehouse CRUD does not change stock. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|

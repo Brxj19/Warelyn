@@ -4,22 +4,29 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 1A auth and tenant foundation is complete.
+Phase 1B tenant-scoped catalog and warehouse foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-No inventory, product, warehouse, purchase, sales, stock ledger, or business workflow tables are implemented yet.
+Inventory quantities, stock ledger, purchase, sales, and returns workflow tables are not implemented yet.
 
 Current implemented models:
 
 - `Tenant`
 - `User`
 - `RefreshToken`
+- `Category`
+- `Brand`
+- `Vendor`
+- `Customer`
+- `Product`
+- `Warehouse`
+- `WarehouseLocation`
 
-Next recommended phase: `Phase 1B - Tenant-scoped catalog and warehouse foundation`, which should add catalog and warehouse master data models without stock mutation. `InventoryEngine`, stock ledger, and actual stock quantities wait for Phase 2.
+Next recommended phase: `Phase 2 - Inventory Engine and stock ledger`. Product, warehouse, and location master data do not hold stock balances or mutate stock.
 
 ## Tables
 
@@ -73,6 +80,18 @@ Columns:
 - `revoked_at` nullable
 - `created_at`
 
+### Catalog And Warehouse Master Data
+
+Tenant-scoped master data tables added by `20260521_0002_catalog_warehouse_foundation.py`:
+
+- `categories`: tenant, name, description, status, timestamps; unique `(tenant_id, name)`.
+- `brands`: tenant, name, description, status, timestamps; unique `(tenant_id, name)`.
+- `vendors`: tenant, name, email, phone, address, GST number, status, timestamps; unique `(tenant_id, name)`.
+- `customers`: tenant, name, email, phone, address, GST number, status, timestamps; unique `(tenant_id, email)`.
+- `products`: tenant, optional category/brand, name, SKU, barcode, description, unit, prices, reorder level, tracking flags, status, timestamps; unique `(tenant_id, sku)` and `(tenant_id, barcode)`.
+- `warehouses`: tenant, name, code, address, status, timestamps; unique `(tenant_id, code)`.
+- `warehouse_locations`: tenant, warehouse, optional parent location, code, name, barcode, location type, sort order, status, timestamps; unique `(tenant_id, warehouse_id, code)` and `(tenant_id, warehouse_id, barcode)`.
+
 ## Enums
 
 ### `UserRole`
@@ -96,11 +115,33 @@ Columns:
 - `DISABLED`
 - `INVITED`
 
+### `RecordStatus`
+
+- `ACTIVE`
+- `INACTIVE`
+- `ARCHIVED`
+
+### `LocationType`
+
+- `STORAGE`
+- `PICKING`
+- `RECEIVING`
+- `PACKING`
+- `SHIPPING`
+- `RETURN`
+- `DAMAGED`
+- `EXPIRED`
+- `QUARANTINE`
+- `QC`
+- `SCRAP`
+- `VIRTUAL`
+
 ## Migration
 
 Current migration:
 
 - `backend/alembic/versions/20260521_0001_auth_tenant_foundation.py`
+- `backend/alembic/versions/20260521_0002_catalog_warehouse_foundation.py`
 
 Apply migrations:
 
@@ -125,3 +166,4 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 - Future tenant-owned modules must derive `tenant_id` from authenticated user context.
 - `users.email` is globally unique in this foundation to simplify login and avoid cross-tenant ambiguity.
 - Repository methods for future business tables should require tenant context by default.
+- Catalog and warehouse master data use tenant-scoped repository helpers and tenant-scoped unique constraints.

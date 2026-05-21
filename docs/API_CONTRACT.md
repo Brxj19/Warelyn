@@ -199,4 +199,54 @@ Response:
 - `SUPER_ADMIN` users are platform users and have `tenant_id = null`.
 - Role checks are enforced by backend dependencies, not frontend navigation alone.
 
-Phase 1B will add tenant-scoped catalog and warehouse foundation. Product CRUD and warehouse CRUD must not mutate stock. `InventoryEngine`, stock ledger, and actual stock quantities are not implemented yet and must wait for Phase 2.
+## Catalog Foundation
+
+All catalog routes require a bearer token and derive `tenant_id` from authenticated user context. Product CRUD does not mutate stock.
+
+Writer roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`.
+
+Reader rules:
+
+- Categories and brands: any tenant user.
+- Products: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`, `SALES_STAFF`, `PURCHASE_STAFF`.
+- Vendors: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`, `PURCHASE_STAFF`.
+- Customers: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`, `SALES_STAFF`.
+
+Implemented endpoints:
+
+- `GET /api/catalog/categories`
+- `POST /api/catalog/categories`
+- `PATCH /api/catalog/categories/{category_id}`
+- `GET /api/catalog/brands`
+- `POST /api/catalog/brands`
+- `PATCH /api/catalog/brands/{brand_id}`
+- `GET /api/catalog/vendors`
+- `POST /api/catalog/vendors`
+- `PATCH /api/catalog/vendors/{vendor_id}`
+- `GET /api/catalog/customers`
+- `POST /api/catalog/customers`
+- `PATCH /api/catalog/customers/{customer_id}`
+- `GET /api/catalog/products`
+- `POST /api/catalog/products`
+- `PATCH /api/catalog/products/{product_id}`
+
+Duplicate tenant-scoped unique values return `409 DUPLICATE_RECORD`.
+
+## Warehouse Foundation
+
+All warehouse routes require a bearer token and derive `tenant_id` from authenticated user context. Warehouse and location CRUD does not mutate stock.
+
+Reader roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`, `PURCHASE_STAFF`.
+
+Writer roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`.
+
+Implemented endpoints:
+
+- `GET /api/warehouses`
+- `POST /api/warehouses`
+- `PATCH /api/warehouses/{warehouse_id}`
+- `GET /api/warehouses/{warehouse_id}/locations`
+- `POST /api/warehouses/{warehouse_id}/locations`
+- `PATCH /api/warehouses/{warehouse_id}/locations/{location_id}`
+
+`InventoryEngine`, stock ledger, and actual stock quantities are not implemented yet and must wait for Phase 2.

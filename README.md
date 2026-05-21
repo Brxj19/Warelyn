@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 1A - Auth and Tenant Foundation**.
+This repository has completed **Phase 1B - Tenant-scoped catalog and warehouse foundation**.
 
 Related commits:
 
@@ -17,14 +17,13 @@ The current implementation provides:
 
 - FastAPI backend scaffold with health endpoint, settings, middleware, exception handling, database session setup, and Alembic foundation.
 - `Tenant`, `User`, and `RefreshToken` models with roles, statuses, password hashing, JWT access tokens, JWT refresh tokens, login, registration, logout, refresh, and `auth/me` backend foundation.
-- React + Vite + Tailwind frontend scaffold with layouts, placeholder pages, UI primitives, routing, and API client wrapper.
+- Tenant-scoped category, brand, vendor, customer, product, warehouse, and warehouse location master data APIs.
+- React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
-- Product CRUD.
-- Warehouse workflows.
 - Inventory workflows.
 - Stock ledger and `InventoryEngine`.
 - Purchase, sales, or returns flows.
@@ -32,11 +31,9 @@ Not implemented yet:
 
 ## Next Phase
 
-Next recommended phase: **Phase 1B - Tenant-scoped catalog and warehouse foundation**.
+Next recommended phase: **Phase 2 - Inventory Engine and stock ledger**.
 
-Phase 1B should add the base tenant-scoped repository pattern, base CRUD conventions, category/brand/vendor/customer/product models without stock mutation, warehouse model, warehouse location/bin foundation, tenant isolation tests, and frontend module shells for catalog and warehouses.
-
-Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. Product CRUD and warehouse CRUD must not mutate stock; actual stock quantities, `InventoryEngine`, and stock ledger wait for Phase 2.
+Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. Product CRUD and warehouse CRUD do not mutate stock; actual stock quantities, `InventoryEngine`, and stock ledger wait for Phase 2.
 
 ## Tech Stack
 
@@ -55,24 +52,24 @@ Before adding inventory workflows, keep tenant context backend-derived from auth
   logo/                         Brand assets
   backend/
     app/
-      api/                      Root API router, health route, auth route
+      api/                      Root API router, health, auth, catalog, warehouse routes
       core/                     Settings, middleware, exceptions, security helpers
       db/                       SQLAlchemy Base and session setup
       dependencies/             Current user, role, tenant dependencies
-      models/                   Tenant, user, refresh token models
-      repositories/             Auth and tenant DB access layer
-      schemas/                  Auth request/response schemas
-      services/                 Auth and tenant business services
+      models/                   Auth, tenant, catalog, warehouse models
+      repositories/             Auth, tenant, catalog, warehouse DB access layer
+      schemas/                  Auth, catalog, warehouse request/response schemas
+      services/                 Auth, catalog, warehouse business services
       utils/                    Shared backend utilities
       main.py                   FastAPI app factory
-    alembic/                    Migration environment, no business tables yet
+    alembic/                    Migration environment
     tests/                      Backend tests
   frontend/
     src/
       app/                      React entry and app shell
       components/ui/            Reusable UI primitives
       layouts/                  App and auth layouts
-      pages/                    Placeholder pages
+      pages/                    Dashboard, auth, catalog, and warehouse pages
       routes/                   Route declarations
       services/                 Frontend API client wrapper
       styles/                   Tailwind and app styles
@@ -138,6 +135,26 @@ Auth endpoints:
 - `POST /api/auth/refresh`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
+
+Catalog endpoints:
+
+- `GET|POST /api/catalog/categories`
+- `PATCH /api/catalog/categories/{category_id}`
+- `GET|POST /api/catalog/brands`
+- `PATCH /api/catalog/brands/{brand_id}`
+- `GET|POST /api/catalog/vendors`
+- `PATCH /api/catalog/vendors/{vendor_id}`
+- `GET|POST /api/catalog/customers`
+- `PATCH /api/catalog/customers/{customer_id}`
+- `GET|POST /api/catalog/products`
+- `PATCH /api/catalog/products/{product_id}`
+
+Warehouse endpoints:
+
+- `GET|POST /api/warehouses`
+- `PATCH /api/warehouses/{warehouse_id}`
+- `GET|POST /api/warehouses/{warehouse_id}/locations`
+- `PATCH /api/warehouses/{warehouse_id}/locations/{location_id}`
 
 Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings.
 

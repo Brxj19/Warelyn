@@ -11,6 +11,11 @@ Priority values:
 
 This backlog is for progressive implementation. Do not implement backend code, frontend code, migrations, or product features until the relevant phase is explicitly approved.
 
+Completed:
+
+- Phase 0 foundation: root docs/config, FastAPI shell, React/Vite/Tailwind shell, Docker Compose.
+- Auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
+
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|
 | V2-000 | Phase 0 - Foundation audit and cleanup | P0 | Repo baseline | Current checkout has planning docs but no backend/frontend source to verify. | Confirm source location, add missing root docs/config only when requested, document real commands once manifests exist, keep PRD path as `docs/WARELYN_REAL_WORLD_V2_PRD.md`. | `README.md`, `AGENTS.md`, `opencode.json`, `docs/*` | Future agents know what exists, what is target-only, and which commands are verified. | Documentation review; no app tests until app exists. |

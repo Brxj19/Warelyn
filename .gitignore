@@ -17,8 +17,6 @@ htmlcov/
 
 # Backend env and generated files
 backend/.env
-backend/alembic/versions/*.py
-!backend/alembic/versions/.gitkeep
 
 # Node
 node_modules/

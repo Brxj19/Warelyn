@@ -1,5 +1,8 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 
+import { Button } from '../components/ui/Button.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Catalog', to: '/catalog' },
@@ -9,6 +12,9 @@ const navItems = [
 ];
 
 export function MainLayout() {
+  const { logout, user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   return (
     <div className="min-h-screen bg-warelyn-background text-warelyn-text">
       <header className="border-b border-warelyn-border bg-white">
@@ -20,9 +26,13 @@ export function MainLayout() {
               <span className="block text-xs text-warelyn-muted">Inventory that moves with your business.</span>
             </span>
           </Link>
-          <Link className="text-sm font-semibold text-warelyn-primary hover:text-blue-900" to="/login">
-            Login
-          </Link>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-right text-xs text-warelyn-muted sm:block">
+              <span className="block font-semibold text-warelyn-text">{user?.name}</span>
+              <span>{user?.role}</span>
+            </span>
+            <Button variant="secondary" onClick={logout}>Logout</Button>
+          </div>
         </div>
       </header>
 
@@ -42,6 +52,18 @@ export function MainLayout() {
                 {item.label}
               </NavLink>
             ))}
+            {isSuperAdmin ? (
+              <NavLink
+                className={({ isActive }) =>
+                  `block rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                    isActive ? 'bg-blue-50 text-warelyn-primary' : 'text-warelyn-muted hover:bg-slate-50 hover:text-warelyn-text'
+                  }`
+                }
+                to="/admin"
+              >
+                Platform Admin
+              </NavLink>
+            ) : null}
           </nav>
         </aside>
 

@@ -26,6 +26,10 @@ services:
       WARELYN_ENVIRONMENT: development
       WARELYN_DATABASE_URL: mysql+pymysql://warelyn:warelyn_dev_password@mysql:3306/warelyn_inventory
       WARELYN_CORS_ORIGINS: '["http://localhost:5173", "http://127.0.0.1:5173"]'
+      WARELYN_JWT_SECRET_KEY: replace-with-a-long-random-secret
+      WARELYN_SUPER_ADMIN_EMAIL: admin@warelyn.local
+      WARELYN_SUPER_ADMIN_PASSWORD: ChangeMe123!
+      WARELYN_SUPER_ADMIN_NAME: Warelyn Super Admin
     ports:
       - "8000:8000"
     volumes:

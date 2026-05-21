@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     database_url: str = "mysql+pymysql://warelyn:warelyn_dev_password@localhost:3306/warelyn_inventory"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
 
+    jwt_secret_key: str = "change-this-dev-secret-before-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
+
+    super_admin_email: str = "admin@warelyn.local"
+    super_admin_password: str = "ChangeMe123!"
+    super_admin_name: str = "Warelyn Super Admin"
+    seed_super_admin_on_startup: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

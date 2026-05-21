@@ -6,28 +6,29 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository is at **Phase 0: foundation only**.
+This repository is at **Phase 1: auth and tenant foundation**.
 
 The current implementation provides:
 
 - FastAPI backend scaffold with health endpoint, settings, middleware, exception handling, database session setup, and Alembic foundation.
+- Tenant, user, role, status, refresh token, password hashing, JWT access token, JWT refresh token, login, registration, logout, and `auth/me` backend foundation.
 - React + Vite + Tailwind frontend scaffold with layouts, placeholder pages, UI primitives, routing, and API client wrapper.
+- Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
-- Full authentication or JWT flows.
-- Tenant onboarding and tenant authorization.
 - Product CRUD.
 - Inventory workflows.
 - Purchase or sales flows.
-- Database business tables or migrations.
+- Warehouse workflows.
+- Advanced role/user management screens.
 
 ## Next Phase
 
-Next recommended phase: **auth and tenant foundation**.
+Next recommended phase: **catalog and warehouse foundation**, after auth and tenant behavior is reviewed.
 
-Before adding business workflows, implement user identity, tenant context, permissions, and repository-level tenant isolation.
+Before adding inventory workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs.
 
 ## Tech Stack
 
@@ -46,14 +47,14 @@ Before adding business workflows, implement user identity, tenant context, permi
   logo/                         Brand assets
   backend/
     app/
-      api/                      Root API router and health route
-      core/                     Settings, middleware, exceptions, security placeholders
+      api/                      Root API router, health route, auth route
+      core/                     Settings, middleware, exceptions, security helpers
       db/                       SQLAlchemy Base and session setup
-      dependencies/             Future FastAPI dependencies
-      models/                   Future SQLAlchemy models
-      repositories/             Future DB access layer
-      schemas/                  Future request/response schemas
-      services/                 Future business services
+      dependencies/             Current user, role, tenant dependencies
+      models/                   Tenant, user, refresh token models
+      repositories/             Auth and tenant DB access layer
+      schemas/                  Auth request/response schemas
+      services/                 Auth and tenant business services
       utils/                    Shared backend utilities
       main.py                   FastAPI app factory
     alembic/                    Migration environment, no business tables yet
@@ -102,6 +103,8 @@ cp .env.example .env
 cd backend
 .venv/bin/python -m compileall app
 .venv/bin/python -m pytest
+.venv/bin/alembic upgrade head
+.venv/bin/python -m app.utils.seed_super_admin
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -119,6 +122,16 @@ Expected response:
   "service": "Warelyn Inventory API"
 }
 ```
+
+Auth endpoints:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings.
 
 ## Frontend Commands
 
@@ -149,6 +162,7 @@ Development URLs:
 - Services own business workflows.
 - Repositories own database access.
 - Backend enforces tenant isolation.
+- Tenant ID for normal tenant business APIs must come from the authenticated user context, not arbitrary frontend input.
 - `InventoryEngine` will be the only stock mutation path once inventory workflows begin.
 - Frontend pages stay thin and call service/API wrappers.
 - Frontend never calculates authoritative stock.

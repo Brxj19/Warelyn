@@ -7,6 +7,7 @@ import { BrandsPage, CategoriesPage, CustomersPage, ProductsPage, VendorsPage } 
 import { DashboardPage } from '../pages/DashboardPage.jsx';
 import { LoginPage } from '../pages/LoginPage.jsx';
 import { NotFoundPage } from '../pages/NotFoundPage.jsx';
+import { ProductImportPage } from '../pages/ProductImportPage.jsx';
 import { RegisterPage } from '../pages/RegisterPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehousesPage } from '../pages/WarehousesPage.jsx';
@@ -22,6 +23,7 @@ export function AppRoutes() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="catalog" element={<CatalogPage />} />
           <Route path="catalog/products" element={<ProductsPage />} />
+          <Route path="catalog/products/import" element={<ProductImportPage />} />
           <Route path="catalog/categories" element={<CategoriesPage />} />
           <Route path="catalog/brands" element={<BrandsPage />} />
           <Route path="catalog/vendors" element={<VendorsPage />} />

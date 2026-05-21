@@ -8,6 +8,8 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 
 Any workflow that changes stock must call `InventoryEngine`, including purchase receiving, stock in/out, adjustment, reservation, reservation release, delivery deduction, transfer, returns QC, damaged stock, expired stock, quarantine, scrap, and reconciliation fixes.
 
+Product import is catalog-only in Phase 3. It creates or updates product master data and must not call `InventoryEngine`, create `warehouse_stock`, create `stock_ledger_entries`, or create `stock_reservations`.
+
 ## Required Public Methods
 
 ```python

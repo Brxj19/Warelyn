@@ -2,9 +2,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000
 
 export async function apiRequest(path, options = {}) {
   const { accessToken, ...fetchOptions } = options;
+  const isFormData = fetchOptions.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(fetchOptions.headers ?? {}),
     },

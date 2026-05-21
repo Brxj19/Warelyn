@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.master_data import Brand, Category, Customer, Product, Vendor, Warehouse, WarehouseLocation
@@ -28,6 +28,24 @@ class CustomerRepository(TenantScopedRepository[Customer]):
 class ProductRepository(TenantScopedRepository[Product]):
     def __init__(self, db: Session) -> None:
         super().__init__(db, Product)
+
+    def list_by_tenant(self, tenant_id: int, search: str | None = None) -> list[Product]:
+        query = select(Product).where(Product.tenant_id == tenant_id)
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.where(or_(Product.name.ilike(term), Product.sku.ilike(term), Product.barcode.ilike(term)))
+        return list(self.db.scalars(query))
+
+    def get_by_sku(self, tenant_id: int, sku: str) -> Product | None:
+        return self.db.scalar(select(Product).where(Product.tenant_id == tenant_id, Product.sku == sku))
+
+    def get_by_barcode(self, tenant_id: int, barcode: str) -> Product | None:
+        return self.db.scalar(select(Product).where(Product.tenant_id == tenant_id, Product.barcode == barcode))
+
+    def create(self, values: dict) -> Product:
+        product = Product(**values)
+        self.db.add(product)
+        return product
 
 
 class WarehouseRepository(TenantScopedRepository[Warehouse]):

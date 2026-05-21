@@ -230,7 +230,79 @@ Implemented endpoints:
 - `POST /api/catalog/products`
 - `PATCH /api/catalog/products/{product_id}`
 
+`GET /api/catalog/products` accepts optional `search` and matches tenant-scoped product `name`, `sku`, or `barcode`.
+
 Duplicate tenant-scoped unique values return `409 DUPLICATE_RECORD`.
+
+## Product Import
+
+All product import routes require a bearer token and derive `tenant_id` from authenticated user context. Product import creates or updates product master data only; it does not mutate stock, create `warehouse_stock`, create `stock_ledger_entries`, create `stock_reservations`, or call `InventoryEngine`.
+
+Writer roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`.
+
+Implemented endpoints:
+
+- `POST /api/imports/products/upload`
+- `GET /api/imports/products/{job_id}`
+- `GET /api/imports/products/{job_id}/rows`
+- `POST /api/imports/products/{job_id}/validate`
+- `POST /api/imports/products/{job_id}/commit`
+- `POST /api/imports/products/{job_id}/cancel`
+
+Upload request is `multipart/form-data`:
+
+- `file`: CSV file.
+- `mode`: `create_only`, `update_existing`, or `upsert`.
+- `create_missing_references`: `true` or `false`.
+
+Required CSV columns:
+
+- `name`
+- `sku`
+- `unit`
+
+Optional CSV columns:
+
+- `barcode`
+- `description`
+- `category_name`
+- `brand_name`
+- `vendor_name`
+- `cost_price`
+- `selling_price`
+- `reorder_level`
+- `track_batch`
+- `track_expiry`
+- `track_serial`
+- `status`
+
+Import modes:
+
+- `create_only`: rows with existing tenant SKUs are errors.
+- `update_existing`: rows without existing tenant SKUs are errors.
+- `upsert`: existing tenant SKUs are updated and missing tenant SKUs are created.
+
+Validation catches required fields, invalid numeric/boolean/status values, duplicate SKUs or barcodes in the file, existing SKU conflicts, and tenant barcode collisions. Commit skips invalid rows. Vendor names can be validated or created as vendor master data, but products are not linked to vendors in this phase because product-vendor linking is not implemented yet.
+
+Response shape for upload, validate, commit, and cancel:
+
+```json
+{
+  "job": {
+    "id": 1,
+    "status": "VALIDATED",
+    "mode": "create_only",
+    "total_rows": 1,
+    "valid_rows": 1,
+    "error_rows": 0,
+    "warning_rows": 0,
+    "created_count": 0,
+    "updated_count": 0,
+    "skipped_count": 0
+  },
+  "rows": []
+}
+```
 
 ## Warehouse Foundation
 

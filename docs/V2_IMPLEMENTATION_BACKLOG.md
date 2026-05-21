@@ -17,6 +17,7 @@ Completed:
 - Phase 1A auth and tenant foundation: tenant/user/refresh token models, JWT auth APIs, protected frontend auth shell.
 - Phase 1B tenant-scoped catalog and warehouse foundation: tenant-scoped repository helpers, catalog and warehouse master data APIs, frontend module shells.
 - Phase 2 InventoryEngine and stock ledger foundation: centralized stock mutation, warehouse stock projection, ledger entries, reservations, idempotency, reconciliation dry-run.
+- Phase 3 product import and barcode-ready catalog: CSV product import jobs, validation, preview, commit, cancel, product search by name/SKU/barcode, scanner-friendly barcode input.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -34,7 +35,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 3 - Product import and barcode-ready catalog`.
+Next recommended phase: `Phase 4 - Warehouse locations and bin tracking`.
 
 ## Required Phase Order
 
@@ -83,6 +84,18 @@ Phase 1B does not implement stock mutation. Product CRUD does not change stock. 
 
 Phase 2 does not implement product import, purchase receiving workflow, sales order workflow, picking/packing/delivery workflow, returns QC workflow, batch/expiry/serial tracking, advanced reports, AI assistant, or subscription expansion.
 
+`Phase 3 - Product import and barcode-ready catalog` is completed and includes:
+
+- Tenant-scoped `import_jobs` and `import_job_rows`.
+- CSV product import upload, validation, preview, commit, cancel, and row listing APIs.
+- Import modes: `create_only`, `update_existing`, and `upsert`.
+- Duplicate SKU and barcode validation within the import file and tenant catalog.
+- Optional creation of missing category, brand, and vendor master records.
+- Product search by name, SKU, and barcode through `GET /api/catalog/products?search=`.
+- Frontend product import page, CSV dropzone, preview table, and reusable barcode input.
+
+Phase 3 does not implement XLSX import, column mapping UI, stock import, purchase receiving workflow, sales order workflow, picking/packing/delivery workflow, returns QC workflow, full batch/expiry/serial workflow, advanced reports, AI assistant, or subscription expansion. Product import does not call `InventoryEngine` and does not create `warehouse_stock`, `stock_ledger_entries`, or `stock_reservations`.
+
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|
 | V2-000 | Phase 0 - Foundation audit and cleanup | P0 | Repo baseline | Current checkout has planning docs but no backend/frontend source to verify. | Confirm source location, add missing root docs/config only when requested, document real commands once manifests exist, keep PRD path as `docs/WARELYN_REAL_WORLD_V2_PRD.md`. | `README.md`, `AGENTS.md`, `opencode.json`, `docs/*` | Future agents know what exists, what is target-only, and which commands are verified. | Documentation review; no app tests until app exists. |
@@ -104,8 +117,8 @@ Phase 2 does not implement product import, purchase receiving workflow, sales or
 | V2-020 | Phase 2 - Inventory Engine and stock ledger | P0 | Stock correctness | Current PRD warns stock changes may be scattered across services. | Implement `InventoryEngine` as the only stock mutation path with transaction, lock, ledger, projection, audit, and idempotency responsibilities. | `backend/app/domain/inventory/engine.py`, `ledger.py`, `repositories/stock_repository.py`, `models/warehouse_stock.py`, `models/stock_ledger_entry.py` | Every stock mutation writes ledger and projection in one transaction. | Engine invariant tests; ledger write tests; idempotency tests. |
 | V2-021 | Phase 2 - Inventory Engine and stock ledger | P0 | Idempotency | Repeated requests can duplicate stock movement. | Add idempotency key storage and service helper for critical operations. | `backend/app/core/idempotency.py`, `models/idempotency_key.py`, engine/service callers | Repeating same key returns prior result or safe conflict without duplicate ledger rows. | Idempotency unit/integration tests. |
 | V2-022 | Phase 2 - Inventory Engine and stock ledger | P0 | Reconciliation | Projection can drift from ledger if no comparison exists. | Add reconciliation service/CLI with dry-run first, then controlled fix mode. | `backend/app/domain/inventory/reconciliation.py`, `backend/app/cli/reconcile_inventory.py`, report repository | Dry-run reports mismatches by tenant; fix mode creates correction entries. | Reconciliation mismatch/fix tests. |
-| V2-030 | Phase 3 - Product import and barcode-ready catalog | P1 | Product onboarding | Real users need CSV/XLSX import, duplicate detection, and barcode capture. | Build import jobs with upload, column mapping, validation, preview, duplicate review, and commit. | `domain/catalog/import_service.py`, `models/import_job.py`, `models/import_job_row.py`, `api/routers/imports.py`, `frontend/src/modules/catalog/*` | Users can validate before commit; fuzzy matches are suggestions only. | Import validation tests; duplicate matching tests; UI flow tests later. |
-| V2-031 | Phase 3 - Product import and barcode-ready catalog | P1 | Barcode readiness | Products, locations, batches, serials, packages, and shipments need barcode fields. | Add barcode fields/contracts to catalog and scanner-ready frontend input patterns. | product models/schemas, warehouse location models/schemas, `frontend/src/components/scanner/BarcodeInput.*` | Product search supports SKU/name/barcode; scanner input can be reused. | API tests for barcode uniqueness; component tests later. |
+| V2-030 | Phase 3 - Product import and barcode-ready catalog | P1 | Product onboarding | Real users need CSV/XLSX import, duplicate detection, and barcode capture. | Build import jobs with upload, column mapping, validation, preview, duplicate review, and commit. | `domain/catalog/import_service.py`, `models/import_job.py`, `models/import_job_row.py`, `api/routers/imports.py`, `frontend/src/modules/catalog/*` | Completed for CSV without mapping UI or XLSX. Users can validate before commit; invalid rows are skipped on commit; tenant duplicate checks are enforced. | Import validation tests and duplicate checks pass; UI flow build passes. |
+| V2-031 | Phase 3 - Product import and barcode-ready catalog | P1 | Barcode readiness | Products, locations, batches, serials, packages, and shipments need barcode fields. | Add barcode fields/contracts to catalog and scanner-ready frontend input patterns. | product models/schemas, warehouse location models/schemas, `frontend/src/components/scanner/BarcodeInput.*` | Completed for product search and reusable product barcode input. Later workflow-specific scanning remains future work. | API tests for barcode uniqueness/search pass; frontend build passes. |
 | V2-040 | Phase 4 - Warehouse locations and bin tracking | P1 | Physical stock location | Warehouse-level stock is not enough for real operations. | Add `warehouse_locations` tree with type, barcode, status, and location-level stock movement. | warehouse models/schemas/repositories, `domain/inventory/engine.py`, `api/routers/warehouses.py`, warehouse frontend module | Stock can be associated with receiving, storage, picking, packing, shipping, return, QC, damaged, expired, quarantine, scrap, or virtual locations. | Location CRUD tests; location transfer tests; tenant isolation tests. |
 | V2-041 | Phase 4 - Warehouse locations and bin tracking | P1 | Putaway foundation | Receiving needs a path from receiving area to storage bins. | Add putaway task models/services after location model exists. | `models/putaway_task.py`, `domain/purchasing/receiving_service.py`, `domain/inventory/engine.py`, frontend receiving/warehouse modules | Received stock can be moved from receiving to storage with ledger entries. | Putaway service tests; stock movement tests. |
 | V2-050 | Phase 5 - Batch, expiry, and serial tracking | P1 | Traceability | Batch/expiry/serial support must be first-class for regulated or warranty-heavy items. | Add batch and serial models, validation rules, receive forms, detail tabs, and status transitions. | `models/inventory_batch.py`, `models/inventory_serial.py`, inventory schemas/repositories, frontend product/inventory detail pages | Tracked products require batch/expiry/serial data before stock becomes available. | Batch required; expiry required; serial uniqueness; serial status transition tests. |
@@ -142,7 +155,7 @@ Phase 2 does not implement product import, purchase receiving workflow, sales or
 | Phase 1A | `implement Warelyn auth and tenant foundation` |
 | Phase 1B | `add tenant scoped catalog and warehouse foundation` |
 | Phase 2 | `centralize inventory mutations in inventory engine` |
-| Phase 3 | `add product import planning and barcode catalog support` |
+| Phase 3 | `add product import and barcode ready catalog` |
 | Phase 4 | `add warehouse location and bin tracking foundation` |
 | Phase 5 | `add batch expiry and serial tracking foundation` |
 | Phase 6 | `implement purchase receiving stock workflow` |

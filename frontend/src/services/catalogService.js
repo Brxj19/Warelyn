@@ -32,8 +32,9 @@ export function createCustomer(accessToken, payload) {
   return apiRequest('/catalog/customers', { accessToken, method: 'POST', body: JSON.stringify(payload) });
 }
 
-export function listProducts(accessToken) {
-  return apiRequest('/catalog/products', { accessToken });
+export function listProducts(accessToken, search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  return apiRequest(`/catalog/products${query}`, { accessToken });
 }
 
 export function createProduct(accessToken, payload) {

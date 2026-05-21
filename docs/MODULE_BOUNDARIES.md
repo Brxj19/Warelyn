@@ -5,8 +5,8 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 ## Current Repo State
 
 - This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
-- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, and Phase 2 InventoryEngine/stock ledger foundation are implemented.
-- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, and reconciliation dry-run.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, and Phase 3 product import/barcode-ready catalog are implemented.
+- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, and product import rows.
 - The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
 ## Target Backend Folder Structure
@@ -301,6 +301,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 
 - `InventoryEngine` is the only backend module allowed to change stock quantities or stock state.
 - Stock in/out, adjustment, reservation, reservation release, reserved deduction, transfer, and future purchase receiving, sales delivery, return QC, damaged stock, expired stock, quarantine, and reconciliation fixes must call `InventoryEngine`.
+- Product import is catalog-only in Phase 3 and must not call `InventoryEngine`, create stock projection rows, create ledger entries, or create reservations.
 - Every `InventoryEngine` mutation must create a stock ledger entry.
 - Important stock mutations must create audit logs and notifications where appropriate.
 - Services may orchestrate inventory use cases, but they must delegate stock math and persistence updates to `InventoryEngine`.
@@ -326,7 +327,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 | Auth | `api/routers/auth.py`, auth service, security core | `modules/auth`, `api/authApi.js` | users, tokens, OTP | No | Keep JWT and tenant context explicit. |
 | Tenants/Admin | tenant service, permission core | `modules/admin` | tenants, users, roles | No | Platform admin access must be explicit. |
 | Catalog | `domain/catalog`, product repository | `modules/catalog`, `api/catalogApi.js` | products, categories, brands, units | No | Product master does not represent stock location. |
-| Product Import | `domain/catalog/import_service.py`, imports router | `modules/catalog` or `modules/imports` | import jobs, import rows | Only through engine on commit if import creates stock | Preview/validation before commit. |
+| Product Import | import service, imports router | catalog/import page and import service | import jobs, import rows, products | No in Phase 3 | Preview/validation before commit; catalog-only CSV import. |
 | Warehouses | warehouse service/repository | `modules/warehouses`, `api/warehouseApi.js` | warehouses, locations/bins | No direct mutation | Location movement uses inventory engine. |
 | Inventory | `domain/inventory/engine.py`, stock repository | `modules/inventory`, `api/inventoryApi.js` | stock projection, ledger, batches, serials | Yes, only via `InventoryEngine` | Core correctness module. |
 | Purchasing | purchasing and receiving services | `modules/purchasing` | purchase orders, receives, bills | Via `InventoryEngine.receive_purchase_order()` | PO status alone must not increase stock. |

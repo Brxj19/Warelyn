@@ -1,3 +1,7 @@
+import { Link } from 'react-router-dom';
+
+import { BarcodeInput } from '../components/forms/BarcodeInput.jsx';
+import { Button } from '../components/ui/Button.jsx';
 import * as catalogService from '../services/catalogService.js';
 import { MasterDataPage } from './MasterDataPage.jsx';
 
@@ -23,7 +27,18 @@ const productFields = [
 ];
 
 export function ProductsPage() {
-  return <MasterDataPage createRecord={catalogService.createProduct} description="Create product masters without stock quantities or movements." fields={productFields} listRecords={catalogService.listProducts} title="Products" />;
+  return (
+    <MasterDataPage
+      actions={<Button as="span"><Link to="/catalog/products/import">Import Products</Link></Button>}
+      createRecord={catalogService.createProduct}
+      description="Create product masters without stock quantities or movements. Search by name, SKU, or barcode."
+      fields={productFields}
+      listRecords={catalogService.listProducts}
+      searchPlaceholder="Search products by name, SKU, or barcode"
+      title="Products"
+      customInputs={{ barcode: BarcodeInput }}
+    />
+  );
 }
 
 export function CategoriesPage() {

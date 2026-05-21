@@ -1,4 +1,5 @@
 from app.models.auth import RefreshToken, Tenant, TenantStatus, User, UserRole, UserStatus
+from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportRowStatus, ProductImportMode
 from app.models.inventory import IdempotencyKey, IdempotencyStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Brand, Category, Customer, LocationType, Product, RecordStatus, Vendor, Warehouse, WarehouseLocation
 
@@ -8,9 +9,14 @@ __all__ = [
     "Customer",
     "IdempotencyKey",
     "IdempotencyStatus",
+    "ImportJob",
+    "ImportJobRow",
+    "ImportJobStatus",
+    "ImportRowStatus",
     "LocationType",
     "MovementType",
     "Product",
+    "ProductImportMode",
     "ReferenceType",
     "RecordStatus",
     "RefreshToken",

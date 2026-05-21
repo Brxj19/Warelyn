@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 2 InventoryEngine and stock ledger foundation is complete.
+Phase 3 product import and barcode-ready catalog is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Product import, purchase receiving, sales order, picking/packing/delivery, returns QC, batch/expiry/serial, and advanced report tables are not implemented yet.
+Purchase receiving, sales order, picking/packing/delivery, returns QC, batch/expiry/serial, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows.
 
 Current implemented models:
 
@@ -29,8 +29,10 @@ Current implemented models:
 - `StockLedgerEntry`
 - `StockReservation`
 - `IdempotencyKey`
+- `ImportJob`
+- `ImportJobRow`
 
-Next recommended phase: `Phase 3 - Product import and barcode-ready catalog`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 4 - Warehouse locations and bin tracking`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -105,6 +107,15 @@ Tenant-scoped inventory tables added by `20260521_0003_inventory_engine_foundati
 - `stock_reservations`: active/released/deducted reservation foundation with tenant, product, warehouse, required location, quantity, status, reference, actor, and timestamps.
 - `idempotency_keys`: tenant-scoped mutation replay protection keyed by `(tenant_id, key, operation)` with request hash and stored response JSON.
 
+### Product Import Foundation
+
+Tenant-scoped import tables added by `20260521_0004_product_import_foundation.py`:
+
+- `import_jobs`: tenant, creator, import type, filename, mode, status, row counts, created/updated/skipped counts, timestamps for validation, commit, cancellation, creation, and update.
+- `import_job_rows`: tenant, job, CSV row number, raw row JSON, normalized row JSON, row status, errors JSON, warnings JSON, optional existing product, optional created product, and timestamps.
+
+Import jobs and rows are scoped by `tenant_id`. They support preview and validation before commit. Product import commit creates or updates `products`, may create missing category, brand, or vendor master records when requested, and does not touch inventory stock tables.
+
 ## Enums
 
 ### `UserRole`
@@ -177,6 +188,31 @@ Tenant-scoped inventory tables added by `20260521_0003_inventory_engine_foundati
 - `ADJUSTMENT`
 - `RECONCILIATION`
 
+### `ImportJobStatus`
+
+- `UPLOADED`
+- `VALIDATING`
+- `VALIDATED`
+- `HAS_ERRORS`
+- `COMMITTED`
+- `CANCELLED`
+
+### `ImportRowStatus`
+
+- `PENDING`
+- `VALID`
+- `ERROR`
+- `WARNING`
+- `SKIPPED`
+- `CREATED`
+- `UPDATED`
+
+### `ProductImportMode`
+
+- `create_only`
+- `update_existing`
+- `upsert`
+
 ## Migration
 
 Current migration:
@@ -184,6 +220,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0001_auth_tenant_foundation.py`
 - `backend/alembic/versions/20260521_0002_catalog_warehouse_foundation.py`
 - `backend/alembic/versions/20260521_0003_inventory_engine_foundation.py`
+- `backend/alembic/versions/20260521_0004_product_import_foundation.py`
 
 Apply migrations:
 
@@ -211,3 +248,4 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 - Catalog and warehouse master data use tenant-scoped repository helpers and tenant-scoped unique constraints.
 - Inventory stock records are tenant-scoped and location-scoped. `InventoryEngine` is the only allowed stock mutation path.
 - `warehouse_stock.quantity_available` is a projection that must equal `quantity_on_hand - quantity_reserved` in Phase 2.
+- Product import records are tenant-scoped and catalog-only. Import commit must not write `warehouse_stock`, `stock_ledger_entries`, or `stock_reservations`.

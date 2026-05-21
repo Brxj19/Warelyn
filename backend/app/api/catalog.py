@@ -90,8 +90,8 @@ def update_customer(customer_id: int, request: CustomerUpdate, context: UserCont
 
 
 @router.get("/products", response_model=list[ProductRead])
-def list_products(context: UserContext = Depends(require_roles(*product_reader_roles)), db: Session = Depends(get_db)) -> list[ProductRead]:
-    return CatalogService(db).list_products(context.tenant_id)
+def list_products(search: str | None = None, context: UserContext = Depends(require_roles(*product_reader_roles)), db: Session = Depends(get_db)) -> list[ProductRead]:
+    return CatalogService(db).list_products(context.tenant_id, search)
 
 
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)

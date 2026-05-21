@@ -61,8 +61,8 @@ class CatalogService:
     def update_customer(self, tenant_id: int, record_id: int, values: dict[str, Any]) -> Customer:
         return self._update(self.customers, tenant_id, record_id, values)
 
-    def list_products(self, tenant_id: int) -> list[Product]:
-        return self.products.list_by_tenant(tenant_id)
+    def list_products(self, tenant_id: int, search: str | None = None) -> list[Product]:
+        return self.products.list_by_tenant(tenant_id, search)
 
     def create_product(self, tenant_id: int, values: dict[str, Any]) -> Product:
         self._validate_product_refs(tenant_id, values)

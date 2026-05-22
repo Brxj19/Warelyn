@@ -5,8 +5,8 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 ## Current Repo State
 
 - This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
-- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, Phase 8 returns QC/blocked stock foundation, Phase 9 reports/reorder/dashboard foundation, Phase 10 frontend workflow polish, and Phase 11 regression/deployment readiness are implemented.
-- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, inventory serials, sales orders, sales fulfillments, pick tasks, pick task items, packages, package items, sales returns, return QC inspections, blocked return stock, and read-only operational reports.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, Phase 8 returns QC/blocked stock foundation, Phase 9 reports/reorder/dashboard foundation, Phase 10 frontend workflow polish, Phase 11 regression/deployment readiness, Phase 12 PRD gap audit, Phase 13 super admin settings/audit logs, and Phase 14 communication/verification/notifications foundation are implemented.
+- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, inventory serials, sales orders, sales fulfillments, pick tasks, pick task items, packages, package items, sales returns, return QC inspections, blocked return stock, read-only operational reports, super admin settings, audit logs, OTP verifications, SMS outbox, and notifications.
 - The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
 ## Target Backend Folder Structure
@@ -333,7 +333,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 
 | Module | Backend Owner | Frontend Owner | Primary Data | Stock Mutation Allowed | Notes |
 |---|---|---|---|---|---|
-| Auth | `api/routers/auth.py`, auth service, security core | `modules/auth`, `api/authApi.js` | users, tokens, OTP | No | Keep JWT and tenant context explicit. |
+| Auth | `api/routers/auth.py`, auth service, security core | `modules/auth`, `api/authApi.js` | users, tokens, OTP | No | Keep JWT and tenant context explicit. OTP verification service lives in `services/otp_service.py`. |
 | Tenants/Admin | tenant service, permission core | `modules/admin` | tenants, users, roles | No | Platform admin access must be explicit. |
 | Catalog | `domain/catalog`, product repository | `modules/catalog`, `api/catalogApi.js` | products, categories, brands, units | No | Product master does not represent stock location. |
 | Product Import | import service, imports router | catalog/import page and import service | import jobs, import rows, products | No in Phase 3 | Preview/validation before commit; catalog-only CSV import. |
@@ -345,5 +345,5 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 | Returns | return service | returns pages and returns service | sales returns, return QC, blocked return stock | Via return/QC engine methods | Sellable restock goes through the engine; blocked/damaged/scrapped returns remain non-sellable. |
 | Documents | document services | `modules/documents` | invoices, bills, PDFs | No | Document generation must reflect committed workflow state. |
 | Reports | report repository/service | `modules/reports`, `api/reportsApi.js` | projections, ledger, audit | No | Reports read ledger/projections; no mutation. |
-| Notifications | notification service/jobs | feedback components, notification UI | notifications, outbox | No | Trigger from domain events or services. |
+| Notifications | notification service/jobs | feedback components, notification UI | notifications, outbox | No | Trigger from domain events or services. In-app notifications stored in `notifications` table with user-scoped isolation. |
 | Audit | audit service/repository | audit tabs/activity views | audit logs | No | Critical workflows must record actor and tenant. |

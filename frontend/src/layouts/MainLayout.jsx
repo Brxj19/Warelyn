@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, ChevronDown, ChevronRight, HelpCircle, Menu, Settings, UserCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, HelpCircle, Menu, Settings, UserCircle } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppLogo } from '../components/AppLogo.jsx';
+import { NotificationBell } from '../components/NotificationCenter.jsx';
 import { QuickCreateMenu } from '../components/QuickCreateMenu.jsx';
 import { RecentHistoryMenu } from '../components/RecentHistoryMenu.jsx';
 import { SidebarNav } from '../components/SidebarNav.jsx';
@@ -15,6 +16,7 @@ export function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, tenant, user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const accountRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => window.localStorage.getItem('warelyn.sidebarCollapsed') === 'true');
@@ -51,31 +53,22 @@ export function MainLayout() {
           <Button aria-label="Open navigation menu" className="topbar-icon-btn lg:hidden" onClick={() => setIsSidebarOpen(true)} title="Open menu" type="button" variant="ghost">
             <Menu size={20} />
           </Button>
-          <Link className="topbar-brand" to="/dashboard">
+          <Link className="topbar-brand" to={isSuperAdmin ? '/admin' : '/dashboard'}>
             <AppLogo size="topbar" variant="full" />
           </Link>
         </div>
 
-        <TopbarSearch navItems={navItems} />
+        <TopbarSearch navItems={navItems} recordsEnabled={!isSuperAdmin} />
 
         <div className="topbar-actions">
           <QuickCreateMenu role={user?.role} />
           <RecentHistoryMenu history={history} />
+          {!isSuperAdmin ? <NotificationBell /> : null}
           <Button
-            aria-label="View low stock alerts"
+            aria-label={isSuperAdmin ? 'Open platform health' : 'Open reports help'}
             className="topbar-icon-btn topbar-icon-btn-quiet"
-            onClick={() => navigate('/reports/low-stock')}
-            title="Low stock alerts"
-            type="button"
-            variant="ghost"
-          >
-            <Bell size={18} />
-          </Button>
-          <Button
-            aria-label="Open reports help"
-            className="topbar-icon-btn topbar-icon-btn-quiet"
-            onClick={() => navigate('/reports')}
-            title="Open reports"
+            onClick={() => navigate(isSuperAdmin ? '/admin/platform-health' : '/reports')}
+            title={isSuperAdmin ? 'Open platform health' : 'Open reports'}
             type="button"
             variant="ghost"
           >
@@ -98,15 +91,15 @@ export function MainLayout() {
                   <button
                     className="popover-row"
                     onClick={() => {
-                      navigate('/dashboard');
+                      navigate(isSuperAdmin ? '/admin' : '/dashboard');
                       setIsAccountOpen(false);
                     }}
                     type="button"
                   >
                     <UserCircle size={16} />
                     <span>
-                      <strong>Workspace home</strong>
-                      <small>Return to dashboard</small>
+                      <strong>{isSuperAdmin ? 'Platform home' : 'Workspace home'}</strong>
+                      <small>{isSuperAdmin ? 'Return to platform console' : 'Return to dashboard'}</small>
                     </span>
                   </button>
                   {user?.role !== 'SUPER_ADMIN' ? (
@@ -178,7 +171,7 @@ export function MainLayout() {
             <div className="content-scroll">
               <div className="content-inner">
                 <div className="breadcrumbs">
-                  <Link to="/dashboard">Home</Link>
+                  <Link to={isSuperAdmin ? '/admin' : '/dashboard'}>Home</Link>
                   <ChevronRight size={14} />
                   <span>{current.section}</span>
                   <ChevronRight size={14} />

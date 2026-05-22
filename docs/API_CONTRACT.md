@@ -2,7 +2,7 @@
 
 Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus implemented backend routes.
 
-Current implementation is complete through Phase 11 regression/deployment readiness. Phase 11 adds tests and operational readiness only; it does not add business endpoints.
+Current implementation is complete through Phase 14 communication/verification/notifications foundation.
 
 ## Response Shape
 
@@ -658,3 +658,207 @@ Report rules:
 - Serial status reports read `InventorySerial` status rows.
 - Blocked stock reports combine `blocked_return_stock`, blocked batch statuses, and blocked serial statuses.
 - Reconciliation report exposes the current ledger-to-projection dry-run result in report form.
+
+## Super Admin Settings And Audit Logs Foundation
+
+All super admin routes require a bearer token and `SUPER_ADMIN` role. Tenant routes are not affected.
+
+Implemented endpoints:
+
+- `GET /api/admin/tenants`
+- `GET /api/admin/tenants/{tenant_id}`
+- `PATCH /api/admin/tenants/{tenant_id}`
+- `GET /api/admin/users`
+- `GET /api/admin/users/{user_id}`
+- `PATCH /api/admin/users/{user_id}`
+- `GET /api/admin/settings`
+- `PATCH /api/admin/settings`
+- `GET /api/admin/audit-logs`
+
+All admin endpoints require `require_super_admin()` dependency. Audit logs are query-based and read `audit_logs` table.
+
+## Verification Foundation
+
+All verification routes require a bearer token and derive `user_id` from authenticated user context. Verification does not accept verification codes for third-party accounts.
+
+Implemented endpoints:
+
+- `POST /api/verification/email/send`
+- `POST /api/verification/email/confirm`
+- `POST /api/verification/phone/send`
+- `POST /api/verification/phone/confirm`
+- `GET /api/verification/status`
+
+### `POST /api/verification/email/send`
+
+Generates an OTP, supersedes previous active OTPs for the same user/purpose/destination, and sends a verification email via SMTP (MailHog in dev).
+
+Request:
+
+```json
+{}
+```
+
+Response `200`:
+
+```json
+{
+  "success": true,
+  "message": "Verification code sent to email."
+}
+```
+
+Failure codes:
+
+- `EMAIL_DELIVERY_FAILED` — SMTP/MailHog not reachable (502).
+
+### `POST /api/verification/email/confirm`
+
+Validates the OTP code, sets `email_verified_at` on the user, creates an audit log entry and a success notification.
+
+Request:
+
+```json
+{
+  "code": "123456"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "success": true,
+  "message": "Email verified successfully."
+}
+```
+
+Failure codes:
+
+- `OTP_NOT_FOUND` — no active OTP for this user/purpose.
+- `OTP_EXPIRED` — code has expired.
+- `OTP_CONSUMED` — code already used.
+- `OTP_SUPERSEDED` — a newer code was sent.
+- `OTP_MAX_ATTEMPTS` — too many failed attempts.
+- `OTP_INVALID` — wrong code.
+
+### `POST /api/verification/phone/send`
+
+Generates an OTP, supersedes previous active OTPs, and creates an SMS outbox record. No real SMS is sent.
+
+Request:
+
+```json
+{
+  "phone": "+15550100"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "success": true,
+  "message": "Verification code sent to phone."
+}
+```
+
+Failure codes:
+
+- `PHONE_REQUIRED` — user does not have a phone number on record (400).
+
+### `POST /api/verification/phone/confirm`
+
+Same logic as email confirm but sets `phone_verified_at`.
+
+### `GET /api/verification/status`
+
+Returns the current user's verification state. Does not expose OTP codes.
+
+Response:
+
+```json
+{
+  "email": "user@example.com",
+  "email_verified": true,
+  "email_verified_at": "2026-05-22T12:00:00Z",
+  "phone": "+15550100",
+  "phone_verified": true,
+  "phone_verified_at": "2026-05-22T12:00:00Z"
+}
+```
+
+## Notifications Foundation
+
+All notification routes require a bearer token and derive `user_id` from authenticated user context. Users can only see and manage their own notifications.
+
+Implemented endpoints:
+
+- `GET /api/notifications`
+- `GET /api/notifications/unread-count`
+- `POST /api/notifications/{id}/read`
+- `POST /api/notifications/read-all`
+
+### `GET /api/notifications`
+
+Returns paginated notifications for the authenticated user, newest first. Accepts `page` and `page_size` query params.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "SUCCESS",
+      "category": "VERIFICATION",
+      "title": "Email Verified",
+      "message": "Your email address has been verified successfully.",
+      "is_read": false,
+      "created_at": "..."
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "pages": 1
+}
+```
+
+### `GET /api/notifications/unread-count`
+
+Returns the count of unread notifications for the authenticated user.
+
+Response:
+
+```json
+{
+  "count": 3
+}
+```
+
+### `POST /api/notifications/{id}/read`
+
+Marks a single notification as read. Validates user ownership.
+
+Response `200`:
+
+```json
+{
+  "success": true
+}
+```
+
+Returns `404` if the notification does not exist or does not belong to the user.
+
+### `POST /api/notifications/read-all`
+
+Marks all unread notifications as read for the authenticated user.
+
+Response `200`:
+
+```json
+{
+  "success": true
+}
+```

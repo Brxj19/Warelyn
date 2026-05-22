@@ -1,10 +1,18 @@
+import { CheckCircle2, Mail, Smartphone, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { Link } from 'react-router-dom';
+
+import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
+import { Button } from '../components/ui/Button.jsx';
+import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
 import { SettingsForm } from '../components/SettingsForm.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../hooks/useToast.jsx';
 import * as settingsService from '../services/settingsService.js';
+import * as verificationService from '../services/verificationService.js';
 
 function TenantSettingsSection({ accessToken }) {
   const [settings, setSettings] = useState(null);
@@ -80,6 +88,67 @@ function TenantSettingsSection({ accessToken }) {
         },
       ]}
     />
+  );
+}
+
+function VerificationSection() {
+  const { accessToken } = useAuth();
+  const toast = useToast();
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    verificationService.getVerificationStatus(accessToken).then(setStatus).catch((e) => setError(e.message)).finally(() => setLoading(false));
+  }, [accessToken]);
+
+  if (loading) return <LoadingState message="Loading verification status..." />;
+  if (error) return <ErrorState description={error} />;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Mail size={16} className="text-warelyn-primary" />
+            <h3 className="text-sm font-bold text-warelyn-text">Email</h3>
+            {status?.email_verified ? <CheckCircle2 size={16} className="text-emerald-500" /> : <XCircle size={16} className="text-amber-500" />}
+          </div>
+        </CardHeader>
+        <CardBody>
+          <p className="mb-1 text-sm text-warelyn-text">{status?.email ?? '-'}</p>
+          <Badge tone={status?.email_verified ? 'success' : 'warning'}>{status?.email_verified ? 'Verified' : 'Not verified'}</Badge>
+          <div className="mt-4">
+            <Link to="/verify-email">
+              <Button size="sm" variant={status?.email_verified ? 'secondary' : 'primary'}>{status?.email_verified ? 'Re-verify' : 'Verify Now'}</Button>
+            </Link>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Smartphone size={16} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-warelyn-text">Phone</h3>
+            {status?.phone_verified ? <CheckCircle2 size={16} className="text-emerald-500" /> : <XCircle size={16} className="text-amber-500" />}
+          </div>
+        </CardHeader>
+        <CardBody>
+          <p className="mb-1 text-sm text-warelyn-text">{status?.phone ?? '-'}</p>
+          <Badge tone={status?.phone_verified ? 'success' : 'warning'}>{status?.phone_verified ? 'Verified' : 'Not verified'}</Badge>
+          <div className="mt-4">
+            {status?.phone ? (
+              <Link to="/verify-phone">
+                <Button size="sm" variant={status?.phone_verified ? 'secondary' : 'primary'}>{status?.phone_verified ? 'Re-verify' : 'Verify Now'}</Button>
+              </Link>
+            ) : (
+              <p className="text-xs text-warelyn-muted">No phone number on file.</p>
+            )}
+          </div>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
 
@@ -178,12 +247,16 @@ export function SettingsPage() {
             Tenant Settings
           </button>
         ) : null}
+        <button className={`rounded-xl px-4 py-2 text-sm font-medium transition ${tab === 'verification' ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`} onClick={() => setTab('verification')} type="button">
+          Verification
+        </button>
         <button className={`rounded-xl px-4 py-2 text-sm font-medium transition ${tab === 'preferences' ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`} onClick={() => setTab('preferences')} type="button">
           My Preferences
         </button>
       </div>
 
       {tab === 'tenant' ? <TenantSettingsSection accessToken={accessToken} /> : null}
+      {tab === 'verification' ? <VerificationSection /> : null}
       {tab === 'preferences' ? <UserPreferencesSection accessToken={accessToken} /> : null}
     </div>
   );

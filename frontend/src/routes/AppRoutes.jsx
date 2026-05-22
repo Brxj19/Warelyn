@@ -58,6 +58,8 @@ import { ReturnsPage } from '../pages/ReturnsPage.jsx';
 import { StockMovementReportPage } from '../pages/StockMovementReportPage.jsx';
 import { TenantDetailPage } from '../pages/TenantDetailPage.jsx';
 import { TenantsPage } from '../pages/TenantsPage.jsx';
+import { VerifyEmailPage } from '../pages/VerifyEmailPage.jsx';
+import { VerifyPhonePage } from '../pages/VerifyPhonePage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehouseStockReportPage } from '../pages/WarehouseStockReportPage.jsx';
 import { WarehouseFormPage, WarehousesPage } from '../pages/WarehousesPage.jsx';
@@ -131,6 +133,8 @@ export function AppRoutes() {
           <Route path="admin/audit-logs" element={<AuditLogsPage />} />
           <Route path="admin/platform-health" element={<PlatformHealthPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="verify-email" element={<VerifyEmailPage />} />
+          <Route path="verify-phone" element={<VerifyPhonePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

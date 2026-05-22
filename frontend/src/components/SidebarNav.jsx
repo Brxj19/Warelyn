@@ -9,6 +9,7 @@ export function SidebarNav({ collapsed, mobile = false, onCollapse, onNavigate, 
   const location = useLocation();
   const visibleGroups = useMemo(() => getVisibleNavGroups(userRole), [userRole]);
   const [openParent, setOpenParent] = useState(() => activeParentFor(location.pathname, visibleGroups));
+  const brandTarget = userRole === 'SUPER_ADMIN' ? '/admin' : '/dashboard';
 
   useEffect(() => {
     setOpenParent(activeParentFor(location.pathname, visibleGroups));
@@ -17,7 +18,7 @@ export function SidebarNav({ collapsed, mobile = false, onCollapse, onNavigate, 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobile ? 'is-mobile' : ''}`}>
       <div className="sidebar-brand">
-        <Link className="sidebar-brand-link" onClick={onNavigate} title="Dashboard" to="/dashboard">
+        <Link className="sidebar-brand-link" onClick={onNavigate} title={userRole === 'SUPER_ADMIN' ? 'Platform Console' : 'Dashboard'} to={brandTarget}>
           <AppLogo
             className={collapsed ? 'sidebar-logo-collapsed' : ''}
             imageClassName={collapsed ? 'sidebar-logo-collapsed-image' : ''}

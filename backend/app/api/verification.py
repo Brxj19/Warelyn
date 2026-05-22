@@ -1,0 +1,101 @@
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
+
+from app.core.exceptions import AppError
+from app.db.session import get_db
+from app.dependencies.auth import require_tenant_user
+from app.models.communication import OTPPurpose, OTPSource
+from app.repositories.audit import AuditLogRepository
+from app.repositories.notification import NotificationService
+from app.repositories.otp import OTPRepository
+from app.schemas.communication import VerificationConfirmRequest, VerificationConfirmResponse, VerificationSendResponse, VerificationStatusResponse
+from app.services.auth import UserContext
+from app.services.email_service import EmailDeliveryError, send_verification_email
+from app.services.otp_service import OTPError, OTPService
+from app.services.sms_service import SMSDevOutboxService
+
+router = APIRouter(prefix="/verification", tags=["verification"])
+
+
+def _otp_service(db: Session) -> OTPService:
+    return OTPService(OTPRepository(db))
+
+
+def _notify(db: Session, user_id: int, tenant_id: int | None, title: str, message: str, category: str) -> None:
+    NotificationService(db).create_notification(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        title=title,
+        message=message,
+        type="SUCCESS",
+        category=category,
+    )
+
+
+@router.post("/email/send", response_model=VerificationSendResponse)
+def send_email_verification(context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationSendResponse:
+    svc = _otp_service(db)
+    code = svc.create_otp(context.user.id, context.tenant_id, context.user.email, OTPSource.EMAIL, OTPPurpose.EMAIL_VERIFICATION)
+    try:
+        send_verification_email(context.user.email, code)
+    except (OSError, EmailDeliveryError) as exc:
+        raise AppError("EMAIL_DELIVERY_FAILED", f"Failed to send verification email: {exc}", 502) from exc
+    return VerificationSendResponse(message="Verification code sent to your email.")
+
+
+@router.post("/email/confirm", response_model=VerificationConfirmResponse)
+def confirm_email_verification(request: VerificationConfirmRequest, context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationConfirmResponse:
+    svc = _otp_service(db)
+    try:
+        svc.verify_otp(context.user.id, request.code, OTPPurpose.EMAIL_VERIFICATION, OTPSource.EMAIL)
+    except OTPError as exc:
+        raise AppError(exc.code, exc.message, 400) from exc
+    context.user.email_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    db.flush()
+    AuditLogRepository(db).create(
+        {"tenant_id": context.tenant_id, "actor_user_id": context.user.id, "actor_role": context.role.value, "action": "EMAIL_VERIFIED", "entity_type": "user", "entity_id": str(context.user.id)}
+    )
+    _notify(db, context.user.id, context.tenant_id, "Email Verified", "Your email address has been verified successfully.", "VERIFICATION")
+    db.commit()
+    return VerificationConfirmResponse(message="Email verified successfully.")
+
+
+@router.post("/phone/send", response_model=VerificationSendResponse)
+def send_phone_verification(context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationSendResponse:
+    if not context.user.phone:
+        raise AppError("NO_PHONE", "User has no phone number to verify.", 400)
+    svc = _otp_service(db)
+    code = svc.create_otp(context.user.id, context.tenant_id, context.user.phone, OTPSource.PHONE, OTPPurpose.PHONE_VERIFICATION)
+    sms = SMSDevOutboxService(db)
+    sms.send(phone=context.user.phone, message=f"Your Warelyn verification code is: {code}", purpose="PHONE_VERIFICATION", tenant_id=context.tenant_id, user_id=context.user.id)
+    return VerificationSendResponse(message="Verification code sent to your phone.")
+
+
+@router.post("/phone/confirm", response_model=VerificationConfirmResponse)
+def confirm_phone_verification(request: VerificationConfirmRequest, context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationConfirmResponse:
+    svc = _otp_service(db)
+    try:
+        svc.verify_otp(context.user.id, request.code, OTPPurpose.PHONE_VERIFICATION, OTPSource.PHONE)
+    except OTPError as exc:
+        raise AppError(exc.code, exc.message, 400) from exc
+    context.user.phone_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    db.flush()
+    AuditLogRepository(db).create(
+        {"tenant_id": context.tenant_id, "actor_user_id": context.user.id, "actor_role": context.role.value, "action": "PHONE_VERIFIED", "entity_type": "user", "entity_id": str(context.user.id)}
+    )
+    _notify(db, context.user.id, context.tenant_id, "Phone Verified", "Your phone number has been verified successfully.", "VERIFICATION")
+    db.commit()
+    return VerificationConfirmResponse(message="Phone verified successfully.")
+
+
+@router.get("/status", response_model=VerificationStatusResponse)
+def verification_status(context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationStatusResponse:
+    return VerificationStatusResponse(
+        email=context.user.email,
+        phone=context.user.phone,
+        email_verified=context.user.email_verified_at is not None,
+        phone_verified=context.user.phone_verified_at is not None,
+    )

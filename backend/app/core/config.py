@@ -30,6 +30,20 @@ class Settings(BaseSettings):
     super_admin_name: str = "Warelyn Super Admin"
     seed_super_admin_on_startup: bool = False
 
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "no-reply@warelyn.local"
+    smtp_from_name: str = "Warelyn"
+    smtp_use_tls: bool = False
+    smtp_use_ssl: bool = False
+    email_delivery_mode: str = "mailhog"
+
+    otp_code_length: int = 6
+    otp_expire_minutes: int = 10
+    otp_max_attempts: int = 5
+
 
 @lru_cache
 def get_settings() -> Settings:

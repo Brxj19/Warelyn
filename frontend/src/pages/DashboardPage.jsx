@@ -1,6 +1,6 @@
 import { Activity, ArrowRight, Boxes, ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, TrendingUp, Undo2, Warehouse } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
@@ -76,6 +76,10 @@ export function DashboardPage() {
     pickQueue: pickTasks.filter((row) => ['PENDING', 'IN_PROGRESS'].includes(row.status)).length,
     returnsQc: salesReturns.filter((row) => ['SUBMITTED', 'INSPECTION_PENDING', 'PARTIALLY_PROCESSED'].includes(row.status)).length,
   }), [pickTasks, purchaseOrders, salesOrders, salesReturns]);
+
+  if (user?.role === 'SUPER_ADMIN') {
+    return <Navigate replace to="/admin" />;
+  }
 
   if (isLoading) return <LoadingState />;
 

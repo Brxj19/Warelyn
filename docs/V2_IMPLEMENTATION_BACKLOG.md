@@ -29,6 +29,10 @@ Completed:
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
+- Phase 12 PRD gap audit and roadmap merge (docs only; no code changes).
+- Phase 13 super admin settings and audit logs foundation: super admin tenant/user management, platform settings CRUD, audit log query API, super admin frontend layout, tenant/user platform management pages, settings pages, audit log viewer, and backend tests.
+- Phase 14 communication, verification, and notifications foundation: email service with MailHog, SMS dev outbox, OTP verification with hashed codes/expiry/attempt tracking/supersede-on-resend, verification APIs, in-app notification model/service/API, frontend toast system, notification center, verification pages, and backend tests.
+
 Current implemented auth endpoints:
 
 - `POST /api/auth/register`
@@ -43,7 +47,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended work: production infrastructure planning or the next explicitly approved product phase.
+Next recommended work: Phase 15 invoices/bills/PDFs or another approved phase.
 
 ## Required Phase Order
 
@@ -229,6 +233,7 @@ Phase 10 is frontend-only. It does not add backend business features, migrations
 | V2-110 | Phase 11 - Regression tests and production hardening | P0 | Regression risk | Inventory workflows can silently break without broad tests. | Completed targeted regression hardening for auth/session edge cases, import validation, read-only reports/reconciliation behavior, existing tenant isolation/role coverage, validation script, deployment notes, and minimal CI. | backend tests, docs, `scripts/validate.sh`, `.github/workflows/ci.yml` | Core implemented invariants and workflows are covered by the backend suite and deployment readiness checklist. | Full backend test suite; frontend build; compose config; Alembic upgrade. |
 | V2-111 | Phase 11 - Regression tests and production hardening | P2 | End-to-end confidence | Critical user journeys need browser-level coverage. | Add Playwright later for signup, login, warehouse, product, import stock, PO receive, sales reserve/deliver, invoice, return QC, reports, audit. | `frontend/e2e/*`, test config, CI config | Critical E2E flow passes against seeded environment. | Playwright E2E suite when frontend/backend exist. |
 | V2-112 | Phase 11 - Regression tests and production hardening | P2 | Operational readiness | Background jobs, email, SMS outbox, PDFs, and reconciliation need safe production behavior. | Add job tests, outbox handling, failure retries, safe dev SMS/email behavior, and manual runbooks. | jobs, events/outbox, services/email_service.py, services/sms_service.py, docs/manual QA | Jobs are idempotent, observable, and safe to rerun. | Job tests; manual QA checklist. |
+| V2-120 | Phase 14 - Communication, verification, and notifications foundation | P1 | Communication | Users need email/SMS verification and in-app notifications. | Add email service with MailHog, SMS dev outbox, OTP verification service, verification endpoints, notification model/service/API, frontend toast system, notification center, and verification pages. | `backend/app/services/email_service.py`, `backend/app/services/otp_service.py`, `backend/app/services/sms_service.py`, `backend/app/models/communication.py`, `backend/app/api/verification.py`, `backend/app/api/notifications.py`, `frontend/src/hooks/useToast.jsx`, `frontend/src/components/ui/Toast.jsx`, `frontend/src/pages/VerifyEmailPage.jsx`, `frontend/src/pages/VerifyPhonePage.jsx`, `frontend/src/components/NotificationCenter.jsx` | Email sends via MailHog in dev; OTP has hashed storage, expiry, attempt limit, supersede; verification sets email_verified_at/phone_verified_at; notifications are user-scoped; frontend toast + notification center + verification pages work. | 21 backend tests added. |
 
 ## Phase Guardrails
 
@@ -257,3 +262,6 @@ Phase 10 is frontend-only. It does not add backend business features, migrations
 | Phase 9 | `add inventory reports and reconciliation workflow` |
 | Phase 10 | `frontend workflow polish and northstar style shell` |
 | Phase 11 | `add regression tests for inventory workflows` |
+| Phase 12 | `docs: add PRD gap audit and roadmap merge document` |
+| Phase 13 | `add super admin settings and audit logs` |
+| Phase 14 | `add communication verification and notifications foundation` |

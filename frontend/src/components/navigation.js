@@ -37,6 +37,7 @@ export const superAdminRoles = ['SUPER_ADMIN'];
 export const navGroups = [
   {
     label: 'Overview',
+    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
     items: [{ icon: LayoutDashboard, label: 'Dashboard', section: 'Overview', to: '/dashboard' }],
   },
   {
@@ -51,6 +52,7 @@ export const navGroups = [
   },
   {
     label: 'Catalog',
+    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
     items: [
       {
         icon: Package,
@@ -70,6 +72,7 @@ export const navGroups = [
   },
   {
     label: 'Warehousing',
+    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
     items: [
       {
         icon: Warehouse,
@@ -84,6 +87,7 @@ export const navGroups = [
   },
   {
     label: 'Purchases',
+    roles: purchaseRoles,
     items: [
       {
         icon: ClipboardList,
@@ -109,6 +113,7 @@ export const navGroups = [
   },
   {
     label: 'Sales',
+    roles: salesRoles,
     items: [
       {
         icon: ShoppingCart,
@@ -124,6 +129,7 @@ export const navGroups = [
   },
   {
     label: 'Operations',
+    roles: salesRoles,
     items: [
       {
         icon: ListChecks,
@@ -167,6 +173,7 @@ export const navGroups = [
   },
   {
     label: 'Reports',
+    roles: reportRoles,
     items: [
       { icon: BarChart3, label: 'Overview', section: 'Reports', to: '/reports', roles: reportRoles, exact: true },
       { icon: Boxes, label: 'Inventory Summary', section: 'Reports', to: '/reports/inventory-summary', roles: reportRoles, exact: true },
@@ -181,6 +188,11 @@ export const navGroups = [
       { icon: ShieldCheck, label: 'Blocked Stock', section: 'Reports', to: '/reports/blocked-stock', roles: reportRoles, exact: true },
       { icon: ShieldCheck, label: 'Reconciliation', section: 'Reports', to: '/reports/reconciliation', roles: reportRoles, exact: true },
     ],
+  },
+  {
+    label: 'Preferences',
+    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
+    items: [{ icon: Settings, label: 'Settings', section: 'Preferences', to: '/settings', exact: true }],
   },
 ];
 
@@ -216,6 +228,7 @@ export function canSee(item, role) {
 
 export function getVisibleNavGroups(role) {
   return navGroups
+    .filter((group) => canSee(group, role))
     .map((group) => ({
       ...group,
       items: filterVisibleItems(group.items, role),

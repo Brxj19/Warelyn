@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 11 - Regression Testing, Production Hardening, and Deployment Readiness**.
+This repository has completed **Phase 14 - Communication, Verification, and Notifications Foundation**.
 
 Related commits:
 
@@ -37,10 +37,27 @@ The current implementation provides:
 - Reports pages and backend-driven operational dashboard widgets.
 - Northstar-inspired Warelyn frontend polish with a dark topbar, white grouped sidebar, logo-backed branding, compact cards, clean table shells, standardized status/loading/empty/error states, and confirmation modals for stock-affecting workflow actions.
 - Phase 11 hardening with additional regression tests, deployment readiness documentation, validation script, and minimal CI workflow.
+- Phase 12 PRD gap audit and roadmap merge document.
+- Phase 13 super admin console, settings foundation, and audit logs.
+- Phase 14 communication, verification, and notifications foundation:
+  - SMTP-based email service with MailHog dev server.
+  - SMS dev outbox (no real provider integration).
+  - OTP (one-time password) service with hashed code storage, expiry, consumption tracking, attempt limiting, and supersede-on-resend.
+  - Email verification endpoint (send + confirm).
+  - Phone verification endpoint (send + confirm).
+  - Verification status API.
+  - In-app notification model, service, and API.
+  - Frontend toast notification system (success/error/warning/info).
+  - Frontend notification center with bell icon and unread badge.
+  - Frontend verification pages and settings integration.
+  - MailHog SMTP service in Docker Compose for local email development.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
 
+- Real SMS provider integration (Twilio, etc.).
+- Real email provider integration (SendGrid, Mailgun, SES).
+- Email/PDF template management.
 - XLSX import and import column mapping UI.
 - Vendor bills, supplier payments, invoice accounting, and purchase PDFs.
 - Carrier shipment, invoice accounting, payment collection, refund accounting, credit notes, or carrier return pickup workflows.
@@ -50,7 +67,7 @@ Not implemented yet:
 
 ## Next Phase
 
-Next recommended phase: production infrastructure planning or the next approved product workflow. Do not add new business features until deployment readiness and regression coverage remain stable.
+Next recommended phase: Phase 15 invoices/bills/PDFs or another approved phase.
 
 Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; reports are read-only, query-based, and must not mutate stock, create ledger entries, or create purchase orders. Frontend pages must keep authoritative stock values backend-driven.
 
@@ -91,7 +108,9 @@ Before adding later workflows, keep tenant context backend-derived from authenti
       layouts/                  App and auth layouts
       pages/                    Dashboard, auth, catalog, warehouse, purchase, sales, returns, and report pages
       routes/                   Route declarations
-      services/                 Frontend API client wrapper
+      services/                 Frontend API client wrappers
+      hooks/                    Custom React hooks (useToast)
+      context/                  React context providers (auth, toast)
       styles/                   Tailwind and app styles
 ```
 
@@ -266,7 +285,9 @@ Report endpoints:
 - `GET /api/reports/blocked-stock`
 - `GET /api/reports/reconciliation`
 
-Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings. Production deployments must override the example JWT secret, database credentials, CORS origins, debug setting, and super admin bootstrap values.
+Required backend environment variables are listed in `backend/.env.example`, including JWT settings, SMTP settings, OTP settings, and optional super admin seed settings. Production deployments must override the example JWT secret, database credentials, CORS origins, debug setting, and super admin bootstrap values.
+
+The email service uses `WARELYN_SMTP_*` settings. In development, it defaults to localhost:1025 (MailHog). When MailHog is not available, email delivery fails with a clean structured error. Tests use mock OTP services and do not require MailHog.
 
 ## Frontend Commands
 
@@ -290,6 +311,7 @@ Development URLs:
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:8000`
 - MySQL: `localhost:3306`
+- MailHog: `http://localhost:8025` (dev email viewer)
 
 ## Architecture Rules
 
@@ -305,3 +327,8 @@ Development URLs:
 - Sales confirmation and fulfillment call reservation/deduction methods on `InventoryEngine` and do not directly update stock tables.
 - Frontend pages stay thin and call service/API wrappers.
 - Frontend never calculates authoritative stock.
+- OTP codes are hashed at rest using SHA-256; plaintext codes are never stored.
+- OTPs expire after `WARELYN_OTP_EXPIRE_MINUTES` (default 10).
+- Resending a verification code supersedes the previous active OTP.
+- In-app notifications are user-scoped with tenant isolation.
+- Toast notifications auto-dismiss after 4.5 seconds.

@@ -17,6 +17,13 @@ services:
       timeout: 5s
       retries: 10
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: warelyn-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   backend:
     image: python:3.12-slim
     container_name: warelyn-backend
@@ -30,6 +37,15 @@ services:
       WARELYN_SUPER_ADMIN_EMAIL: admin@warelyn.local
       WARELYN_SUPER_ADMIN_PASSWORD: ChangeMe123!
       WARELYN_SUPER_ADMIN_NAME: Warelyn Super Admin
+      WARELYN_SMTP_HOST: mailhog
+      WARELYN_SMTP_PORT: "1025"
+      WARELYN_SMTP_USERNAME: ""
+      WARELYN_SMTP_PASSWORD: ""
+      WARELYN_SMTP_FROM_EMAIL: no-reply@warelyn.local
+      WARELYN_SMTP_FROM_NAME: Warelyn
+      WARELYN_SMTP_USE_TLS: "false"
+      WARELYN_SMTP_USE_SSL: "false"
+      WARELYN_EMAIL_DELIVERY_MODE: mailhog
     ports:
       - "8000:8000"
     volumes:

@@ -10,7 +10,7 @@ import * as returnsService from '../services/returnsService.js';
 import * as salesService from '../services/salesService.js';
 import * as warehouseService from '../services/warehouseService.js';
 
-export function TopbarSearch({ navItems }) {
+export function TopbarSearch({ navItems, recordsEnabled = true }) {
   const navigate = useNavigate();
   const { accessToken } = useAuth();
   const wrapperRef = useRef(null);
@@ -68,6 +68,12 @@ export function TopbarSearch({ navItems }) {
 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
+      if (!recordsEnabled) {
+        setResults(sectionResults.slice(0, 8));
+        setStatus('success');
+        return;
+      }
+
       setStatus('loading');
       setErrorMessage('');
       try {
@@ -150,7 +156,7 @@ export function TopbarSearch({ navItems }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [accessToken, isOpen, navItems, sectionResults, trimmedQuery]);
+  }, [accessToken, isOpen, navItems, recordsEnabled, sectionResults, trimmedQuery]);
 
   function openResult(item) {
     navigate(item.to);

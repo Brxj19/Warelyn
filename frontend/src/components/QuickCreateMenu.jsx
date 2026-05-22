@@ -11,6 +11,8 @@ export function QuickCreateMenu({ role }) {
   const [isOpen, setIsOpen] = useState(false);
   const entries = quickCreateItems.filter((item) => canSee(item, role));
 
+  if (!entries.length) return null;
+
   useEffect(() => {
     function handlePointerDown(event) {
       if (ref.current && !ref.current.contains(event.target)) setIsOpen(false);

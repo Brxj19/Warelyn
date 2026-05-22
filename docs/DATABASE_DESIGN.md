@@ -4,7 +4,7 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 11 regression testing, production hardening, and deployment readiness is complete. No Phase 11 business tables were added.
+Phase 14 communication, verification, and notifications foundation is complete. Phase 14 adds OTP verification, SMS dev outbox, and notification tables.
 
 Related commits:
 
@@ -49,10 +49,15 @@ Current implemented models:
 - `SalesReturnItem`
 - `ReturnQCInspection`
 - `BlockedReturnStock`
+- `OTPVerification`
+- `SMSOutbox`
+- `Notification`
 
 Next recommended work should remain deployment/readiness or explicitly approved product phases. All stock mutation must go through `InventoryEngine`.
 
-Phase 9 added no tables or migrations. Phase 10 and Phase 11 also added no business tables or migrations. Reports and dashboard data are query-based over existing tenant-scoped tables.
+Phase 9 added no tables or migrations. Phase 10, Phase 11, Phase 12, and Phase 13 also added no business tables or migrations. Reports and dashboard data are query-based over existing tenant-scoped tables.
+
+Phase 14 adds three tables: `otp_verifications`, `sms_outbox`, and `notifications`.
 
 ## Migration Readiness
 
@@ -196,6 +201,27 @@ Tenant-scoped return tables added by `20260521_0009_return_qc_blocked_stock_foun
 - `blocked_return_stock`: tenant, return, return item, product, warehouse, location, optional batch, optional serial, quantity, non-sellable status, reason, notes, and timestamps.
 
 Accepted sellable returns update `warehouse_stock` and write `RETURN_RESTOCK` ledger entries only through `InventoryEngine.return_restock()`. Blocked, damaged, and scrapped returns create `blocked_return_stock` records and do not increase sellable stock. Rejected returns do not mutate stock.
+
+### Communication Foundation
+
+Tenant-scoped communication tables added by `20260522_0011_communication_verification_notification.py`:
+
+- `otp_verifications`: tenant, user, OTP source (EMAIL/PHONE), OTP purpose (EMAIL_VERIFICATION/PHONE_VERIFICATION), destination (email or phone), code hash, expiry datetime, consumed datetime, attempt count, superseded datetime, and timestamps. Indexed on `(user_id, purpose, destination)` for active OTP lookups and `expires_at` for cleanup.
+- `sms_outbox`: tenant, user, phone number, message, status (PENDING/SENT/FAILED), error message, and timestamps. Logging-only table; no real SMS provider integration.
+- `notifications`: tenant, user, notification type (INFO/SUCCESS/WARNING/ERROR/SYSTEM), category (AUTH/INVENTORY/PURCHASE/SALES/RETURNS/SYSTEM/VERIFICATION), title, message, is_read flag, and timestamps. Indexed on `(user_id, is_read, created_at)` for efficient unread queries.
+
+OTP verification rules:
+- Codes are stored as SHA-256 hashes via `hash_token()`.
+- OTPs expire after `WARELYN_OTP_EXPIRE_MINUTES` (default 10).
+- Attempt count increments on failed verification; reaching `WARELYN_OTP_MAX_ATTEMPTS` (default 5) blocks further attempts.
+- Resend supersedes previous active OTPs for the same user/purpose/destination by setting `superseded_at`.
+- A consumed OTP cannot be reused; `consumed_at` is set on successful verification.
+- OTPs are user-scoped and cross-tenant isolated via `user_id`.
+
+Notification rules:
+- Notifications are user-scoped and tenant-scoped via `tenant_id`.
+- Users can only read/mark their own notifications.
+- Notification categories enable grouped filtering for different workflow areas.
 
 ## Enums
 
@@ -390,6 +416,40 @@ Accepted sellable returns update `warehouse_stock` and write `RETURN_RESTOCK` le
 - `DAMAGED`
 - `SCRAPPED`
 
+### `OTPSource`
+
+- `EMAIL`
+- `PHONE`
+
+### `OTPPurpose`
+
+- `EMAIL_VERIFICATION`
+- `PHONE_VERIFICATION`
+
+### `SMSOutboxStatus`
+
+- `PENDING`
+- `SENT`
+- `FAILED`
+
+### `NotificationType`
+
+- `INFO`
+- `SUCCESS`
+- `WARNING`
+- `ERROR`
+- `SYSTEM`
+
+### `NotificationCategory`
+
+- `AUTH`
+- `INVENTORY`
+- `PURCHASE`
+- `SALES`
+- `RETURNS`
+- `SYSTEM`
+- `VERIFICATION`
+
 ## Migration
 
 Current migration:
@@ -403,6 +463,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0007_sales_reservation_fulfillment_foundation.py`
 - `backend/alembic/versions/20260521_0008_picking_packing_serial_allocation_foundation.py`
 - `backend/alembic/versions/20260521_0009_return_qc_blocked_stock_foundation.py`
+- `backend/alembic/versions/20260522_0011_communication_verification_notification.py`
 
 Apply migrations:
 

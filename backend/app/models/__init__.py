@@ -1,5 +1,6 @@
 from app.models.audit import AuditLog
 from app.models.auth import RefreshToken, Tenant, TenantStatus, User, UserRole, UserStatus
+from app.models.communication import Notification, NotificationCategory, NotificationType, OTPPurpose, OTPSource, OTPVerification, SMSOutbox, SMSOutboxStatus
 from app.models.fulfillment import Package, PackageItem, PackageStatus, PickTask, PickTaskItem, PickTaskItemStatus, PickTaskStatus
 from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportRowStatus, ProductImportMode
 from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
@@ -12,6 +13,14 @@ from app.models.settings import TenantSettings, UserPreferences
 __all__ = [
     "AuditLog",
     "Brand",
+    "Notification",
+    "NotificationCategory",
+    "NotificationType",
+    "OTPPurpose",
+    "OTPSource",
+    "OTPVerification",
+    "SMSOutbox",
+    "SMSOutboxStatus",
     "BlockedReturnStock",
     "BlockedReturnStockStatus",
     "Category",

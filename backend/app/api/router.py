@@ -7,6 +7,7 @@ from app.api.fulfillment import router as fulfillment_router
 from app.api.imports import router as imports_router
 from app.api.inventory import router as inventory_router
 from app.api.purchasing import router as purchasing_router
+from app.api.reports import router as reports_router
 from app.api.returns import router as returns_router
 from app.api.sales import router as sales_router
 from app.api.warehouses import router as warehouses_router
@@ -19,6 +20,7 @@ api_router.include_router(fulfillment_router)
 api_router.include_router(imports_router)
 api_router.include_router(inventory_router)
 api_router.include_router(purchasing_router)
+api_router.include_router(reports_router)
 api_router.include_router(returns_router)
 api_router.include_router(sales_router)
 api_router.include_router(warehouses_router)

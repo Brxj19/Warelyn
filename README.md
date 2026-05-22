@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 8 - Returns QC and Blocked Stock Foundation**.
+This repository has completed **Phase 9 - Reports, Reorder Rules, and Operational Dashboards**.
 
 Related commits:
 
@@ -25,6 +25,7 @@ The current implementation provides:
 - Tenant-scoped sales orders, explicit location-level sales reservation, reservation release, and fulfillment deduction through `InventoryEngine`.
 - Tenant-scoped pick tasks, pick task items, explicit serial allocation during picking, optional batch allocation, packages, and package items.
 - Tenant-scoped sales returns, return QC inspection, sellable return restock through `InventoryEngine.return_restock()`, and non-sellable blocked return stock records.
+- Read-only reports for inventory summary, warehouse/location stock, stock movements, low stock, reorder suggestions, valuation, batch expiry, serial status, blocked stock, reconciliation, and operational dashboard KPIs.
 - React + Vite + Tailwind frontend scaffold with layouts, catalog and warehouse pages, UI primitives, routing, and API client wrapper.
 - Frontend auth shell with login, registration, protected routes, auth state, and authenticated dashboard placeholder.
 - Product import UI with CSV dropzone, preview table, import modes, and reusable scanner-friendly barcode input.
@@ -33,6 +34,7 @@ The current implementation provides:
 - Sales order, sales confirmation allocation, fulfillment draft, and fulfillment commit screens.
 - Picking queue, pick task detail, sales pick, sales package, and package detail screens.
 - Sales returns list, return creation, return detail, and QC/process screens.
+- Reports pages and backend-driven operational dashboard widgets.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
@@ -42,12 +44,13 @@ Not implemented yet:
 - Carrier shipment, invoice accounting, payment collection, refund accounting, credit notes, or carrier return pickup workflows.
 - FEFO auto-allocation, expiry background jobs, package-mandatory fulfillment, and full mobile scanner workflow.
 - Advanced role/user management screens.
+- Forecasting, automatic purchase order creation, and supplier ordering automation.
 
 ## Next Phase
 
-Next recommended phase: **Phase 9 - Reports, Reorder Rules, and Operational Dashboards**.
+Next recommended phase: **Phase 10 - Frontend Workflow Improvements and Production UI Polish**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; purchase receipt commit increases stock only through `InventoryEngine.stock_in()`, sales confirmation reserves through `InventoryEngine.reserve_stock()`, sales cancellation/close releases through `InventoryEngine.release_reservation()`, picking and packing do not mutate stock, fulfillment commit deducts through `InventoryEngine.deduct_reserved_stock()`, and accepted sellable returns restock through `InventoryEngine.return_restock()`. Non-sellable returns are recorded in `blocked_return_stock` and are not added to sellable warehouse stock.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; reports are read-only, query-based, and must not mutate stock, create ledger entries, or create purchase orders.
 
 ## Tech Stack
 
@@ -237,6 +240,21 @@ Inventory endpoints:
 - `POST /api/inventory/reservations/{id}/release`
 - `POST /api/inventory/reservations/{id}/deduct`
 - `POST /api/inventory/transfer`
+
+Report endpoints:
+
+- `GET /api/dashboard/operations`
+- `GET /api/reports/inventory-summary`
+- `GET /api/reports/warehouse-stock`
+- `GET /api/reports/location-stock`
+- `GET /api/reports/stock-movements`
+- `GET /api/reports/low-stock`
+- `GET /api/reports/reorder-suggestions`
+- `GET /api/reports/product-valuation`
+- `GET /api/reports/batch-expiry`
+- `GET /api/reports/serial-status`
+- `GET /api/reports/blocked-stock`
+- `GET /api/reports/reconciliation`
 
 Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings.
 

@@ -600,3 +600,57 @@ Return rules:
 - `ACCEPTED_BLOCKED`, `DAMAGED`, and `SCRAPPED` create `blocked_return_stock` records and do not increase sellable stock or stock ledger projection totals.
 - `REJECTED` does not mutate stock.
 - Existing sold serial rows are updated for serial return outcomes; normal `stock_in()` is not used for serial returns.
+
+## Reports, Reorder Rules, And Operational Dashboards
+
+All report routes require a bearer token and derive `tenant_id` from authenticated user context. Reports are read-only and query-based. They do not mutate `warehouse_stock`, do not create `stock_ledger_entries`, do not call `InventoryEngine` mutation methods, and do not create purchase orders.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `VIEWER`.
+
+`SALES_STAFF` and `PURCHASE_STAFF` do not read the Phase 9 consolidated reports. `SUPER_ADMIN` does not use normal tenant report APIs.
+
+Implemented endpoints:
+
+- `GET /api/dashboard/operations`
+- `GET /api/reports/inventory-summary`
+- `GET /api/reports/warehouse-stock`
+- `GET /api/reports/location-stock`
+- `GET /api/reports/stock-movements`
+- `GET /api/reports/low-stock`
+- `GET /api/reports/reorder-suggestions`
+- `GET /api/reports/product-valuation`
+- `GET /api/reports/batch-expiry`
+- `GET /api/reports/serial-status`
+- `GET /api/reports/blocked-stock`
+- `GET /api/reports/reconciliation`
+
+Common optional filters where applicable:
+
+- `warehouse_id`
+- `location_id`
+- `product_id`
+- `category_id`
+- `brand_id`
+- `status`
+- `search`
+- `date_from`
+- `date_to`
+- `movement_type`
+- `reference_type`
+- `expiry_before`
+- `expiry_within_days`
+- `page`
+- `page_size`
+
+Report rules:
+
+- Inventory summary aggregates backend stock, product, batch, blocked stock, and reconciliation data.
+- Warehouse and location stock reports read `warehouse_stock` projection rows and product current cost.
+- Stock movement report reads `stock_ledger_entries` only.
+- Low stock uses `Product.reorder_level` and `WarehouseStock.quantity_available`.
+- Reorder suggestions are advisory only. Suggested quantity is `max(reorder_level * 2 - available, reorder_level)`.
+- Product valuation is current product cost times on-hand quantity; FIFO/LIFO/weighted average are not implemented.
+- Batch expiry reports use `InventoryBatch.expiry_date` and report `EXPIRED`, `EXPIRING_SOON`, or `OK`.
+- Serial status reports read `InventorySerial` status rows.
+- Blocked stock reports combine `blocked_return_stock`, blocked batch statuses, and blocked serial statuses.
+- Reconciliation report exposes the current ledger-to-projection dry-run result in report form.

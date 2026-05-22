@@ -23,6 +23,7 @@ Completed:
 - Phase 6 sales reservation and fulfillment foundation: sales orders, explicit location allocation, reservation/release/deduction through `InventoryEngine`, sales fulfillment drafts/commit, frontend sales screens, and sales workflow tests.
 - Phase 7 picking, packing, and serial allocation foundation: pick tasks, pick task items, explicit serial allocation during picking, optional batch allocation, packages, package items, frontend picking/packing screens, and workflow tests.
 - Phase 8 returns QC and blocked stock foundation: sales returns, return items, QC inspections, blocked return stock, sellable restock through `InventoryEngine.return_restock()`, serial return status updates, frontend return screens, and workflow tests.
+- Phase 9 reports, reorder rules, and operational dashboards: read-only report APIs, operational dashboard API, query-based reorder suggestions, reconciliation visibility, frontend reports pages, and report tests.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -40,7 +41,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 9 - Reports, Reorder Rules, and Operational Dashboards`.
+Next recommended phase: `Phase 10 - Frontend Workflow Improvements and Production UI Polish`.
 
 ## Required Phase Order
 
@@ -163,6 +164,17 @@ Phase 7 does not implement carrier shipment integration, invoice accounting, pay
 - Frontend returns list, return create, return detail, and QC/process screens.
 
 Phase 8 does not implement refund accounting, credit notes, carrier return pickup integration, warranty claims, supplier return workflows, advanced reports, full blocked-stock projections on `warehouse_stock`, or mobile scanner return workflows.
+
+`Phase 9 - Reports, Reorder Rules, and Operational Dashboards` is completed and includes:
+
+- Read-only reports backend module with repository, service, schemas, and router.
+- Inventory summary, warehouse stock, location stock, stock movement, low stock, reorder suggestion, product valuation, batch expiry, serial status, blocked stock, and reconciliation reports.
+- Operational dashboard API at `GET /api/dashboard/operations`.
+- Reorder suggestions generated deterministically from product `reorder_level` and current available stock; no forecasting or automatic purchase orders.
+- Frontend reports navigation and report pages using backend-returned values only.
+- Backend tests for report calculations, reconciliation visibility, tenant isolation, roles, and read-only behavior.
+
+Phase 9 does not implement report snapshots, report tables, background report jobs, forecasting, supplier ordering automation, payment/accounting reports, full audit-log framework, advanced charting, or Phase 10 UI polish.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|

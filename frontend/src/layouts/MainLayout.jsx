@@ -16,6 +16,7 @@ const navItems = [
   { label: 'Sales', to: '/sales', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
   { label: 'Returns', to: '/returns', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
   { label: 'Picking', to: '/pick-tasks', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
+  { label: 'Reports', to: '/reports', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'VIEWER'] },
 ];
 
 export function MainLayout() {

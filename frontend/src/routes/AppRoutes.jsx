@@ -3,13 +3,19 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { MainLayout } from '../layouts/MainLayout.jsx';
 import { CatalogPage } from '../pages/CatalogPage.jsx';
+import { BatchExpiryReportPage } from '../pages/BatchExpiryReportPage.jsx';
+import { BlockedStockReportPage } from '../pages/BlockedStockReportPage.jsx';
 import { BrandsPage, CategoriesPage, CustomersPage, ProductsPage, VendorsPage } from '../pages/CatalogMasterPages.jsx';
 import { DashboardPage } from '../pages/DashboardPage.jsx';
+import { InventorySummaryReportPage } from '../pages/InventorySummaryReportPage.jsx';
+import { LocationStockReportPage } from '../pages/LocationStockReportPage.jsx';
 import { LoginPage } from '../pages/LoginPage.jsx';
+import { LowStockReportPage } from '../pages/LowStockReportPage.jsx';
 import { NotFoundPage } from '../pages/NotFoundPage.jsx';
 import { PackageDetailPage } from '../pages/PackageDetailPage.jsx';
 import { PickTaskDetailPage } from '../pages/PickTaskDetailPage.jsx';
 import { PickTasksPage } from '../pages/PickTasksPage.jsx';
+import { ProductValuationReportPage } from '../pages/ProductValuationReportPage.jsx';
 import { ProductImportPage } from '../pages/ProductImportPage.jsx';
 import { PurchaseOrderDetailPage } from '../pages/PurchaseOrderDetailPage.jsx';
 import { PurchaseOrderFormPage } from '../pages/PurchaseOrderFormPage.jsx';
@@ -17,6 +23,9 @@ import { PurchaseReceiptDetailPage } from '../pages/PurchaseReceiptDetailPage.js
 import { PurchaseReceivePage } from '../pages/PurchaseReceivePage.jsx';
 import { PurchasesPage } from '../pages/PurchasesPage.jsx';
 import { RegisterPage } from '../pages/RegisterPage.jsx';
+import { ReconciliationReportPage } from '../pages/ReconciliationReportPage.jsx';
+import { ReorderSuggestionsPage } from '../pages/ReorderSuggestionsPage.jsx';
+import { ReportsPage } from '../pages/ReportsPage.jsx';
 import { SalesFulfillPage } from '../pages/SalesFulfillPage.jsx';
 import { SalesFulfillmentDetailPage } from '../pages/SalesFulfillmentDetailPage.jsx';
 import { SalesOrderDetailPage } from '../pages/SalesOrderDetailPage.jsx';
@@ -27,8 +36,11 @@ import { SalesPickPage } from '../pages/SalesPickPage.jsx';
 import { SalesReturnDetailPage } from '../pages/SalesReturnDetailPage.jsx';
 import { SalesReturnFormPage } from '../pages/SalesReturnFormPage.jsx';
 import { SalesReturnInspectPage } from '../pages/SalesReturnInspectPage.jsx';
+import { SerialStatusReportPage } from '../pages/SerialStatusReportPage.jsx';
 import { ReturnsPage } from '../pages/ReturnsPage.jsx';
+import { StockMovementReportPage } from '../pages/StockMovementReportPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
+import { WarehouseStockReportPage } from '../pages/WarehouseStockReportPage.jsx';
 import { WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
@@ -69,7 +81,18 @@ export function AppRoutes() {
           <Route path="packages/:id" element={<PackageDetailPage />} />
           <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
-          <Route path="reports" element={<DashboardPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="reports/inventory-summary" element={<InventorySummaryReportPage />} />
+          <Route path="reports/warehouse-stock" element={<WarehouseStockReportPage />} />
+          <Route path="reports/location-stock" element={<LocationStockReportPage />} />
+          <Route path="reports/stock-movements" element={<StockMovementReportPage />} />
+          <Route path="reports/low-stock" element={<LowStockReportPage />} />
+          <Route path="reports/reorder-suggestions" element={<ReorderSuggestionsPage />} />
+          <Route path="reports/product-valuation" element={<ProductValuationReportPage />} />
+          <Route path="reports/batch-expiry" element={<BatchExpiryReportPage />} />
+          <Route path="reports/serial-status" element={<SerialStatusReportPage />} />
+          <Route path="reports/blocked-stock" element={<BlockedStockReportPage />} />
+          <Route path="reports/reconciliation" element={<ReconciliationReportPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

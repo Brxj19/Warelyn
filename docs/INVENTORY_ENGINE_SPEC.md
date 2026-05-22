@@ -20,6 +20,8 @@ Phase 7 adds picking, packing, and explicit serial allocation foundation. Pick t
 
 Phase 8 adds returns QC and blocked return stock foundation. Sellable accepted returns call `InventoryEngine.return_restock()` and create `RETURN_RESTOCK` ledger entries with `SALES_RETURN` references. Blocked, damaged, and scrapped returns call return-specific engine methods that update serial state where applicable and create `blocked_return_stock` records; they do not increase `warehouse_stock` and do not create stock ledger projection entries. Rejected returns do not call inventory mutation methods.
 
+Phase 9 adds read-only reports and operational dashboard queries. Reports may read `warehouse_stock`, `stock_ledger_entries`, batches, serials, returns, purchases, sales, picking, and packages, but they must not call `InventoryEngine` mutation methods, update projections, create ledger entries, or create purchase orders.
+
 ## Required Public Methods
 
 ```python

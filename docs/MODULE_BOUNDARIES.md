@@ -5,8 +5,8 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 ## Current Repo State
 
 - This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
-- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, and Phase 8 returns QC/blocked stock foundation are implemented.
-- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, inventory serials, sales orders, sales fulfillments, pick tasks, pick task items, packages, package items, sales returns, return QC inspections, and blocked return stock.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, Phase 8 returns QC/blocked stock foundation, and Phase 9 reports/reorder/dashboard foundation are implemented.
+- Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, inventory serials, sales orders, sales fulfillments, pick tasks, pick task items, packages, package items, sales returns, return QC inspections, blocked return stock, and read-only operational reports.
 - The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
 ## Target Backend Folder Structure
@@ -313,6 +313,7 @@ Product CRUD, warehouse CRUD, inventory engine, stock ledger, purchase workflow,
 - Important stock mutations must create audit logs and notifications where appropriate.
 - Services may orchestrate inventory use cases, but they must delegate stock math and persistence updates to `InventoryEngine`.
 - Frontend screens may preview expected stock impact, but the backend response is the source of truth after mutation.
+- Reports are read-only query workflows. They must not call `InventoryEngine` mutation methods, update stock projection, create stock ledger entries, or create purchase orders.
 
 ## Anti-Patterns To Avoid
 

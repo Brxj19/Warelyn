@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 8 returns QC and blocked stock foundation is complete.
+Phase 9 reports, reorder rules, and operational dashboards foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Carrier shipment, invoice accounting, payment collection, refund accounting, credit notes, vendor bill/accounting, FEFO allocation, expiry jobs, full mobile scanner workflow, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving, sales fulfillment, and sellable return restock mutate stock only through `InventoryEngine`; picking, packing, and non-sellable return records do not mutate sellable stock.
+Carrier shipment, invoice accounting, payment collection, refund accounting, credit notes, vendor bill/accounting, FEFO allocation, expiry jobs, full mobile scanner workflow, report snapshot tables, and advanced charting tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving, sales fulfillment, and sellable return restock mutate stock only through `InventoryEngine`; picking, packing, reports, dashboards, and non-sellable return records do not mutate sellable stock.
 
 Current implemented models:
 
@@ -50,7 +50,9 @@ Current implemented models:
 - `ReturnQCInspection`
 - `BlockedReturnStock`
 
-Next recommended phase: `Phase 9 - Reports, Reorder Rules, and Operational Dashboards`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 10 - Frontend Workflow Improvements and Production UI Polish`. All stock mutation must go through `InventoryEngine`.
+
+Phase 9 added no tables or migrations. Reports and dashboard data are query-based over existing tenant-scoped tables.
 
 ## Tables
 

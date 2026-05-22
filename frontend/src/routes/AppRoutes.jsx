@@ -2,6 +2,8 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { MainLayout } from '../layouts/MainLayout.jsx';
+import { AdminDashboardPage } from '../pages/AdminDashboardPage.jsx';
+import { AuditLogsPage } from '../pages/AuditLogsPage.jsx';
 import { CatalogPage } from '../pages/CatalogPage.jsx';
 import { BatchExpiryReportPage } from '../pages/BatchExpiryReportPage.jsx';
 import { BlockedStockReportPage } from '../pages/BlockedStockReportPage.jsx';
@@ -27,6 +29,7 @@ import { NotFoundPage } from '../pages/NotFoundPage.jsx';
 import { PackageDetailPage } from '../pages/PackageDetailPage.jsx';
 import { PickTaskDetailPage } from '../pages/PickTaskDetailPage.jsx';
 import { PickTasksPage } from '../pages/PickTasksPage.jsx';
+import { PlatformHealthPage } from '../pages/PlatformHealthPage.jsx';
 import { ProductValuationReportPage } from '../pages/ProductValuationReportPage.jsx';
 import { ProductImportPage } from '../pages/ProductImportPage.jsx';
 import { PackagesPage, PurchaseReceiptStartPage, PurchaseReceiptsPage, SalesFulfillmentsPage } from '../pages/OperationalListPages.jsx';
@@ -50,8 +53,11 @@ import { SalesReturnDetailPage } from '../pages/SalesReturnDetailPage.jsx';
 import { SalesReturnFormPage } from '../pages/SalesReturnFormPage.jsx';
 import { SalesReturnInspectPage } from '../pages/SalesReturnInspectPage.jsx';
 import { SerialStatusReportPage } from '../pages/SerialStatusReportPage.jsx';
+import { SettingsPage } from '../pages/SettingsPage.jsx';
 import { ReturnsPage } from '../pages/ReturnsPage.jsx';
 import { StockMovementReportPage } from '../pages/StockMovementReportPage.jsx';
+import { TenantDetailPage } from '../pages/TenantDetailPage.jsx';
+import { TenantsPage } from '../pages/TenantsPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehouseStockReportPage } from '../pages/WarehouseStockReportPage.jsx';
 import { WarehouseFormPage, WarehousesPage } from '../pages/WarehousesPage.jsx';
@@ -119,6 +125,12 @@ export function AppRoutes() {
             <Route path="blocked-stock" element={<BlockedStockReportPage />} />
             <Route path="reconciliation" element={<ReconciliationReportPage />} />
           </Route>
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="admin/tenants" element={<TenantsPage />} />
+          <Route path="admin/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="admin/audit-logs" element={<AuditLogsPage />} />
+          <Route path="admin/platform-health" element={<PlatformHealthPage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

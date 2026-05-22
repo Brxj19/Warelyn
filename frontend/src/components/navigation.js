@@ -13,11 +13,14 @@ import {
   PackageCheck,
   Plus,
   Search,
+  Server,
+  Settings,
   ShieldCheck,
   ShoppingCart,
   Truck,
   Undo2,
   Upload,
+  UserCog,
   Users,
   Warehouse,
 } from 'lucide-react';
@@ -29,10 +32,22 @@ export const salesRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', '
 export const salesWriteRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF'];
 export const reportRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'VIEWER'];
 
+export const superAdminRoles = ['SUPER_ADMIN'];
+
 export const navGroups = [
   {
     label: 'Overview',
     items: [{ icon: LayoutDashboard, label: 'Dashboard', section: 'Overview', to: '/dashboard' }],
+  },
+  {
+    label: 'Platform',
+    roles: superAdminRoles,
+    items: [
+      { icon: UserCog, label: 'Platform Console', section: 'Platform', to: '/admin', roles: superAdminRoles, exact: true },
+      { icon: Layers, label: 'Tenants', section: 'Platform', to: '/admin/tenants', roles: superAdminRoles, exact: true },
+      { icon: ClipboardList, label: 'Audit Logs', section: 'Platform', to: '/admin/audit-logs', roles: superAdminRoles, exact: true },
+      { icon: Server, label: 'Platform Health', section: 'Platform', to: '/admin/platform-health', roles: superAdminRoles, exact: true },
+    ],
   },
   {
     label: 'Catalog',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, ChevronDown, ChevronRight, HelpCircle, Menu, UserCircle } from 'lucide-react';
+import { Bell, ChevronDown, ChevronRight, HelpCircle, Menu, Settings, UserCircle } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppLogo } from '../components/AppLogo.jsx';
@@ -109,6 +109,22 @@ export function MainLayout() {
                       <small>Return to dashboard</small>
                     </span>
                   </button>
+                  {user?.role !== 'SUPER_ADMIN' ? (
+                    <button
+                      className="popover-row"
+                      onClick={() => {
+                        navigate('/settings');
+                        setIsAccountOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <Settings size={16} />
+                      <span>
+                        <strong>Settings</strong>
+                        <small>Tenant and personal preferences</small>
+                      </span>
+                    </button>
+                  ) : null}
                   <button
                     className="popover-row"
                     onClick={async () => {

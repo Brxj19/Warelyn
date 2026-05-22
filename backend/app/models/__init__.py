@@ -1,3 +1,4 @@
+from app.models.audit import AuditLog
 from app.models.auth import RefreshToken, Tenant, TenantStatus, User, UserRole, UserStatus
 from app.models.fulfillment import Package, PackageItem, PackageStatus, PickTask, PickTaskItem, PickTaskItemStatus, PickTaskStatus
 from app.models.imports import ImportJob, ImportJobRow, ImportJobStatus, ImportRowStatus, ProductImportMode
@@ -6,8 +7,10 @@ from app.models.master_data import Brand, Category, Customer, LocationType, Prod
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptItem, PurchaseReceiptStatus
 from app.models.returns import BlockedReturnStock, BlockedReturnStockStatus, ReturnQCInspection, SalesReturn, SalesReturnItem, SalesReturnItemStatus, SalesReturnStatus
 from app.models.sales import SalesFulfillment, SalesFulfillmentItem, SalesFulfillmentStatus, SalesOrder, SalesOrderItem, SalesOrderStatus
+from app.models.settings import TenantSettings, UserPreferences
 
 __all__ = [
+    "AuditLog",
     "Brand",
     "BlockedReturnStock",
     "BlockedReturnStockStatus",
@@ -58,8 +61,10 @@ __all__ = [
     "StockLedgerEntry",
     "StockReservation",
     "Tenant",
+    "TenantSettings",
     "TenantStatus",
     "User",
+    "UserPreferences",
     "UserRole",
     "UserStatus",
     "Vendor",

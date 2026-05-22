@@ -6,6 +6,8 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export const reportLinks = [
@@ -22,11 +24,18 @@ export const reportLinks = [
   ['Reconciliation', '/reports/reconciliation', 'Ledger-to-projection mismatch visibility.'],
 ];
 
+const reportGroups = [
+  ['Inventory', ['Inventory summary', 'Warehouse stock', 'Location stock', 'Product valuation']],
+  ['Stock Health', ['Low stock', 'Reorder suggestions', 'Blocked stock']],
+  ['Traceability', ['Stock movements', 'Batch expiry', 'Serial status']],
+  ['Reconciliation', ['Reconciliation']],
+];
+
 export function ReportsPage() {
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-warelyn-border bg-white p-6 shadow-sm"><Badge tone="primary">Reports</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Operational reports</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-warelyn-muted">Read-only reporting from backend inventory, ledger, batch, serial, returns, purchasing, and sales data. Reports expose operational truth without frontend stock calculation.</p></div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{reportLinks.map(([title, to, description]) => <Link className="block" key={to} to={to}><Card className="h-full transition hover:-translate-y-0.5 hover:border-warelyn-primary hover:shadow-soft"><CardBody><div className="mb-4 h-1.5 w-12 rounded-full bg-warelyn-primary" /><h2 className="font-semibold text-warelyn-text">{title}</h2><p className="mt-2 text-sm leading-6 text-warelyn-muted">{description}</p></CardBody></Card></Link>)}</div>
+      <PageHeader kicker="Reports" title="Operational reports" description="Read-only reporting from backend inventory, ledger, batch, serial, returns, purchasing, and sales data. Reports expose operational truth without frontend stock calculation." />
+      <div className="space-y-6">{reportGroups.map(([group, names]) => <section key={group}><h2 className="mb-3 text-sm font-bold uppercase tracking-[0.16em] text-warelyn-muted">{group}</h2><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{reportLinks.filter(([title]) => names.includes(title)).map(([title, to, description]) => <Link className="block" key={to} to={to}><Card className="h-full transition hover:-translate-y-0.5 hover:border-warelyn-primary hover:shadow-soft"><CardBody><div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-warelyn-primary"><Badge tone="primary">{title.slice(0, 1)}</Badge></div><h2 className="font-semibold text-warelyn-text">{title}</h2><p className="mt-2 text-sm leading-6 text-warelyn-muted">{description}</p></CardBody></Card></Link>)}</div></section>)}</div>
     </div>
   );
 }
@@ -59,9 +68,12 @@ export function SimpleReportPage({ columns, description, load, loadRows, normali
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><Badge tone="primary">Report</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">{title}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-warelyn-muted">{description}</p></div><Link to="/reports" className="text-sm font-semibold text-warelyn-primary hover:text-blue-900">Back to reports</Link></div>
+      <PageHeader kicker="Report" title={title} description={description} actions={<Link to="/reports" className="text-sm font-semibold text-warelyn-primary hover:text-blue-900">Back to reports</Link>} />
       {summary ? summary(data) : null}
-      <Card><CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold text-warelyn-text">Results</h2><p className="mt-1 text-sm text-warelyn-muted">{rows.length} backend-returned row(s)</p></div><div className="rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-warelyn-muted ring-1 ring-warelyn-border">Filter-ready table shell</div></CardHeader><CardBody>{rows.length === 0 ? <EmptyState title="No report rows" description="No data matched this report." /> : <div className="overflow-x-auto rounded-xl border border-warelyn-border"><table className="min-w-full divide-y divide-warelyn-border text-sm"><thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted"><tr>{columns.map((column) => <th className="px-4 py-3" key={column.key}>{column.label}</th>)}</tr></thead><tbody className="divide-y divide-warelyn-border bg-white">{rows.map((row, index) => <tr className="hover:bg-slate-50/70" key={row.id ?? index}>{columns.map((column) => <td className="whitespace-nowrap px-4 py-3" key={column.key}>{row[column.key] ?? '-'}</td>)}</tr>)}</tbody></table></div>}</CardBody></Card>
+      <Card><CardBody className="flex flex-wrap items-center gap-3"><Badge tone="neutral">Filters</Badge><span className="text-sm text-warelyn-muted">Current report uses backend defaults.</span><button className="text-sm font-semibold text-warelyn-primary" type="button">Reset filters</button></CardBody></Card>
+      <TableShell description={`${rows.length} backend-returned row(s)`} emptyDescription="No data matched this report." emptyTitle="No report rows" isEmpty={rows.length === 0} title="Results">
+        <table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={row.id ?? index}>{columns.map((column) => <td className="whitespace-nowrap" key={column.key}>{row[column.key] ?? '-'}</td>)}</tr>)}</tbody></table>
+      </TableShell>
     </div>
   );
 }

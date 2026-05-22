@@ -1,3 +1,5 @@
+import { AlertTriangle, CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
+
 const tones = {
   neutral: 'bg-slate-100 text-slate-700 ring-slate-200',
   success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -10,23 +12,39 @@ const tones = {
 const statusTones = {
   ACCEPTED_BLOCKED: 'warning',
   ACCEPTED_RESTOCK: 'success',
+  ACTIVE: 'success',
+  BLOCKED: 'warning',
   CANCELLED: 'danger',
-  CLOSED: 'neutral',
+  CLOSED: 'slate',
   COMMITTED: 'success',
   CONFIRMED: 'primary',
   DAMAGED: 'danger',
   DRAFT: 'neutral',
   FULFILLED: 'success',
+  IN_PROGRESS: 'primary',
   OPEN: 'primary',
   PACKED: 'success',
   PARTIALLY_FULFILLED: 'warning',
   PARTIALLY_RECEIVED: 'warning',
   PENDING: 'warning',
   PICKED: 'success',
+  PROCESSED: 'success',
+  QC_HOLD: 'warning',
   RECEIVED: 'success',
   REJECTED: 'danger',
+  RESERVED: 'primary',
   SCRAPPED: 'danger',
+  SOLD: 'slate',
   SUBMITTED: 'primary',
+};
+
+const statusIcons = {
+  danger: XCircle,
+  neutral: Circle,
+  primary: Clock,
+  slate: Circle,
+  success: CheckCircle2,
+  warning: AlertTriangle,
 };
 
 export function Badge({ children, className = '', tone = 'neutral' }) {
@@ -35,5 +53,7 @@ export function Badge({ children, className = '', tone = 'neutral' }) {
 
 export function StatusBadge({ children, status, className = '' }) {
   const value = status ?? children;
-  return <Badge className={className} tone={statusTones[value] ?? 'neutral'}>{children ?? value}</Badge>;
+  const tone = statusTones[value] ?? 'neutral';
+  const Icon = statusIcons[tone] ?? Circle;
+  return <Badge className={`gap-1.5 ${className}`} tone={tone}><Icon size={12} />{children ?? value}</Badge>;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button.jsx';
+import { AppLogo } from '../components/ui/AppLogo.jsx';
 import { Card, CardBody } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
@@ -53,7 +54,7 @@ export function LoginPage() {
     <Card className="w-full max-w-md">
       <CardBody className="p-8">
         <div className="mb-8">
-          <img alt="Warelyn" className="mb-4 h-12 w-12 rounded-2xl object-contain ring-1 ring-warelyn-border" src="/warelyn-logo.png" />
+          <AppLogo className="mb-5" imageClassName="h-16 max-w-[210px]" />
           <h1 className="text-2xl font-bold tracking-tight text-warelyn-text">Sign in to Warelyn</h1>
           <p className="mt-2 text-sm text-warelyn-muted">Inventory that moves with your business.</p>
         </div>

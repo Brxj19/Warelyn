@@ -9,6 +9,7 @@ import { BrandsPage, CategoriesPage, CustomersPage, ProductsPage, VendorsPage } 
 import { DashboardPage } from '../pages/DashboardPage.jsx';
 import { InventorySummaryReportPage } from '../pages/InventorySummaryReportPage.jsx';
 import { LocationStockReportPage } from '../pages/LocationStockReportPage.jsx';
+import { LandingPage } from '../pages/LandingPage.jsx';
 import { LoginPage } from '../pages/LoginPage.jsx';
 import { LowStockReportPage } from '../pages/LowStockReportPage.jsx';
 import { NotFoundPage } from '../pages/NotFoundPage.jsx';
@@ -48,9 +49,9 @@ import { ProtectedRoute } from './ProtectedRoute.jsx';
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
-          <Route index element={<Navigate replace to="/dashboard" />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="catalog" element={<CatalogPage />} />
           <Route path="catalog/products" element={<ProductsPage />} />

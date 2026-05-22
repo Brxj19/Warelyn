@@ -4,9 +4,11 @@ import { Link, useParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { StockImpactPreview } from '../components/ui/StockImpactPreview.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as purchasingService from '../services/purchasingService.js';
 
@@ -21,6 +23,7 @@ export function PurchaseReceiptDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [pendingAction, setPendingAction] = useState(null);
   const mayWrite = canWrite.has(user?.role);
 
   async function load() {
@@ -44,6 +47,7 @@ export function PurchaseReceiptDetailPage() {
       const result = await purchasingService.commitPurchaseReceipt(accessToken, id, { idempotency_key: idempotencyKey });
       setSummary(result);
       setReceipt(result.receipt);
+      setPendingAction(null);
     } catch (commitError) {
       setError(commitError.message);
     } finally {
@@ -56,6 +60,7 @@ export function PurchaseReceiptDetailPage() {
     setError('');
     try {
       setReceipt(await purchasingService.cancelPurchaseReceipt(accessToken, id));
+      setPendingAction(null);
     } catch (cancelError) {
       setError(cancelError.message);
     } finally {
@@ -94,7 +99,8 @@ export function PurchaseReceiptDetailPage() {
           <CardBody className="space-y-4">
             <p className="text-sm text-warelyn-muted">Committing this receipt posts stock through InventoryEngine and writes purchase-referenced ledger entries.</p>
             <Input label="Idempotency key" required value={idempotencyKey} onChange={(event) => setIdempotencyKey(event.target.value)} />
-            <div className="flex flex-wrap gap-2"><Button disabled={isSaving} variant="accent" onClick={commit}>{isSaving ? 'Committing...' : 'Commit receipt'}</Button><Button disabled={isSaving} variant="danger" onClick={cancel}>Cancel receipt</Button></div>
+            <StockImpactPreview items={receipt.items.map((item) => ({ effect: 'Expected effect: on-hand and available stock increase after backend commit.', id: item.id, meta: `Warehouse #${item.warehouse_id} / Location #${item.location_id}; quantity ${item.received_quantity}`, product: `Product #${item.product_id}` }))} />
+            <div className="flex flex-wrap gap-2"><Button disabled={isSaving} variant="accent" onClick={() => setPendingAction('commit')}>{isSaving ? 'Committing...' : 'Commit receipt'}</Button><Button disabled={isSaving} variant="danger" onClick={() => setPendingAction('cancel')}>Cancel receipt</Button></div>
           </CardBody>
         </Card>
       ) : null}
@@ -104,6 +110,7 @@ export function PurchaseReceiptDetailPage() {
           <CardBody><div className="grid gap-3 md:grid-cols-2">{summary.stock_results.map((result, index) => <div className="rounded-xl border border-warelyn-border p-4" key={index}><p className="font-semibold text-warelyn-text">Product #{result.stock.product_id}</p><p className="text-sm text-warelyn-muted">On hand: {result.stock.quantity_on_hand}</p><p className="text-sm text-warelyn-muted">Available: {result.stock.quantity_available}</p></div>)}</div></CardBody>
         </Card>
       ) : null}
+      <ConfirmationModal confirmLabel={pendingAction === 'cancel' ? 'Cancel receipt' : 'Commit receipt'} description={pendingAction === 'cancel' ? 'Cancel this receipt draft. No stock will be posted.' : 'Commit this receipt through the backend InventoryEngine and write purchase-referenced stock ledger entries.'} isLoading={isSaving} onCancel={() => setPendingAction(null)} onConfirm={pendingAction === 'cancel' ? cancel : commit} open={Boolean(pendingAction)} title={pendingAction === 'cancel' ? 'Confirm receipt cancellation' : 'Confirm receipt commit'} variant={pendingAction === 'cancel' ? 'danger' : 'accent'} />
     </div>
   );
 }

@@ -8,12 +8,14 @@ import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { WorkflowProgress } from '../components/ui/WorkflowProgress.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as purchasingService from '../services/purchasingService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF']);
 const receivableStatuses = new Set(['SUBMITTED', 'PARTIALLY_RECEIVED']);
 const statusTone = { DRAFT: 'neutral', SUBMITTED: 'primary', PARTIALLY_RECEIVED: 'warning', RECEIVED: 'success', CANCELLED: 'danger', CLOSED: 'neutral' };
+const purchaseSteps = [{ key: 'DRAFT', label: 'Draft' }, { key: 'SUBMITTED', label: 'Submitted' }, { key: 'PARTIALLY_RECEIVED', label: 'Receiving' }, { key: 'RECEIVED', label: 'Received / Closed', matches: ['RECEIVED', 'CLOSED'] }];
 
 export function PurchaseOrderDetailPage() {
   const { id } = useParams();
@@ -77,6 +79,7 @@ export function PurchaseOrderDetailPage() {
         </div>
       </div>
       {error ? <ErrorState description={error} /> : null}
+      <WorkflowProgress current={order.status} steps={purchaseSteps} />
       <Card>
         <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Ordered vs received</h2></CardHeader>
         <CardBody>

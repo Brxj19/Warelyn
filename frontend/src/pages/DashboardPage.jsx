@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader, MetricCard } from '../components/ui/Card.js
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as reportsService from '../services/reportsService.js';
 
@@ -49,16 +50,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-soft sm:p-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="slate">Operational dashboard</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">Welcome, {user?.name ?? 'Warelyn user'}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Backend-driven operational KPIs for {tenant?.company_name ?? 'your workspace'}. Reports are read-only and do not mutate stock.</p>
-        </div>
-        <div className="flex gap-2"><Link to="/reports"><Button className="border-white/10 bg-white text-slate-950 hover:bg-slate-100" variant="secondary">Open reports</Button></Link><Button className="border-white/10 bg-slate-900 text-white hover:bg-slate-800" variant="secondary" onClick={logout}>Logout</Button></div>
-        </div>
-      </div>
+      <PageHeader kicker="Operational dashboard" title={`Welcome, ${user?.name ?? 'Warelyn user'}`} description={`Backend-driven operational KPIs for ${tenant?.company_name ?? 'your workspace'}. Reports are read-only and do not mutate stock.`} actions={<><Link to="/reports"><Button variant="secondary">Open reports</Button></Link><Button variant="ghost" onClick={logout}>Logout</Button></>} />
       {error ? <ErrorState description={error} /> : null}
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         {kpiLabels.map(([key, label, description, tone]) => <MetricCard description={description} key={key} label={label} tone={tone} value={dashboard?.kpis?.[key] ?? 0} />)}

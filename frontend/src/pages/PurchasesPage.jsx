@@ -1,6 +1,6 @@
-import { Eye, ReceiptText } from 'lucide-react';
+import { Eye, Plus, ReceiptText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ActionMenu } from '../components/ui/ActionMenu.jsx';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -19,6 +19,7 @@ const statusTabs = ['ALL', 'DRAFT', 'SUBMITTED', 'PARTIALLY_RECEIVED', 'RECEIVED
 
 export function PurchasesPage() {
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [vendorsById, setVendorsById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -59,8 +60,8 @@ export function PurchasesPage() {
       <PageHeader
         kicker="Purchasing"
         title="Purchase orders"
-        description="Create purchase orders and receive goods into warehouse locations. Stock changes only after receipt commit."
-        actions={mayWrite ? <Link to="/purchases/new"><Button>New purchase order</Button></Link> : null}
+        description="Review purchase order records only. Create and receiving workflows stay on their own focused screens."
+        actions={mayWrite ? <Link to="/purchases/new"><Button><Plus size={16} />Purchase Order</Button></Link> : null}
       />
       <TableShell
         description={`${filteredOrders.length} purchase order(s) in view`}
@@ -112,8 +113,8 @@ export function PurchasesPage() {
                 <td>{formatDate(order.order_date)}</td>
                 <td className="text-right">
                   <ActionMenu items={[
-                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/purchases/${order.id}`) },
-                    ...(mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? [{ label: 'Receive', icon: ReceiptText, onClick: () => window.location.assign(`/purchases/${order.id}/receive`) }] : []),
+                    { label: 'View', icon: Eye, onClick: () => navigate(`/purchases/${order.id}`) },
+                    ...(mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? [{ label: 'Receive', icon: ReceiptText, onClick: () => navigate(`/purchases/${order.id}/receive`) }] : []),
                   ]} />
                 </td>
               </tr>

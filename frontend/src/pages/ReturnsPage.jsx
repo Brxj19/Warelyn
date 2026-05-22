@@ -1,6 +1,6 @@
-import { ClipboardCheck, Eye } from 'lucide-react';
+import { ClipboardCheck, Eye, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ActionMenu } from '../components/ui/ActionMenu.jsx';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -16,12 +16,13 @@ import * as returnsService from '../services/returnsService.js';
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
 const statusTabs = ['ALL', 'DRAFT', 'SUBMITTED', 'INSPECTION_PENDING', 'PARTIALLY_PROCESSED', 'PROCESSED', 'CANCELLED'];
 
-export function ReturnsPage() {
+export function ReturnsPage({ mode = 'all' }) {
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [returns, setReturns] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState(mode === 'qc' ? 'INSPECTION_PENDING' : 'ALL');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -47,29 +48,35 @@ export function ReturnsPage() {
     });
   }, [returns, search, statusFilter]);
 
+  const isQcMode = mode === 'qc';
   return (
     <div className="space-y-6">
-      <PageHeader kicker="Returns QC" title="Sales returns" description="Inspect customer returns before stock is restocked, blocked, damaged, scrapped, or rejected." actions={canWrite.has(user?.role) ? <Link to="/returns/new"><Button>New return</Button></Link> : null} />
+      <PageHeader
+        kicker={isQcMode ? 'Returns QC' : 'Returns'}
+        title={isQcMode ? 'Returns QC queue' : 'Sales returns'}
+        description={isQcMode ? 'Review returns waiting for inspection and open the dedicated QC workflow.' : 'Review return records only. Creation and QC processing stay on focused workflow pages.'}
+        actions={!isQcMode && canWrite.has(user?.role) ? <Link to="/returns/new"><Button><Plus size={16} />Return</Button></Link> : null}
+      />
       <TableShell
         description={`${filteredReturns.length} return(s) in view`}
-        emptyAction={canWrite.has(user?.role) ? <Link to="/returns/new"><Button>Create return</Button></Link> : null}
-        emptyDescription="Returned items that need inspection will appear here."
-        emptyTitle="No returns waiting"
+        emptyAction={!isQcMode && canWrite.has(user?.role) ? <Link to="/returns/new"><Button>Create return</Button></Link> : null}
+        emptyDescription={isQcMode ? 'Returns that need inspection will appear here.' : 'Returned items that need inspection will appear here.'}
+        emptyTitle={isQcMode ? 'No returns waiting for QC' : 'No returns waiting'}
         error={error}
         isEmpty={filteredReturns.length === 0}
         isLoading={isLoading}
         rowCount={filteredReturns.length}
-        title="Return queue"
+        title={isQcMode ? 'QC queue' : 'Return queue'}
         toolbar={
           <ScreenToolbar
             onReset={() => {
               setSearch('');
-              setStatusFilter('ALL');
+              setStatusFilter(isQcMode ? 'INSPECTION_PENDING' : 'ALL');
             }}
             onSearchChange={setSearch}
             searchPlaceholder="Search return number or sales order"
             searchValue={search}
-            tabs={statusTabs.map((status) => ({
+            tabs={(isQcMode ? ['INSPECTION_PENDING', 'SUBMITTED', 'PARTIALLY_PROCESSED', 'PROCESSED'] : statusTabs).map((status) => ({
               key: status,
               label: status === 'ALL' ? 'All' : status.replaceAll('_', ' '),
               active: statusFilter === status,
@@ -100,8 +107,8 @@ export function ReturnsPage() {
                 <td>{formatDate(row.created_at)}</td>
                 <td className="text-right">
                   <ActionMenu items={[
-                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/returns/${row.id}`) },
-                    ...(canWrite.has(user?.role) && ['SUBMITTED', 'INSPECTION_PENDING'].includes(row.status) ? [{ label: 'Inspect', icon: ClipboardCheck, onClick: () => window.location.assign(`/returns/${row.id}/inspect`) }] : []),
+                    { label: 'View', icon: Eye, onClick: () => navigate(`/returns/${row.id}`) },
+                    ...(canWrite.has(user?.role) && ['SUBMITTED', 'INSPECTION_PENDING'].includes(row.status) ? [{ label: 'Inspect', icon: ClipboardCheck, onClick: () => navigate(`/returns/${row.id}/inspect`) }] : []),
                   ]} />
                 </td>
               </tr>

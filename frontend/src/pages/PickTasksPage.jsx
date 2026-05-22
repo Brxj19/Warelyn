@@ -1,6 +1,6 @@
 import { Eye, PlayCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ActionMenu } from '../components/ui/ActionMenu.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
@@ -16,6 +16,7 @@ const statusTabs = ['ALL', 'PENDING', 'IN_PROGRESS', 'PICKED', 'CANCELLED'];
 
 export function PickTasksPage() {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
   const [pickTasks, setPickTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +48,7 @@ export function PickTasksPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader kicker="Picking" title="Pick tasks" description="Pick tasks allocate reserved stock for fulfillment without deducting or releasing stock." />
+      <PageHeader kicker="Picking" title="Pick tasks" description="Review the pick queue only. Task creation still begins from a specific confirmed sales order." />
       <TableShell
         description={`${filteredTasks.length} task(s) in this view`}
         emptyDescription="Create pick tasks from confirmed sales orders."
@@ -97,8 +98,8 @@ export function PickTasksPage() {
                 <td>{task.created_at ? formatDate(task.created_at) : '-'}</td>
                 <td className="text-right">
                   <ActionMenu items={[
-                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/pick-tasks/${task.id}`) },
-                    ...(task.status === 'PENDING' ? [{ label: 'Open picking', icon: PlayCircle, onClick: () => window.location.assign(`/pick-tasks/${task.id}`) }] : []),
+                    { label: 'View', icon: Eye, onClick: () => navigate(`/pick-tasks/${task.id}`) },
+                    ...(task.status === 'PENDING' ? [{ label: 'Open picking', icon: PlayCircle, onClick: () => navigate(`/pick-tasks/${task.id}`) }] : []),
                   ]} />
                 </td>
               </tr>

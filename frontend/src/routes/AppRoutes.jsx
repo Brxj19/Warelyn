@@ -5,7 +5,18 @@ import { MainLayout } from '../layouts/MainLayout.jsx';
 import { CatalogPage } from '../pages/CatalogPage.jsx';
 import { BatchExpiryReportPage } from '../pages/BatchExpiryReportPage.jsx';
 import { BlockedStockReportPage } from '../pages/BlockedStockReportPage.jsx';
-import { BrandsPage, CategoriesPage, CustomersPage, ProductsPage, VendorsPage } from '../pages/CatalogMasterPages.jsx';
+import {
+  BrandFormPage,
+  BrandsPage,
+  CategoriesPage,
+  CategoryFormPage,
+  CustomerFormPage,
+  CustomersPage,
+  ProductFormPage,
+  ProductsPage,
+  VendorFormPage,
+  VendorsPage,
+} from '../pages/CatalogMasterPages.jsx';
 import { DashboardPage } from '../pages/DashboardPage.jsx';
 import { InventorySummaryReportPage } from '../pages/InventorySummaryReportPage.jsx';
 import { LocationStockReportPage } from '../pages/LocationStockReportPage.jsx';
@@ -18,6 +29,7 @@ import { PickTaskDetailPage } from '../pages/PickTaskDetailPage.jsx';
 import { PickTasksPage } from '../pages/PickTasksPage.jsx';
 import { ProductValuationReportPage } from '../pages/ProductValuationReportPage.jsx';
 import { ProductImportPage } from '../pages/ProductImportPage.jsx';
+import { PackagesPage, PurchaseReceiptStartPage, PurchaseReceiptsPage, SalesFulfillmentsPage } from '../pages/OperationalListPages.jsx';
 import { PurchaseOrderDetailPage } from '../pages/PurchaseOrderDetailPage.jsx';
 import { PurchaseOrderFormPage } from '../pages/PurchaseOrderFormPage.jsx';
 import { PurchaseReceiptDetailPage } from '../pages/PurchaseReceiptDetailPage.jsx';
@@ -42,7 +54,7 @@ import { ReturnsPage } from '../pages/ReturnsPage.jsx';
 import { StockMovementReportPage } from '../pages/StockMovementReportPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehouseStockReportPage } from '../pages/WarehouseStockReportPage.jsx';
-import { WarehousesPage } from '../pages/WarehousesPage.jsx';
+import { WarehouseFormPage, WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
 
@@ -55,17 +67,25 @@ export function AppRoutes() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="catalog" element={<CatalogPage />} />
           <Route path="catalog/products" element={<ProductsPage />} />
+          <Route path="catalog/products/new" element={<ProductFormPage />} />
           <Route path="catalog/products/import" element={<ProductImportPage />} />
           <Route path="catalog/categories" element={<CategoriesPage />} />
+          <Route path="catalog/categories/new" element={<CategoryFormPage />} />
           <Route path="catalog/brands" element={<BrandsPage />} />
+          <Route path="catalog/brands/new" element={<BrandFormPage />} />
           <Route path="catalog/vendors" element={<VendorsPage />} />
+          <Route path="catalog/vendors/new" element={<VendorFormPage />} />
           <Route path="catalog/customers" element={<CustomersPage />} />
+          <Route path="catalog/customers/new" element={<CustomerFormPage />} />
           <Route path="warehouses" element={<WarehousesPage />} />
+          <Route path="warehouses/new" element={<WarehouseFormPage />} />
           <Route path="warehouses/:id" element={<WarehouseDetailPage />} />
           <Route path="purchases" element={<PurchasesPage />} />
           <Route path="purchases/new" element={<PurchaseOrderFormPage />} />
           <Route path="purchases/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="purchases/:id/receive" element={<PurchaseReceivePage />} />
+          <Route path="purchase-receipts" element={<PurchaseReceiptsPage />} />
+          <Route path="purchase-receipts/new" element={<PurchaseReceiptStartPage />} />
           <Route path="purchase-receipts/:id" element={<PurchaseReceiptDetailPage />} />
           <Route path="sales" element={<SalesPage />} />
           <Route path="sales/new" element={<SalesOrderFormPage />} />
@@ -74,12 +94,15 @@ export function AppRoutes() {
           <Route path="sales/:id/package" element={<SalesPackagePage />} />
           <Route path="sales/:id/fulfill" element={<SalesFulfillPage />} />
           <Route path="returns" element={<ReturnsPage />} />
+          <Route path="returns/qc" element={<ReturnsPage mode="qc" />} />
           <Route path="returns/new" element={<SalesReturnFormPage />} />
           <Route path="returns/:id" element={<SalesReturnDetailPage />} />
           <Route path="returns/:id/inspect" element={<SalesReturnInspectPage />} />
           <Route path="pick-tasks" element={<PickTasksPage />} />
           <Route path="pick-tasks/:id" element={<PickTaskDetailPage />} />
+          <Route path="packages" element={<PackagesPage />} />
           <Route path="packages/:id" element={<PackageDetailPage />} />
+          <Route path="sales-fulfillments" element={<SalesFulfillmentsPage />} />
           <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
           <Route path="reports" element={<ReportsPage />} />

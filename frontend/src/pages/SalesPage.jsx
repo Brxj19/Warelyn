@@ -1,6 +1,6 @@
-import { Eye, PackageCheck } from 'lucide-react';
+import { Eye, PackageCheck, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ActionMenu } from '../components/ui/ActionMenu.jsx';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -19,6 +19,7 @@ const statusTabs = ['ALL', 'DRAFT', 'CONFIRMED', 'PARTIALLY_FULFILLED', 'FULFILL
 
 export function SalesPage() {
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [customersById, setCustomersById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +57,7 @@ export function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader kicker="Sales" title="Sales orders" description="Confirm sales orders to reserve stock, then commit fulfillment to deduct reserved stock." actions={mayWrite ? <Link to="/sales/new"><Button>New sales order</Button></Link> : null} />
+      <PageHeader kicker="Sales" title="Sales orders" description="Review sales order records only. Confirmation, picking, packing, fulfillment, and returns each stay on focused workflow pages." actions={mayWrite ? <Link to="/sales/new"><Button><Plus size={16} />Sales Order</Button></Link> : null} />
       <TableShell
         description={`${filteredOrders.length} sales order(s) in view`}
         emptyAction={mayWrite ? <Link to="/sales/new"><Button>Create sales order</Button></Link> : null}
@@ -107,8 +108,8 @@ export function SalesPage() {
                 <td>{formatDate(order.order_date)}</td>
                 <td className="text-right">
                   <ActionMenu items={[
-                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/sales/${order.id}`) },
-                    ...(mayWrite && ['CONFIRMED', 'PARTIALLY_FULFILLED'].includes(order.status) ? [{ label: 'Pick workflow', icon: PackageCheck, onClick: () => window.location.assign(`/sales/${order.id}/pick`) }] : []),
+                    { label: 'View', icon: Eye, onClick: () => navigate(`/sales/${order.id}`) },
+                    ...(mayWrite && ['CONFIRMED', 'PARTIALLY_FULFILLED'].includes(order.status) ? [{ label: 'Pick workflow', icon: PackageCheck, onClick: () => navigate(`/sales/${order.id}/pick`) }] : []),
                   ]} />
                 </td>
               </tr>

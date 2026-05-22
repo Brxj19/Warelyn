@@ -274,6 +274,10 @@ tbody tr:hover {
     @apply mt-1 space-y-1;
   }
 
+  .sidebar-nested-group {
+    @apply space-y-1;
+  }
+
   .sidebar-nav-item {
     @apply relative flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-warelyn-text;
   }
@@ -282,12 +286,40 @@ tbody tr:hover {
     @apply bg-blue-50 font-semibold text-warelyn-primary shadow-[inset_3px_0_0_#1E3A8A];
   }
 
+  .sidebar-parent-item {
+    @apply relative flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-warelyn-text;
+  }
+
+  .sidebar-parent-item.is-active {
+    @apply bg-slate-50 text-warelyn-primary;
+  }
+
+  .sidebar-parent-chevron {
+    @apply ml-auto text-slate-400;
+  }
+
   .sidebar-nav-item-icon {
     @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl;
   }
 
   .sidebar-nav-item-dot {
     @apply ml-auto h-2 w-2 rounded-full bg-warelyn-primary/80;
+  }
+
+  .sidebar-subnav {
+    @apply ml-7 space-y-1 border-l border-slate-200 pl-3;
+  }
+
+  .sidebar-subnav-item {
+    @apply flex min-h-[36px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-warelyn-text;
+  }
+
+  .sidebar-subnav-item.is-active {
+    @apply bg-blue-50 font-semibold text-warelyn-primary;
+  }
+
+  .sidebar-subnav-icon {
+    @apply inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-400;
   }
 
   .sidebar.is-collapsed .sidebar-group-toggle {
@@ -308,6 +340,7 @@ tbody tr:hover {
 
   .sidebar.is-collapsed .sidebar-nav-item-label,
   .sidebar.is-collapsed .sidebar-nav-item-dot,
+  .sidebar.is-collapsed .sidebar-parent-chevron,
   .sidebar.is-collapsed .sidebar-collapse span {
     @apply hidden;
   }
@@ -662,6 +695,10 @@ tbody tr:hover {
 
   .screen-toolbar-search .screen-toolbar-search-input + p {
     @apply hidden;
+  }
+
+  .screen-toolbar-children {
+    @apply flex flex-wrap gap-2;
   }
 
   .screen-toolbar-date-range {

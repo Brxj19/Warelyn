@@ -26,15 +26,16 @@ export const reportLinks = [
 
 const reportGroups = [
   ['Inventory', ['Inventory summary', 'Warehouse stock', 'Location stock', 'Product valuation']],
-  ['Stock Health', ['Low stock', 'Reorder suggestions', 'Blocked stock']],
-  ['Traceability', ['Stock movements', 'Batch expiry', 'Serial status']],
+  ['Stock Health', ['Low stock', 'Reorder suggestions']],
+  ['Traceability', ['Batch expiry', 'Serial status']],
+  ['Operations', ['Stock movements', 'Blocked stock']],
   ['Reconciliation', ['Reconciliation']],
 ];
 
 export function ReportsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader kicker="Reports" title="Operational reports" description="Read-only reporting from backend inventory, ledger, batch, serial, returns, purchasing, and sales data. Reports expose operational truth without frontend stock calculation." />
+      <PageHeader kicker="Reports" title="Reports overview" description="Read-only reporting from backend inventory, ledger, batch, serial, returns, purchasing, and sales data. Reports expose operational truth without frontend stock calculation." />
       <div className="space-y-6">
         {reportGroups.map(([group, names]) => (
           <section key={group}>

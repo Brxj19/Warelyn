@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { MainLayout } from '../layouts/MainLayout.jsx';
@@ -105,18 +105,20 @@ export function AppRoutes() {
           <Route path="sales-fulfillments" element={<SalesFulfillmentsPage />} />
           <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="reports/inventory-summary" element={<InventorySummaryReportPage />} />
-          <Route path="reports/warehouse-stock" element={<WarehouseStockReportPage />} />
-          <Route path="reports/location-stock" element={<LocationStockReportPage />} />
-          <Route path="reports/stock-movements" element={<StockMovementReportPage />} />
-          <Route path="reports/low-stock" element={<LowStockReportPage />} />
-          <Route path="reports/reorder-suggestions" element={<ReorderSuggestionsPage />} />
-          <Route path="reports/product-valuation" element={<ProductValuationReportPage />} />
-          <Route path="reports/batch-expiry" element={<BatchExpiryReportPage />} />
-          <Route path="reports/serial-status" element={<SerialStatusReportPage />} />
-          <Route path="reports/blocked-stock" element={<BlockedStockReportPage />} />
-          <Route path="reports/reconciliation" element={<ReconciliationReportPage />} />
+          <Route path="reports" element={<Outlet />}>
+            <Route index element={<ReportsPage />} />
+            <Route path="inventory-summary" element={<InventorySummaryReportPage />} />
+            <Route path="warehouse-stock" element={<WarehouseStockReportPage />} />
+            <Route path="location-stock" element={<LocationStockReportPage />} />
+            <Route path="stock-movements" element={<StockMovementReportPage />} />
+            <Route path="low-stock" element={<LowStockReportPage />} />
+            <Route path="reorder-suggestions" element={<ReorderSuggestionsPage />} />
+            <Route path="product-valuation" element={<ProductValuationReportPage />} />
+            <Route path="batch-expiry" element={<BatchExpiryReportPage />} />
+            <Route path="serial-status" element={<SerialStatusReportPage />} />
+            <Route path="blocked-stock" element={<BlockedStockReportPage />} />
+            <Route path="reconciliation" element={<ReconciliationReportPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

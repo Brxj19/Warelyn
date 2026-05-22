@@ -1,11 +1,13 @@
 import { SlidersHorizontal, X } from 'lucide-react';
 
 export function ActiveFilterChips({ filters = [] }) {
-  if (!filters.length) return null;
+  const visibleFilters = filters.filter(Boolean);
+
+  if (!visibleFilters.length) return null;
 
   return (
     <div className="screen-toolbar-filter-chips">
-      {filters.map((filter) => (
+      {visibleFilters.map((filter) => (
         <span className="filter-chip" key={`${filter.key}-${filter.label}`}>
           <SlidersHorizontal size={12} />
           {filter.label}

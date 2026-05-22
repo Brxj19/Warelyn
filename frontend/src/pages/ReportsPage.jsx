@@ -134,7 +134,7 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
         };
       })
       .filter(Boolean),
-  ];
+  ].filter(Boolean);
   const hasActiveFilters = activeFilters.length > 0;
 
   return (

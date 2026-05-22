@@ -12,7 +12,7 @@ const dimensions = {
 
 const placementSizes = {
   topbar: { width: 96, height: 28 },
-  sidebar: { width: 112, height: 32 },
+  sidebar: { width: 154, height: 46 },
   'sidebar-collapsed': { width: 54, height: 54 },
   auth: { width: 144, height: 42 },
   'auth-form': { width: 132, height: 38 },

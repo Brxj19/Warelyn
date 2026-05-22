@@ -17,7 +17,8 @@ export function ScreenToolbar({
   searchValue = '',
   tabs = [],
 }) {
-  const shouldShowReset = Boolean(onReset && (activeFilters.length || searchValue.trim() || dateRange?.from || dateRange?.to));
+  const visibleFilters = activeFilters.filter(Boolean);
+  const shouldShowReset = Boolean(onReset && (visibleFilters.length || searchValue.trim() || dateRange?.from || dateRange?.to));
 
   return (
     <section className="screen-toolbar">
@@ -73,7 +74,7 @@ export function ScreenToolbar({
           </div>
         ) : null}
 
-        <ActiveFilterChips filters={activeFilters} />
+        <ActiveFilterChips filters={visibleFilters} />
 
         {shouldShowReset ? (
           <Button className="screen-toolbar-reset" onClick={onReset} type="button" variant="ghost">

@@ -59,5 +59,17 @@ class InventoryService:
     def transfer_stock(self, tenant_id: int, actor_id: int, values: dict[str, Any]) -> dict:
         return self.engine.transfer_stock(tenant_id, actor_id, values)
 
+    def return_restock(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.return_restock(tenant_id, actor_id, values, auto_commit=auto_commit)
+
+    def record_return_blocked(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.record_return_blocked(tenant_id, actor_id, values, auto_commit=auto_commit)
+
+    def record_return_damaged(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.record_return_damaged(tenant_id, actor_id, values, auto_commit=auto_commit)
+
+    def record_return_scrap(self, tenant_id: int, actor_id: int, values: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self.engine.record_return_scrap(tenant_id, actor_id, values, auto_commit=auto_commit)
+
     def reconcile_stock_dry_run(self, tenant_id: int) -> dict:
         return self.engine.reconcile_stock_dry_run(tenant_id)

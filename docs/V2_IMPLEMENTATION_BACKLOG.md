@@ -22,6 +22,7 @@ Completed:
 - Phase 5 batch, expiry, and serial tracking foundation: traceability tables, tracked receiving validation, ledger batch/serial references, read-only batch/serial APIs, and receiving UI fields.
 - Phase 6 sales reservation and fulfillment foundation: sales orders, explicit location allocation, reservation/release/deduction through `InventoryEngine`, sales fulfillment drafts/commit, frontend sales screens, and sales workflow tests.
 - Phase 7 picking, packing, and serial allocation foundation: pick tasks, pick task items, explicit serial allocation during picking, optional batch allocation, packages, package items, frontend picking/packing screens, and workflow tests.
+- Phase 8 returns QC and blocked stock foundation: sales returns, return items, QC inspections, blocked return stock, sellable restock through `InventoryEngine.return_restock()`, serial return status updates, frontend return screens, and workflow tests.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -39,7 +40,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 8 - Returns QC Foundation` or `Phase 8 - Reports, Reorder Rules, and Operational Dashboards`.
+Next recommended phase: `Phase 9 - Reports, Reorder Rules, and Operational Dashboards`.
 
 ## Required Phase Order
 
@@ -150,6 +151,18 @@ Phase 6 does not implement picking, packing, carrier shipment, invoice accountin
 - Fulfillment commit remains backward compatible for non-serial products and deducts only through `InventoryEngine.deduct_reserved_stock()`.
 
 Phase 7 does not implement carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, delivery tracking with external carriers, or full mobile scanner workflow.
+
+`Phase 8 - Returns QC and Blocked Stock Foundation` is completed and includes:
+
+- Tenant-scoped `sales_returns`, `sales_return_items`, `return_qc_inspections`, and `blocked_return_stock` records.
+- Return creation for fulfilled sales order quantities only.
+- QC outcomes: accepted sellable restock, accepted blocked/QC hold, damaged, scrapped, and rejected.
+- Sellable return restock through `InventoryEngine.return_restock()` with `RETURN_RESTOCK` ledger entries and `SALES_RETURN` references.
+- Blocked, damaged, and scrapped return records that do not increase `warehouse_stock` and do not create stock ledger entries.
+- Existing sold serial rows are updated for serial returns; duplicate serial rows are not created.
+- Frontend returns list, return create, return detail, and QC/process screens.
+
+Phase 8 does not implement refund accounting, credit notes, carrier return pickup integration, warranty claims, supplier return workflows, advanced reports, full blocked-stock projections on `warehouse_stock`, or mobile scanner return workflows.
 
 | ID | Phase | Priority | Area | Problem | Proposed Implementation | Files Likely Involved | Acceptance Criteria | Test Required |
 |---|---|---|---|---|---|---|---|---|

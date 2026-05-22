@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.inventory import IdempotencyKey, IdempotencyStatus, InventoryBatch, InventorySerial, StockLedgerEntry, StockReservation, WarehouseStock
 from app.models.master_data import Product, Warehouse, WarehouseLocation
+from app.models.returns import BlockedReturnStock
 
 
 class InventoryRepository:
@@ -100,6 +101,18 @@ class InventoryRepository:
         self.db.add(serial)
         self.db.flush()
         return serial
+
+    def lock_serial(self, tenant_id: int, serial_id: int) -> InventorySerial | None:
+        return self.db.scalar(select(InventorySerial).where(InventorySerial.id == serial_id, InventorySerial.tenant_id == tenant_id).with_for_update())
+
+    def lock_batch_by_id(self, tenant_id: int, batch_id: int) -> InventoryBatch | None:
+        return self.db.scalar(select(InventoryBatch).where(InventoryBatch.id == batch_id, InventoryBatch.tenant_id == tenant_id).with_for_update())
+
+    def create_blocked_return_stock(self, values: dict[str, Any]) -> BlockedReturnStock:
+        record = BlockedReturnStock(**values)
+        self.db.add(record)
+        self.db.flush()
+        return record
 
     def add_ledger_entry(self, values: dict[str, Any]) -> StockLedgerEntry:
         entry = StockLedgerEntry(**values)

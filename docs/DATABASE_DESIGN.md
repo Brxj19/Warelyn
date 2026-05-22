@@ -4,14 +4,14 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 7 picking, packing, and serial allocation foundation is complete.
+Phase 8 returns QC and blocked stock foundation is complete.
 
 Related commits:
 
 - Implementation: `dbd9752 implement Warelyn auth and tenant foundation`
 - Planning alignment: `0137f69 update backlog with auth and tenant foundation phase`
 
-Carrier shipment, invoice accounting, payment collection, returns QC, vendor bill/accounting, FEFO allocation, expiry jobs, full mobile scanner workflow, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving and sales fulfillment mutate stock only through `InventoryEngine`; picking and packing do not mutate stock.
+Carrier shipment, invoice accounting, payment collection, refund accounting, credit notes, vendor bill/accounting, FEFO allocation, expiry jobs, full mobile scanner workflow, and advanced report tables are not implemented yet. Product import is catalog-only and does not create stock projection, ledger, or reservation rows. Purchase receiving, sales fulfillment, and sellable return restock mutate stock only through `InventoryEngine`; picking, packing, and non-sellable return records do not mutate sellable stock.
 
 Current implemented models:
 
@@ -45,8 +45,12 @@ Current implemented models:
 - `PickTaskItem`
 - `Package`
 - `PackageItem`
+- `SalesReturn`
+- `SalesReturnItem`
+- `ReturnQCInspection`
+- `BlockedReturnStock`
 
-Next recommended phase: `Phase 8 - Returns QC Foundation` or `Phase 8 - Reports, Reorder Rules, and Operational Dashboards`. All stock mutation must go through `InventoryEngine`.
+Next recommended phase: `Phase 9 - Reports, Reorder Rules, and Operational Dashboards`. All stock mutation must go through `InventoryEngine`.
 
 ## Tables
 
@@ -173,6 +177,17 @@ Tenant-scoped fulfillment operations tables added by `20260521_0008_picking_pack
 
 Picking and packing do not update `warehouse_stock`, `stock_reservations`, or `stock_ledger_entries`. Explicit serial allocation is stored on `pick_task_items.serial_id`; final serial status changes happen only during fulfillment deduction through `InventoryEngine.deduct_reserved_stock()`.
 
+### Returns QC And Blocked Stock Foundation
+
+Tenant-scoped return tables added by `20260521_0009_return_qc_blocked_stock_foundation.py`:
+
+- `sales_returns`: tenant, sales order, return number, status, reason, notes, creator, submitted/inspected/processed/cancelled timestamps, and timestamps; unique `(tenant_id, return_number)`.
+- `sales_return_items`: tenant, return, sales order item, product, warehouse, location, optional batch, optional serial, returned/accepted/rejected quantities, QC status, reason, notes, and timestamps.
+- `return_qc_inspections`: tenant, return, inspector, inspected timestamp, notes, and timestamps.
+- `blocked_return_stock`: tenant, return, return item, product, warehouse, location, optional batch, optional serial, quantity, non-sellable status, reason, notes, and timestamps.
+
+Accepted sellable returns update `warehouse_stock` and write `RETURN_RESTOCK` ledger entries only through `InventoryEngine.return_restock()`. Blocked, damaged, and scrapped returns create `blocked_return_stock` records and do not increase sellable stock. Rejected returns do not mutate stock.
+
 ## Enums
 
 ### `UserRole`
@@ -226,6 +241,7 @@ Picking and packing do not update `warehouse_stock`, `stock_reservations`, or `s
 - `SALES_RESERVE`
 - `SALES_RELEASE`
 - `SALES_DEDUCT`
+- `RETURN_RESTOCK`
 - `TRANSFER_OUT`
 - `TRANSFER_IN`
 - `CYCLE_COUNT_ADJUSTMENT`
@@ -242,6 +258,7 @@ Picking and packing do not update `warehouse_stock`, `stock_reservations`, or `s
 - `MANUAL`
 - `PURCHASE_RECEIPT`
 - `SALES_ORDER`
+- `SALES_RETURN`
 - `TRANSFER`
 - `ADJUSTMENT`
 - `RECONCILIATION`
@@ -339,6 +356,31 @@ Picking and packing do not update `warehouse_stock`, `stock_reservations`, or `s
 - `PACKED`
 - `CANCELLED`
 
+### `SalesReturnStatus`
+
+- `DRAFT`
+- `SUBMITTED`
+- `INSPECTION_PENDING`
+- `PARTIALLY_PROCESSED`
+- `PROCESSED`
+- `CANCELLED`
+
+### `SalesReturnItemStatus`
+
+- `PENDING`
+- `ACCEPTED_RESTOCK`
+- `ACCEPTED_BLOCKED`
+- `DAMAGED`
+- `SCRAPPED`
+- `REJECTED`
+
+### `BlockedReturnStockStatus`
+
+- `QC_HOLD`
+- `QUARANTINE`
+- `DAMAGED`
+- `SCRAPPED`
+
 ## Migration
 
 Current migration:
@@ -351,6 +393,7 @@ Current migration:
 - `backend/alembic/versions/20260521_0006_batch_expiry_serial_foundation.py`
 - `backend/alembic/versions/20260521_0007_sales_reservation_fulfillment_foundation.py`
 - `backend/alembic/versions/20260521_0008_picking_packing_serial_allocation_foundation.py`
+- `backend/alembic/versions/20260521_0009_return_qc_blocked_stock_foundation.py`
 
 Apply migrations:
 
@@ -380,3 +423,4 @@ For local validation without MySQL, tests create an isolated in-memory SQLite da
 - `warehouse_stock.quantity_available` is a projection that must equal `quantity_on_hand - quantity_reserved` in Phase 2.
 - Product import records are tenant-scoped and catalog-only. Import commit must not write `warehouse_stock`, `stock_ledger_entries`, or `stock_reservations`.
 - Purchase records are tenant-scoped. Receipt commit must call `InventoryEngine.stock_in()` and write ledger rows with `PURCHASE_RECEIPT` reference type.
+- Return records are tenant-scoped. Sellable return restock must call `InventoryEngine.return_restock()` and write ledger rows with `SALES_RETURN` reference type; non-sellable return stock must remain in `blocked_return_stock` and outside sellable `warehouse_stock`.

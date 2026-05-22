@@ -1,0 +1,99 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+import { Badge } from '../components/ui/Badge.jsx';
+import { Button } from '../components/ui/Button.jsx';
+import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ErrorState } from '../components/ui/ErrorState.jsx';
+import { Input } from '../components/ui/Input.jsx';
+import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import * as catalogService from '../services/catalogService.js';
+import * as returnsService from '../services/returnsService.js';
+import * as salesService from '../services/salesService.js';
+import * as warehouseService from '../services/warehouseService.js';
+
+const selectClass = 'block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10';
+const returnableStatuses = new Set(['PARTIALLY_FULFILLED', 'FULFILLED', 'CLOSED']);
+
+export function SalesReturnFormPage() {
+  const { accessToken } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [orders, setOrders] = useState([]);
+  const [productsById, setProductsById] = useState({});
+  const [warehouses, setWarehouses] = useState([]);
+  const [locationsByWarehouse, setLocationsByWarehouse] = useState({});
+  const [form, setForm] = useState({ sales_order_id: searchParams.get('sales_order_id') || '', return_number: `RET-${Date.now()}`, reason: '', notes: '' });
+  const [lines, setLines] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      setIsLoading(true);
+      setError('');
+      try {
+        const [orderRows, productRows, warehouseRows] = await Promise.all([salesService.listSalesOrders(accessToken), catalogService.listProducts(accessToken), warehouseService.listWarehouses(accessToken)]);
+        const locationPairs = await Promise.all(warehouseRows.map(async (warehouse) => [warehouse.id, await warehouseService.listWarehouseLocations(accessToken, warehouse.id)]));
+        setOrders(orderRows.filter((order) => returnableStatuses.has(order.status)));
+        setProductsById(Object.fromEntries(productRows.map((product) => [product.id, product])));
+        setWarehouses(warehouseRows);
+        setLocationsByWarehouse(Object.fromEntries(locationPairs));
+      } catch (loadError) {
+        setError(loadError.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, [accessToken]);
+
+  const selectedOrder = orders.find((order) => String(order.id) === String(form.sales_order_id));
+
+  useEffect(() => {
+    if (!selectedOrder || lines.length) return;
+    const firstWarehouse = warehouses[0]?.id ? String(warehouses[0].id) : '';
+    const firstLocation = firstWarehouse && locationsByWarehouse[firstWarehouse]?.[0]?.id ? String(locationsByWarehouse[firstWarehouse][0].id) : '';
+    setLines(selectedOrder.items.filter((item) => Number(item.fulfilled_quantity) > 0).map((item) => ({ sales_order_item_id: item.id, warehouse_id: firstWarehouse, location_id: firstLocation, returned_quantity: '1', batch_id: '', serial_id: '', include: true })));
+  }, [selectedOrder, warehouses, locationsByWarehouse, lines.length]);
+
+  function updateLine(index, key, value) {
+    setLines((current) => current.map((line, lineIndex) => {
+      if (lineIndex !== index) return line;
+      if (key === 'warehouse_id') {
+        const firstLocation = locationsByWarehouse[value]?.[0]?.id ?? '';
+        return { ...line, warehouse_id: value, location_id: firstLocation ? String(firstLocation) : '' };
+      }
+      return { ...line, [key]: value };
+    }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    try {
+      const payload = { ...form, sales_order_id: Number(form.sales_order_id), items: lines.filter((line) => line.include).map((line) => ({ sales_order_item_id: Number(line.sales_order_item_id), warehouse_id: Number(line.warehouse_id), location_id: Number(line.location_id), returned_quantity: line.returned_quantity, batch_id: line.batch_id ? Number(line.batch_id) : null, serial_id: line.serial_id ? Number(line.serial_id) : null })) };
+      const created = await returnsService.createSalesReturn(accessToken, payload);
+      navigate(`/returns/${created.id}`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (isLoading) return <LoadingState />;
+
+  return (
+    <form className="space-y-6" onSubmit={submit}>
+      <div><Badge tone="primary">New return</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Create sales return</h1><p className="mt-2 text-sm text-warelyn-muted">Choose fulfilled quantities only. Stock impact is decided later during QC processing.</p></div>
+      {error ? <ErrorState description={error} /> : null}
+      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Return header</h2></CardHeader><CardBody className="grid gap-4 md:grid-cols-2"><Input label="Return number" required value={form.return_number} onChange={(event) => setForm({ ...form, return_number: event.target.value })} /><label className="block"><span className="mb-2 block text-sm font-medium text-warelyn-text">Fulfilled sales order</span><select className={selectClass} required value={form.sales_order_id} onChange={(event) => { setForm({ ...form, sales_order_id: event.target.value }); setLines([]); }}><option value="">Select order</option>{orders.map((order) => <option key={order.id} value={order.id}>{order.order_number} ({order.status})</option>)}</select></label><Input label="Reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} /><Input label="Notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></CardBody></Card>
+      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Return lines</h2></CardHeader><CardBody className="space-y-4">{lines.map((line, index) => { const orderItem = selectedOrder?.items.find((item) => item.id === line.sales_order_item_id); const product = productsById[orderItem?.product_id]; return <div className="grid gap-3 rounded-xl border border-warelyn-border p-4 lg:grid-cols-6" key={line.sales_order_item_id}><label className="flex items-center gap-2 text-sm font-semibold text-warelyn-text"><input checked={line.include} type="checkbox" onChange={(event) => updateLine(index, 'include', event.target.checked)} />{product?.name ?? `Product #${orderItem?.product_id}`}</label><Input label="Quantity" min="0.001" step="0.001" type="number" value={line.returned_quantity} onChange={(event) => updateLine(index, 'returned_quantity', event.target.value)} /><label className="block"><span className="mb-2 block text-sm font-medium text-warelyn-text">Warehouse</span><select className={selectClass} value={line.warehouse_id} onChange={(event) => updateLine(index, 'warehouse_id', event.target.value)}>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></label><label className="block"><span className="mb-2 block text-sm font-medium text-warelyn-text">Location</span><select className={selectClass} value={line.location_id} onChange={(event) => updateLine(index, 'location_id', event.target.value)}>{(locationsByWarehouse[line.warehouse_id] ?? []).map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label><Input label="Batch ID" value={line.batch_id} onChange={(event) => updateLine(index, 'batch_id', event.target.value)} /><Input label="Serial ID" value={line.serial_id} onChange={(event) => updateLine(index, 'serial_id', event.target.value)} /></div>; })}<p className="text-sm text-warelyn-muted">For serial-tracked products, enter the sold serial ID from fulfillment. The backend validates ownership and status.</p></CardBody></Card>
+      <div className="flex justify-end"><Button disabled={isSaving} type="submit">Create return</Button></div>
+    </form>
+  );
+}

@@ -548,4 +548,55 @@ Packing rules:
 - Cancelled packages do not mutate stock.
 - Packages remain optional before fulfillment commit in Phase 7.
 
-Phase 7 limitations: no carrier shipment integration, invoice accounting, payment collection, returns QC, FEFO auto-allocation, delivery tracking with external carriers, full mobile scanner workflow, advanced reports, or mandatory package-before-fulfillment enforcement.
+Phase 7 limitations: no carrier shipment integration, invoice accounting, payment collection, FEFO auto-allocation, delivery tracking with external carriers, full mobile scanner workflow, advanced reports, or mandatory package-before-fulfillment enforcement.
+
+## Sales Returns QC And Blocked Stock Foundation
+
+All sales return routes require a bearer token and derive `tenant_id` from authenticated user context. Return processing is split from stock authority: returns service owns return workflow state, while sellable restock goes through `InventoryEngine.return_restock()`. Blocked, damaged, and scrapped returned stock is stored in `blocked_return_stock` and is not sellable warehouse stock.
+
+Read roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`, `VIEWER`.
+
+Create/update/submit/cancel roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`, `SALES_STAFF`.
+
+QC inspect/process roles: `TENANT_ADMIN`, `INVENTORY_MANAGER`.
+
+`VIEWER` is read-only. `PURCHASE_STAFF` cannot manage customer returns. `SUPER_ADMIN` does not use normal tenant return APIs.
+
+Implemented endpoints:
+
+- `GET /api/sales-returns`
+- `POST /api/sales-returns`
+- `GET /api/sales-returns/{return_id}`
+- `PATCH /api/sales-returns/{return_id}`
+- `POST /api/sales-returns/{return_id}/submit`
+- `POST /api/sales-returns/{return_id}/cancel`
+- `POST /api/sales-returns/{return_id}/inspect`
+- `POST /api/sales-returns/{return_id}/process`
+
+Sales return statuses:
+
+- `DRAFT`
+- `SUBMITTED`
+- `INSPECTION_PENDING`
+- `PARTIALLY_PROCESSED`
+- `PROCESSED`
+- `CANCELLED`
+
+Sales return item QC statuses:
+
+- `PENDING`
+- `ACCEPTED_RESTOCK`
+- `ACCEPTED_BLOCKED`
+- `DAMAGED`
+- `SCRAPPED`
+- `REJECTED`
+
+Return rules:
+
+- Returns can be created only for fulfilled sales order quantities.
+- Returned quantity cannot exceed fulfilled quantity minus prior non-cancelled returns for the same order item.
+- Serial-tracked returns require quantity `1` and an existing sold serial fulfilled by the same sales order.
+- `ACCEPTED_RESTOCK` writes `RETURN_RESTOCK` stock ledger entries with `SALES_RETURN` reference type and increases sellable stock.
+- `ACCEPTED_BLOCKED`, `DAMAGED`, and `SCRAPPED` create `blocked_return_stock` records and do not increase sellable stock or stock ledger projection totals.
+- `REJECTED` does not mutate stock.
+- Existing sold serial rows are updated for serial return outcomes; normal `stock_in()` is not used for serial returns.

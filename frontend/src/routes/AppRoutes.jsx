@@ -24,6 +24,10 @@ import { SalesOrderFormPage } from '../pages/SalesOrderFormPage.jsx';
 import { SalesPackagePage } from '../pages/SalesPackagePage.jsx';
 import { SalesPage } from '../pages/SalesPage.jsx';
 import { SalesPickPage } from '../pages/SalesPickPage.jsx';
+import { SalesReturnDetailPage } from '../pages/SalesReturnDetailPage.jsx';
+import { SalesReturnFormPage } from '../pages/SalesReturnFormPage.jsx';
+import { SalesReturnInspectPage } from '../pages/SalesReturnInspectPage.jsx';
+import { ReturnsPage } from '../pages/ReturnsPage.jsx';
 import { WarehouseDetailPage } from '../pages/WarehouseDetailPage.jsx';
 import { WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
@@ -56,6 +60,10 @@ export function AppRoutes() {
           <Route path="sales/:id/pick" element={<SalesPickPage />} />
           <Route path="sales/:id/package" element={<SalesPackagePage />} />
           <Route path="sales/:id/fulfill" element={<SalesFulfillPage />} />
+          <Route path="returns" element={<ReturnsPage />} />
+          <Route path="returns/new" element={<SalesReturnFormPage />} />
+          <Route path="returns/:id" element={<SalesReturnDetailPage />} />
+          <Route path="returns/:id/inspect" element={<SalesReturnInspectPage />} />
           <Route path="pick-tasks" element={<PickTasksPage />} />
           <Route path="pick-tasks/:id" element={<PickTaskDetailPage />} />
           <Route path="packages/:id" element={<PackageDetailPage />} />

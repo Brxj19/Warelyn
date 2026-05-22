@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
 from app.domain.inventory.reconciliation import InventoryReconciliation
 from app.models.inventory import InventoryBatchStatus, InventorySerial, InventorySerialStatus, MovementType, ReferenceType, ReservationStatus, StockLedgerEntry, StockReservation, WarehouseStock
+from app.models.returns import BlockedReturnStockStatus
 from app.repositories.inventory import InventoryRepository
 
 ZERO = Decimal("0")
@@ -42,6 +43,18 @@ class InventoryEngine:
 
     def transfer_stock(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
         return self._run_idempotent("transfer_stock", tenant_id, actor_id, payload, lambda: self._transfer_stock(tenant_id, actor_id, payload))
+
+    def return_restock(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("return_restock", tenant_id, actor_id, payload, lambda: self._return_restock(tenant_id, actor_id, payload), auto_commit=auto_commit)
+
+    def record_return_blocked(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("record_return_blocked", tenant_id, actor_id, payload, lambda: self._record_return_non_sellable(tenant_id, actor_id, payload, BlockedReturnStockStatus.QC_HOLD, InventorySerialStatus.QC_HOLD), auto_commit=auto_commit)
+
+    def record_return_damaged(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("record_return_damaged", tenant_id, actor_id, payload, lambda: self._record_return_non_sellable(tenant_id, actor_id, payload, BlockedReturnStockStatus.DAMAGED, InventorySerialStatus.DAMAGED), auto_commit=auto_commit)
+
+    def record_return_scrap(self, tenant_id: int, actor_id: int, payload: dict[str, Any], auto_commit: bool = True) -> dict:
+        return self._run_idempotent("record_return_scrap", tenant_id, actor_id, payload, lambda: self._record_return_non_sellable(tenant_id, actor_id, payload, BlockedReturnStockStatus.SCRAPPED, InventorySerialStatus.SCRAPPED), auto_commit=auto_commit)
 
     def reconcile_stock_dry_run(self, tenant_id: int) -> dict:
         return InventoryReconciliation(self.repository).dry_run(tenant_id)
@@ -195,6 +208,93 @@ class InventoryEngine:
         out_entry = self._ledger(source_stock, MovementType.TRANSFER_OUT, -quantity, ZERO, -quantity, actor_id, source_payload)
         in_entry = self._ledger(destination_stock, MovementType.TRANSFER_IN, quantity, ZERO, quantity, actor_id, dest_payload)
         return self._response([source_stock, destination_stock], [out_entry, in_entry], None, payload["idempotency_key"])
+
+    def _return_restock(self, tenant_id: int, actor_id: int, payload: dict[str, Any]) -> dict:
+        quantity = self._positive_quantity(payload["quantity"])
+        self._validate_dimension(tenant_id, payload["product_id"], payload["warehouse_id"], payload["location_id"])
+        product = self.repository.get_product(tenant_id, payload["product_id"])
+        if product is None:
+            raise AppError("PRODUCT_NOT_FOUND", "Product was not found for this tenant.", 404)
+        stock = self.repository.get_or_create_stock(tenant_id, payload["product_id"], payload["warehouse_id"], payload["location_id"])
+        serial = None
+        if product.track_serial:
+            serial_id = payload.get("serial_id")
+            if serial_id is None:
+                raise AppError("SERIAL_SELECTION_REQUIRED", "Serial-tracked returns require a sold serial reference.", 400)
+            if quantity != Decimal("1"):
+                raise AppError("SERIAL_RETURN_QUANTITY_INVALID", "Serial-tracked returns must be processed one unit at a time.", 400)
+            serial = self.repository.lock_serial(tenant_id, int(serial_id))
+            if serial is None:
+                raise AppError("SERIAL_NOT_FOUND", "Serial was not found for this tenant.", 404)
+            if serial.product_id != product.id:
+                raise AppError("SERIAL_PRODUCT_MISMATCH", "Returned serial must match the returned product.", 400)
+            if serial.status != InventorySerialStatus.SOLD:
+                raise AppError("SERIAL_NOT_SOLD", "Only sold serials can be returned to stock.", 409)
+            serial.warehouse_id = stock.warehouse_id
+            serial.location_id = stock.location_id
+            serial.batch_id = payload.get("batch_id")
+            serial.status = InventorySerialStatus.IN_STOCK
+        elif payload.get("serial_id") is not None:
+            raise AppError("SERIAL_TRACKING_NOT_ENABLED", "Serial IDs cannot be returned for a non-serial-tracked product.", 400)
+        batch_id = payload.get("batch_id")
+        if batch_id is not None:
+            batch = self.repository.lock_batch_by_id(tenant_id, int(batch_id))
+            if batch is None:
+                raise AppError("BATCH_NOT_FOUND", "Inventory batch was not found for this tenant.", 404)
+            if batch.product_id != stock.product_id:
+                raise AppError("BATCH_PRODUCT_MISMATCH", "Returned batch must match the returned product.", 400)
+            batch.quantity_on_hand += quantity
+            batch.quantity_available += quantity
+        stock.quantity_on_hand += quantity
+        stock.quantity_available += quantity
+        self._assert_invariants(stock)
+        entry = self._ledger(stock, MovementType.RETURN_RESTOCK, quantity, ZERO, quantity, actor_id, {**payload, "reference_type": ReferenceType.SALES_RETURN, "serial_id": serial.id if serial else payload.get("serial_id")})
+        return self._response(stock, [entry], None, payload["idempotency_key"])
+
+    def _record_return_non_sellable(self, tenant_id: int, actor_id: int, payload: dict[str, Any], blocked_status: BlockedReturnStockStatus, serial_status: InventorySerialStatus) -> dict:
+        quantity = self._positive_quantity(payload["quantity"])
+        self._validate_dimension(tenant_id, payload["product_id"], payload["warehouse_id"], payload["location_id"])
+        product = self.repository.get_product(tenant_id, payload["product_id"])
+        if product is None:
+            raise AppError("PRODUCT_NOT_FOUND", "Product was not found for this tenant.", 404)
+        serial = None
+        if product.track_serial:
+            serial_id = payload.get("serial_id")
+            if serial_id is None:
+                raise AppError("SERIAL_SELECTION_REQUIRED", "Serial-tracked returns require a sold serial reference.", 400)
+            if quantity != Decimal("1"):
+                raise AppError("SERIAL_RETURN_QUANTITY_INVALID", "Serial-tracked returns must be processed one unit at a time.", 400)
+            serial = self.repository.lock_serial(tenant_id, int(serial_id))
+            if serial is None:
+                raise AppError("SERIAL_NOT_FOUND", "Serial was not found for this tenant.", 404)
+            if serial.product_id != product.id:
+                raise AppError("SERIAL_PRODUCT_MISMATCH", "Returned serial must match the returned product.", 400)
+            if serial.status != InventorySerialStatus.SOLD:
+                raise AppError("SERIAL_NOT_SOLD", "Only sold serials can be accepted into return QC.", 409)
+            serial.warehouse_id = payload["warehouse_id"]
+            serial.location_id = payload["location_id"]
+            serial.batch_id = payload.get("batch_id")
+            serial.status = serial_status
+        elif payload.get("serial_id") is not None:
+            raise AppError("SERIAL_TRACKING_NOT_ENABLED", "Serial IDs cannot be returned for a non-serial-tracked product.", 400)
+        blocked = self.repository.create_blocked_return_stock(
+            {
+                "tenant_id": tenant_id,
+                "sales_return_id": payload["sales_return_id"],
+                "sales_return_item_id": payload["sales_return_item_id"],
+                "product_id": payload["product_id"],
+                "warehouse_id": payload["warehouse_id"],
+                "location_id": payload["location_id"],
+                "batch_id": payload.get("batch_id"),
+                "serial_id": serial.id if serial else payload.get("serial_id"),
+                "quantity": quantity,
+                "status": blocked_status,
+                "reason": payload.get("reason"),
+                "notes": payload.get("note"),
+            }
+        )
+        self.db.flush()
+        return {"blocked_return_stock_id": blocked.id, "status": blocked.status.value, "quantity": str(blocked.quantity), "idempotency_key": payload["idempotency_key"]}
 
     def _validate_dimension(self, tenant_id: int, product_id: int, warehouse_id: int, location_id: int) -> None:
         if self.repository.get_product(tenant_id, product_id) is None:

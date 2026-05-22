@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Warehouses', to: '/warehouses' },
   { label: 'Purchases', to: '/purchases', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'VIEWER'] },
   { label: 'Sales', to: '/sales', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
+  { label: 'Returns', to: '/returns', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
   { label: 'Picking', to: '/pick-tasks', roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'] },
 ];
 

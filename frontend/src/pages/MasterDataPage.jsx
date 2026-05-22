@@ -86,13 +86,13 @@ export function MasterDataPage({ title, description, fields, listRecords, create
                 );
               })}
               <div className="flex items-end">
-                <Button disabled={isSaving} type="submit">{isSaving ? 'Saving...' : 'Create'}</Button>
+                <Button isLoading={isSaving} type="submit">{isSaving ? 'Saving...' : 'Create'}</Button>
               </div>
             </form>
           </CardBody>
         </Card>
       ) : null}
-      {isLoading ? <LoadingState /> : (
+      {isLoading ? <LoadingState variant="table" /> : (
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -112,7 +112,7 @@ export function MasterDataPage({ title, description, fields, listRecords, create
                   </thead>
                   <tbody className="divide-y divide-warelyn-border bg-white">
                     {records.map((record) => (
-                      <tr key={record.id}>
+                      <tr className="hover:bg-slate-50/70" key={record.id}>
                         {fields.map((field) => <td className="px-4 py-3 text-warelyn-text" key={field.name}>{record[field.name] ?? '-'}</td>)}
                         <td className="px-4 py-3"><Badge tone={record.status === 'ACTIVE' ? 'success' : 'neutral'}>{record.status}</Badge></td>
                       </tr>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { Card, CardBody, CardHeader, MetricCard } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -11,13 +11,18 @@ import { useAuth } from '../context/AuthContext.jsx';
 import * as reportsService from '../services/reportsService.js';
 
 const kpiLabels = [
-  ['total_products', 'Products'],
-  ['total_stock_value_cost', 'Stock value'],
-  ['low_stock_count', 'Low stock'],
-  ['out_of_stock_count', 'Out of stock'],
-  ['expiring_soon_batch_count', 'Expiring soon'],
-  ['reconciliation_mismatch_count', 'Mismatches'],
+  ['total_products', 'Products', 'Catalog scope', 'primary'],
+  ['total_stock_value_cost', 'Stock value', 'Backend valuation', 'success'],
+  ['low_stock_count', 'Low stock', 'Needs attention', 'warning'],
+  ['out_of_stock_count', 'Out of stock', 'Cannot allocate', 'danger'],
+  ['expiring_soon_batch_count', 'Expiring soon', 'Batch watchlist', 'warning'],
+  ['reconciliation_mismatch_count', 'Mismatches', 'Ledger health', 'danger'],
 ];
+
+function ActionList({ emptyDescription, emptyTitle, items, renderItem }) {
+  if (!items?.length) return <EmptyState title={emptyTitle} description={emptyDescription} />;
+  return <div className="divide-y divide-warelyn-border overflow-hidden rounded-2xl border border-warelyn-border bg-white">{items.map(renderItem)}</div>;
+}
 
 export function DashboardPage() {
   const { accessToken, logout, tenant, user } = useAuth();
@@ -44,25 +49,31 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-soft sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Badge tone="primary">Operational dashboard</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Welcome, {user?.name ?? 'Warelyn user'}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-warelyn-muted">Backend-driven operational KPIs for {tenant?.company_name ?? 'your workspace'}. Reports are read-only and do not mutate stock.</p>
+          <Badge tone="slate">Operational dashboard</Badge>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">Welcome, {user?.name ?? 'Warelyn user'}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Backend-driven operational KPIs for {tenant?.company_name ?? 'your workspace'}. Reports are read-only and do not mutate stock.</p>
         </div>
-        <div className="flex gap-2"><Link to="/reports"><Button variant="secondary">Open reports</Button></Link><Button variant="secondary" onClick={logout}>Logout</Button></div>
+        <div className="flex gap-2"><Link to="/reports"><Button className="border-white/10 bg-white text-slate-950 hover:bg-slate-100" variant="secondary">Open reports</Button></Link><Button className="border-white/10 bg-slate-900 text-white hover:bg-slate-800" variant="secondary" onClick={logout}>Logout</Button></div>
+        </div>
       </div>
       {error ? <ErrorState description={error} /> : null}
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        {kpiLabels.map(([key, label]) => <Card key={key}><CardBody><p className="text-xs font-semibold uppercase tracking-wide text-warelyn-muted">{label}</p><p className="mt-2 text-2xl font-bold text-warelyn-text">{dashboard?.kpis?.[key] ?? 0}</p></CardBody></Card>)}
+        {kpiLabels.map(([key, label, description, tone]) => <MetricCard description={description} key={key} label={label} tone={tone} value={dashboard?.kpis?.[key] ?? 0} />)}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Pending actions</h2></CardHeader><CardBody>{dashboard?.pending_actions?.length ? <div className="space-y-3">{dashboard.pending_actions.map((action) => <div className="flex items-center justify-between rounded-xl border border-warelyn-border p-4" key={action.label}><span className="font-semibold text-warelyn-text">{action.label}</span><Badge tone={action.tone}>{action.count}</Badge></div>)}</div> : <EmptyState title="No pending actions" description="No operational exceptions are currently reported." />}</CardBody></Card>
-        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Recent stock movements</h2></CardHeader><CardBody>{dashboard?.recent_stock_movements?.length ? <div className="space-y-3">{dashboard.recent_stock_movements.map((movement) => <div className="rounded-xl border border-warelyn-border p-4" key={movement.ledger_id}><div className="flex items-center justify-between"><span className="font-semibold text-warelyn-text">{movement.product_name}</span><Badge tone="neutral">{movement.movement_type}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">{movement.quantity_delta} at {movement.warehouse_name} / {movement.location_name}</p></div>)}</div> : <EmptyState title="No movements" description="Stock movements will appear after inventory activity." />}</CardBody></Card>
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Pending actions</h2></CardHeader><CardBody><ActionList emptyDescription="No operational exceptions are currently reported." emptyTitle="No pending actions" items={dashboard?.pending_actions} renderItem={(action) => <div className="flex items-center justify-between gap-3 p-4" key={action.label}><span className="font-semibold text-warelyn-text">{action.label}</span><Badge tone={action.tone}>{action.count}</Badge></div>} /></CardBody></Card>
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Recent stock movements</h2></CardHeader><CardBody><ActionList emptyDescription="Stock movements will appear after inventory activity." emptyTitle="No movements" items={dashboard?.recent_stock_movements} renderItem={(movement) => <div className="p-4" key={movement.ledger_id}><div className="flex items-center justify-between gap-3"><span className="font-semibold text-warelyn-text">{movement.product_name}</span><Badge tone="neutral">{movement.movement_type}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">{movement.quantity_delta} at {movement.warehouse_name} / {movement.location_name}</p></div>} /></CardBody></Card>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Low stock items</h2></CardHeader><CardBody>{dashboard?.low_stock_items?.length ? <div className="space-y-3">{dashboard.low_stock_items.map((item) => <div className="rounded-xl border border-warelyn-border p-4" key={`${item.product_id}-${item.warehouse_id}`}><div className="flex items-center justify-between"><span className="font-semibold text-warelyn-text">{item.product_name}</span><Badge tone={item.status === 'OUT_OF_STOCK' ? 'danger' : 'warning'}>{item.status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">Available {item.available}; reorder level {item.reorder_level}</p></div>)}</div> : <EmptyState title="No low stock" description="All stocked products are above reorder thresholds." />}</CardBody></Card>
-        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Expiring batches</h2></CardHeader><CardBody>{dashboard?.expiring_batches?.length ? <div className="space-y-3">{dashboard.expiring_batches.map((batch) => <div className="rounded-xl border border-warelyn-border p-4" key={batch.batch_id}><div className="flex items-center justify-between"><span className="font-semibold text-warelyn-text">{batch.batch_number}</span><Badge tone={batch.expiry_status === 'EXPIRED' ? 'danger' : 'warning'}>{batch.expiry_status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">{batch.product_name}; expires {batch.expiry_date ?? 'not set'}</p></div>)}</div> : <EmptyState title="No expiring batches" description="No batches are currently expired or expiring soon." />}</CardBody></Card>
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Low stock items</h2></CardHeader><CardBody><ActionList emptyDescription="All stocked products are above reorder thresholds." emptyTitle="No low stock" items={dashboard?.low_stock_items} renderItem={(item) => <div className="p-4" key={`${item.product_id}-${item.warehouse_id}`}><div className="flex items-center justify-between gap-3"><span className="font-semibold text-warelyn-text">{item.product_name}</span><Badge tone={item.status === 'OUT_OF_STOCK' ? 'danger' : 'warning'}>{item.status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">Available {item.available}; reorder level {item.reorder_level}</p></div>} /></CardBody></Card>
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Expiring batches</h2></CardHeader><CardBody><ActionList emptyDescription="No batches are currently expired or expiring soon." emptyTitle="No expiring batches" items={dashboard?.expiring_batches} renderItem={(batch) => <div className="p-4" key={batch.batch_id}><div className="flex items-center justify-between gap-3"><span className="font-semibold text-warelyn-text">{batch.batch_number}</span><Badge tone={batch.expiry_status === 'EXPIRED' ? 'danger' : 'warning'}>{batch.expiry_status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">{batch.product_name}; expires {batch.expiry_date ?? 'not set'}</p></div>} /></CardBody></Card>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Returns QC</h2></CardHeader><CardBody><EmptyState title="Returns QC appears in pending actions" description="Use the returns queue for item-level QC decisions and backend-controlled restock or blocked-stock outcomes." /></CardBody></Card>
+        <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Reconciliation health</h2></CardHeader><CardBody><div className="rounded-2xl border border-warelyn-border bg-slate-50 p-5"><div className="flex items-center justify-between gap-3"><span className="font-semibold text-warelyn-text">Ledger to projection mismatches</span><Badge tone={(dashboard?.kpis?.reconciliation_mismatch_count ?? 0) > 0 ? 'danger' : 'success'}>{dashboard?.kpis?.reconciliation_mismatch_count ?? 0}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">Open the reconciliation report for backend-calculated mismatch detail.</p></div></CardBody></Card>
       </div>
     </div>
   );

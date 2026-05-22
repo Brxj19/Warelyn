@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -32,6 +33,7 @@ export function SalesReturnInspectPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -62,12 +64,17 @@ export function SalesReturnInspectPage() {
 
   async function inspectAndProcess(event) {
     event.preventDefault();
+    setIsConfirming(true);
+  }
+
+  async function processInspection() {
     setIsSaving(true);
     setError('');
     try {
       const inspectionPayload = { notes: note, items: items.map(({ returned_quantity, product_id, ...item }) => item) };
       await returnsService.inspectSalesReturn(accessToken, id, inspectionPayload);
       await returnsService.processSalesReturn(accessToken, id, { idempotency_key: idempotencyKey, note });
+      setIsConfirming(false);
       navigate(`/returns/${id}`);
     } catch (saveError) {
       setError(saveError.message);
@@ -86,6 +93,7 @@ export function SalesReturnInspectPage() {
       <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Inspection outcomes</h2></CardHeader><CardBody className="space-y-4">{items.map((item, index) => { const outcome = outcomes.find(([value]) => value === item.qc_status); return <div className="grid gap-3 rounded-xl border border-warelyn-border p-4 lg:grid-cols-5" key={item.sales_return_item_id}><div><span className="text-xs font-semibold uppercase tracking-wide text-warelyn-muted">Product</span><p className="mt-2 font-semibold text-warelyn-text">{productsById[item.product_id]?.name ?? `#${item.product_id}`}</p><p className="text-xs text-warelyn-muted">Returned {item.returned_quantity}</p></div><label className="block lg:col-span-2"><span className="mb-2 block text-sm font-medium text-warelyn-text">QC outcome</span><select className={selectClass} value={item.qc_status} onChange={(event) => updateItem(index, 'qc_status', event.target.value)}>{outcomes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><p className="mt-2 text-xs text-warelyn-muted">{outcome?.[2]}</p></label><Input label="Accepted" min="0" step="0.001" type="number" value={item.accepted_quantity} onChange={(event) => updateItem(index, 'accepted_quantity', event.target.value)} /><Input label="Rejected" min="0" step="0.001" type="number" value={item.rejected_quantity} onChange={(event) => updateItem(index, 'rejected_quantity', event.target.value)} /><Input className="lg:col-span-2" label="Reason" value={item.reason} onChange={(event) => updateItem(index, 'reason', event.target.value)} /></div>; })}</CardBody></Card>
       <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Processing</h2></CardHeader><CardBody className="grid gap-4 md:grid-cols-2"><Input label="Idempotency key" required value={idempotencyKey} onChange={(event) => setIdempotencyKey(event.target.value)} /><Input label="QC note" value={note} onChange={(event) => setNote(event.target.value)} /></CardBody></Card>
       <div className="flex justify-end"><Button disabled={isSaving} type="submit" variant="accent">Inspect and process</Button></div>
+      <ConfirmationModal confirmLabel="Inspect and process" description="The backend will apply each QC outcome. Sellable restock uses InventoryEngine; blocked, damaged, and scrapped outcomes remain non-sellable." isLoading={isSaving} onCancel={() => setIsConfirming(false)} onConfirm={processInspection} open={isConfirming} title="Confirm return QC outcome" variant="accent" />
     </form>
   );
 }

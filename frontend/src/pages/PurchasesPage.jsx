@@ -46,7 +46,7 @@ export function PurchasesPage() {
         {mayWrite ? <Link to="/purchases/new"><Button>New purchase order</Button></Link> : null}
       </div>
       {error ? <ErrorState description={error} /> : null}
-      {isLoading ? <LoadingState /> : (
+      {isLoading ? <LoadingState variant="table" /> : (
         <Card>
           <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Orders</h2></CardHeader>
           <CardBody>

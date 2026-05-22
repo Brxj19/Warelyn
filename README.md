@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 9 - Reports, Reorder Rules, and Operational Dashboards**.
+This repository has completed **Phase 10 - Frontend Workflow Improvements and Production UI Polish**.
 
 Related commits:
 
@@ -35,6 +35,7 @@ The current implementation provides:
 - Picking queue, pick task detail, sales pick, sales package, and package detail screens.
 - Sales returns list, return creation, return detail, and QC/process screens.
 - Reports pages and backend-driven operational dashboard widgets.
+- Northstar-inspired Warelyn frontend polish with a dark topbar, white grouped sidebar, logo-backed branding, compact cards, clean table shells, standardized status/loading/empty/error states, and confirmation modals for stock-affecting workflow actions.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
@@ -48,9 +49,9 @@ Not implemented yet:
 
 ## Next Phase
 
-Next recommended phase: **Phase 10 - Frontend Workflow Improvements and Production UI Polish**.
+Next recommended phase: **Phase 11 - Regression Tests and Production Hardening**.
 
-Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; reports are read-only, query-based, and must not mutate stock, create ledger entries, or create purchase orders.
+Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; reports are read-only, query-based, and must not mutate stock, create ledger entries, or create purchase orders. Frontend pages must keep authoritative stock values backend-driven.
 
 ## Tech Stack
 
@@ -87,7 +88,7 @@ Before adding later workflows, keep tenant context backend-derived from authenti
       app/                      React entry and app shell
       components/ui/            Reusable UI primitives
       layouts/                  App and auth layouts
-      pages/                    Dashboard, auth, catalog, and warehouse pages
+      pages/                    Dashboard, auth, catalog, warehouse, purchase, sales, returns, and report pages
       routes/                   Route declarations
       services/                 Frontend API client wrapper
       styles/                   Tailwind and app styles

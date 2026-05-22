@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -22,6 +23,7 @@ export function PurchaseOrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [pendingAction, setPendingAction] = useState(null);
   const mayWrite = canWrite.has(user?.role);
 
   async function load() {
@@ -40,11 +42,13 @@ export function PurchaseOrderDetailPage() {
 
   useEffect(() => { load(); }, [accessToken, id]);
 
-  async function runAction(action) {
+  async function runAction(action = pendingAction?.action) {
+    if (!action) return;
     setIsSaving(true);
     setError('');
     try {
       await action(accessToken, id);
+      setPendingAction(null);
       await load();
     } catch (actionError) {
       setError(actionError.message);
@@ -66,9 +70,9 @@ export function PurchaseOrderDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge tone={statusTone[order.status] ?? 'neutral'}>{order.status}</Badge>
-          {mayWrite && order.status === 'DRAFT' ? <Button disabled={isSaving} onClick={() => runAction(purchasingService.submitPurchaseOrder)}>Submit</Button> : null}
-          {mayWrite && ['DRAFT', 'SUBMITTED'].includes(order.status) ? <Button disabled={isSaving} variant="danger" onClick={() => runAction(purchasingService.cancelPurchaseOrder)}>Cancel</Button> : null}
-          {mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? <Button disabled={isSaving} variant="secondary" onClick={() => runAction(purchasingService.closePurchaseOrder)}>Close</Button> : null}
+          {mayWrite && order.status === 'DRAFT' ? <Button disabled={isSaving} onClick={() => setPendingAction({ action: purchasingService.submitPurchaseOrder, description: 'Submit this purchase order for receiving. Stock will not change until a receipt is committed.', label: 'Submit order', variant: 'primary' })}>Submit</Button> : null}
+          {mayWrite && ['DRAFT', 'SUBMITTED'].includes(order.status) ? <Button disabled={isSaving} variant="danger" onClick={() => setPendingAction({ action: purchasingService.cancelPurchaseOrder, description: 'Cancel this purchase order. Existing committed receipts are not reversed by this action.', label: 'Cancel order', variant: 'danger' })}>Cancel</Button> : null}
+          {mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? <Button disabled={isSaving} variant="secondary" onClick={() => setPendingAction({ action: purchasingService.closePurchaseOrder, description: 'Close this purchase order to stop further receiving against it.', label: 'Close order', variant: 'secondary' })}>Close</Button> : null}
           {mayWrite && receivableStatuses.has(order.status) ? <Link to={`/purchases/${order.id}/receive`}><Button variant="accent">Receive</Button></Link> : null}
         </div>
       </div>
@@ -99,6 +103,7 @@ export function PurchaseOrderDetailPage() {
           )}
         </CardBody>
       </Card>
+      <ConfirmationModal confirmLabel={pendingAction?.label} description={pendingAction?.description} isLoading={isSaving} onCancel={() => setPendingAction(null)} onConfirm={() => runAction()} open={Boolean(pendingAction)} title="Confirm purchase workflow action" variant={pendingAction?.variant} />
     </div>
   );
 }

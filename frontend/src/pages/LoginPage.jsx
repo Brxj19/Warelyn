@@ -53,7 +53,7 @@ export function LoginPage() {
     <Card className="w-full max-w-md">
       <CardBody className="p-8">
         <div className="mb-8">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-warelyn-primary text-base font-bold text-white">WI</div>
+          <img alt="Warelyn" className="mb-4 h-12 w-12 rounded-2xl object-contain ring-1 ring-warelyn-border" src="/warelyn-logo.png" />
           <h1 className="text-2xl font-bold tracking-tight text-warelyn-text">Sign in to Warelyn</h1>
           <p className="mt-2 text-sm text-warelyn-muted">Inventory that moves with your business.</p>
         </div>
@@ -63,7 +63,7 @@ export function LoginPage() {
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <Input autoComplete="email" id="email" label="Email" onChange={updateField('email')} placeholder="you@example.com" type="email" value={values.email} />
           <Input autoComplete="current-password" id="password" label="Password" onChange={updateField('password')} placeholder="Password" type="password" value={values.password} />
-          <Button className="w-full" disabled={isSubmitting} type="submit">
+          <Button className="w-full" isLoading={isSubmitting} type="submit">
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>

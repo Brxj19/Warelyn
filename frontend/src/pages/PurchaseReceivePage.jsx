@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -27,6 +28,7 @@ export function PurchaseReceivePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -65,6 +67,10 @@ export function PurchaseReceivePage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    setIsConfirming(true);
+  }
+
+  async function createReceiptDraft() {
     setIsSaving(true);
     setError('');
     try {
@@ -88,6 +94,7 @@ export function PurchaseReceivePage() {
           };
         });
       const receipt = await purchasingService.createPurchaseReceipt(accessToken, id, { receipt_number: receiptNumber, items });
+      setIsConfirming(false);
       navigate(`/purchase-receipts/${receipt.id}`);
     } catch (saveError) {
       setError(saveError.message);
@@ -134,6 +141,7 @@ export function PurchaseReceivePage() {
         </Card>
         <div className="flex justify-end"><Button disabled={isSaving} type="submit">{isSaving ? 'Creating...' : 'Create receipt draft'}</Button></div>
       </form>
+      <ConfirmationModal confirmLabel="Create receipt draft" description="This creates a receiving draft only. Stock changes later when the receipt is committed by the backend." isLoading={isSaving} onCancel={() => setIsConfirming(false)} onConfirm={createReceiptDraft} open={isConfirming} title="Confirm receiving draft" variant="accent" />
     </div>
   );
 }

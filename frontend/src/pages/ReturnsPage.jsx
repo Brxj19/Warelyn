@@ -34,7 +34,7 @@ export function ReturnsPage() {
     load();
   }, [accessToken]);
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <LoadingState variant="table" />;
 
   return (
     <div className="space-y-6">

@@ -69,9 +69,9 @@ export function RegisterPage() {
     <Card className="w-full max-w-lg">
       <CardBody className="p-8">
         <div className="mb-8">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-warelyn-primary text-base font-bold text-white">WI</div>
-          <h1 className="text-2xl font-bold tracking-tight text-warelyn-text">Register Warelyn Inventory</h1>
-          <p className="mt-2 text-sm text-warelyn-muted">Create a tenant workspace and first tenant admin.</p>
+          <img alt="Warelyn" className="mb-4 h-12 w-12 rounded-2xl object-contain ring-1 ring-warelyn-border" src="/warelyn-logo.png" />
+          <h1 className="text-2xl font-bold tracking-tight text-warelyn-text">Create your Warelyn workspace</h1>
+          <p className="mt-2 text-sm text-warelyn-muted">Set up a tenant workspace and first admin account.</p>
         </div>
 
         {error ? <ErrorState description={error} title="Registration failed" /> : null}
@@ -83,7 +83,7 @@ export function RegisterPage() {
           <Input autoComplete="email" id="email" label="Admin email" onChange={updateField('email')} placeholder="admin@example.com" type="email" value={values.email} />
           <Input id="phone" label="Phone" onChange={updateField('phone')} placeholder="Optional" value={values.phone} />
           <Input autoComplete="new-password" id="password" label="Password" onChange={updateField('password')} placeholder="Minimum 8 characters" type="password" value={values.password} />
-          <Button className="w-full" disabled={isSubmitting} type="submit">
+          <Button className="w-full" isLoading={isSubmitting} type="submit">
             {isSubmitting ? 'Creating workspace...' : 'Create workspace'}
           </Button>
         </form>

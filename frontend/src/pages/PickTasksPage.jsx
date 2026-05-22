@@ -1,21 +1,26 @@
-import { useEffect, useState } from 'react';
+import { Eye, PlayCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
-import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
-import { EmptyState } from '../components/ui/EmptyState.jsx';
+import { ActionMenu } from '../components/ui/ActionMenu.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
-import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
+import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as fulfillmentService from '../services/fulfillmentService.js';
 
-const statusTone = { PENDING: 'warning', IN_PROGRESS: 'primary', PICKED: 'success', CANCELLED: 'danger' };
+const statusTabs = ['ALL', 'PENDING', 'IN_PROGRESS', 'PICKED', 'CANCELLED'];
 
 export function PickTasksPage() {
   const { accessToken } = useAuth();
   const [pickTasks, setPickTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -32,13 +37,75 @@ export function PickTasksPage() {
     load();
   }, [accessToken]);
 
-  if (isLoading) return <LoadingState variant="table" />;
+  const filteredTasks = useMemo(() => {
+    return pickTasks.filter((task) => {
+      if (statusFilter !== 'ALL' && task.status !== statusFilter) return false;
+      if (!search) return true;
+      return `${task.pick_number} ${task.sales_order_id} ${task.status}`.toLowerCase().includes(search.toLowerCase());
+    });
+  }, [pickTasks, search, statusFilter]);
 
   return (
     <div className="space-y-6">
-      <div><Badge tone="primary">Picking</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Pick tasks</h1><p className="mt-2 text-sm text-warelyn-muted">Pick tasks allocate reserved stock for fulfillment without deducting or releasing stock.</p></div>
-      {error ? <ErrorState description={error} /> : null}
-      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Warehouse work queue</h2></CardHeader><CardBody>{pickTasks.length === 0 ? <EmptyState title="No pick tasks" description="Create pick tasks from confirmed sales orders." /> : <div className="overflow-hidden rounded-xl border border-warelyn-border"><table className="min-w-full divide-y divide-warelyn-border text-sm"><thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted"><tr><th className="px-4 py-3">Pick task</th><th className="px-4 py-3">Sales order</th><th className="px-4 py-3">Lines</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-warelyn-border bg-white">{pickTasks.map((task) => <tr key={task.id}><td className="px-4 py-3 font-semibold text-warelyn-primary"><Link to={`/pick-tasks/${task.id}`}>{task.pick_number}</Link></td><td className="px-4 py-3"><Link className="text-warelyn-primary" to={`/sales/${task.sales_order_id}`}>#{task.sales_order_id}</Link></td><td className="px-4 py-3">{task.items.length}</td><td className="px-4 py-3"><Badge tone={statusTone[task.status] ?? 'neutral'}>{task.status}</Badge></td></tr>)}</tbody></table></div>}</CardBody></Card>
+      <PageHeader kicker="Picking" title="Pick tasks" description="Pick tasks allocate reserved stock for fulfillment without deducting or releasing stock." />
+      <TableShell
+        description={`${filteredTasks.length} task(s) in this view`}
+        emptyDescription="Create pick tasks from confirmed sales orders."
+        emptyTitle="No pick tasks"
+        error={error}
+        isEmpty={filteredTasks.length === 0}
+        isLoading={isLoading}
+        rowCount={filteredTasks.length}
+        title="Warehouse work queue"
+        toolbar={
+          <ScreenToolbar
+            onReset={() => {
+              setSearch('');
+              setStatusFilter('ALL');
+            }}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search pick task or sales order"
+            searchValue={search}
+            tabs={statusTabs.map((status) => ({
+              key: status,
+              label: status === 'ALL' ? 'All' : status.replaceAll('_', ' '),
+              active: statusFilter === status,
+              count: status === 'ALL' ? pickTasks.length : pickTasks.filter((row) => row.status === status).length,
+              onClick: () => setStatusFilter(status),
+            }))}
+          />
+        }
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>Pick task</th>
+              <th>Sales order</th>
+              <th>Status</th>
+              <th className="text-right">Items</th>
+              <th>Created</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTasks.map((task) => (
+              <tr key={task.id}>
+                <td><Link className="font-semibold text-warelyn-primary" to={`/pick-tasks/${task.id}`}>{task.pick_number}</Link></td>
+                <td><Link className="text-warelyn-primary" to={`/sales/${task.sales_order_id}`}>#{task.sales_order_id}</Link></td>
+                <td><StatusBadge status={task.status}>{task.status}</StatusBadge></td>
+                <td className="number-cell">{task.items.length}</td>
+                <td>{task.created_at ? formatDate(task.created_at) : '-'}</td>
+                <td className="text-right">
+                  <ActionMenu items={[
+                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/pick-tasks/${task.id}`) },
+                    ...(task.status === 'PENDING' ? [{ label: 'Open picking', icon: PlayCircle, onClick: () => window.location.assign(`/pick-tasks/${task.id}`) }] : []),
+                  ]} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

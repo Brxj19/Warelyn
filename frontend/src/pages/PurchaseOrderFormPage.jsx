@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
@@ -67,11 +67,7 @@ export function PurchaseOrderFormPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="primary">Purchasing</Badge>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">New purchase order</h1>
-        <p className="mt-2 text-sm text-warelyn-muted">Create a draft purchase order. Stock is not changed until a receipt is committed.</p>
-      </div>
+      <PageHeader backTo="/purchases" description="Create a draft purchase order. Stock is not changed until a receipt is committed." kicker="Purchasing" title="New purchase order" />
       {error ? <ErrorState description={error} /> : null}
       <form className="space-y-6" onSubmit={handleSubmit}>
         <Card>
@@ -97,7 +93,16 @@ export function PurchaseOrderFormPage() {
             ))}
           </CardBody>
         </Card>
-        <div className="flex justify-end"><Button disabled={isSaving} type="submit">{isSaving ? 'Creating...' : 'Create purchase order'}</Button></div>
+        <div className="sticky-form-footer">
+          <div className="workflow-helper-panel max-w-xl">
+            <h3>What happens next?</h3>
+            <p>This saves a draft purchase order only. Receiving and stock increase happen later through the receipt workflow.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => navigate('/purchases')} type="button" variant="ghost">Cancel</Button>
+            <Button disabled={isSaving} type="submit">{isSaving ? 'Creating...' : 'Create purchase order'}</Button>
+          </div>
+        </div>
       </form>
     </div>
   );

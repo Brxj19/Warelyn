@@ -1,23 +1,28 @@
-import { useEffect, useState } from 'react';
+import { ClipboardCheck, Eye } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { ActionMenu } from '../components/ui/ActionMenu.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Card, CardBody } from '../components/ui/Card.jsx';
-import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
-import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
+import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as returnsService from '../services/returnsService.js';
 
-const statusTone = { DRAFT: 'neutral', SUBMITTED: 'primary', INSPECTION_PENDING: 'warning', PARTIALLY_PROCESSED: 'warning', PROCESSED: 'success', CANCELLED: 'danger' };
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
+const statusTabs = ['ALL', 'DRAFT', 'SUBMITTED', 'INSPECTION_PENDING', 'PARTIALLY_PROCESSED', 'PROCESSED', 'CANCELLED'];
 
 export function ReturnsPage() {
   const { accessToken, user } = useAuth();
   const [returns, setReturns] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -34,33 +39,76 @@ export function ReturnsPage() {
     load();
   }, [accessToken]);
 
-  if (isLoading) return <LoadingState variant="table" />;
+  const filteredReturns = useMemo(() => {
+    return returns.filter((row) => {
+      if (statusFilter !== 'ALL' && row.status !== statusFilter) return false;
+      if (!search) return true;
+      return `${row.return_number} ${row.sales_order_id} ${row.status}`.toLowerCase().includes(search.toLowerCase());
+    });
+  }, [returns, search, statusFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="primary">Returns QC</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Sales returns</h1>
-          <p className="mt-2 text-sm text-warelyn-muted">Inspect customer returns before stock is restocked, blocked, damaged, scrapped, or rejected.</p>
-        </div>
-        {canWrite.has(user?.role) ? <Link to="/returns/new"><Button>New return</Button></Link> : null}
-      </div>
-      {error ? <ErrorState description={error} /> : null}
-      <Card>
-        <CardBody>
-          {returns.length === 0 ? <EmptyState title="No returns" description="Create a sales return from a fulfilled sales order." /> : (
-            <div className="overflow-hidden rounded-xl border border-warelyn-border">
-              <table className="min-w-full divide-y divide-warelyn-border text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted"><tr><th className="px-4 py-3">Return</th><th className="px-4 py-3">Sales order</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Lines</th><th className="px-4 py-3">Created</th></tr></thead>
-                <tbody className="divide-y divide-warelyn-border bg-white">
-                  {returns.map((row) => <tr key={row.id}><td className="px-4 py-3 font-semibold text-warelyn-primary"><Link to={`/returns/${row.id}`}>{row.return_number}</Link></td><td className="px-4 py-3">#{row.sales_order_id}</td><td className="px-4 py-3"><Badge tone={statusTone[row.status] ?? 'neutral'}>{row.status}</Badge></td><td className="px-4 py-3">{row.items.length}</td><td className="px-4 py-3 text-warelyn-muted">{new Date(row.created_at).toLocaleDateString()}</td></tr>)}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      <PageHeader kicker="Returns QC" title="Sales returns" description="Inspect customer returns before stock is restocked, blocked, damaged, scrapped, or rejected." actions={canWrite.has(user?.role) ? <Link to="/returns/new"><Button>New return</Button></Link> : null} />
+      <TableShell
+        description={`${filteredReturns.length} return(s) in view`}
+        emptyAction={canWrite.has(user?.role) ? <Link to="/returns/new"><Button>Create return</Button></Link> : null}
+        emptyDescription="Returned items that need inspection will appear here."
+        emptyTitle="No returns waiting"
+        error={error}
+        isEmpty={filteredReturns.length === 0}
+        isLoading={isLoading}
+        rowCount={filteredReturns.length}
+        title="Return queue"
+        toolbar={
+          <ScreenToolbar
+            onReset={() => {
+              setSearch('');
+              setStatusFilter('ALL');
+            }}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search return number or sales order"
+            searchValue={search}
+            tabs={statusTabs.map((status) => ({
+              key: status,
+              label: status === 'ALL' ? 'All' : status.replaceAll('_', ' '),
+              active: statusFilter === status,
+              count: status === 'ALL' ? returns.length : returns.filter((row) => row.status === status).length,
+              onClick: () => setStatusFilter(status),
+            }))}
+          />
+        }
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>Return number</th>
+              <th>Sales order</th>
+              <th>Status</th>
+              <th className="text-right">Lines</th>
+              <th>Created</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredReturns.map((row) => (
+              <tr key={row.id}>
+                <td><Link className="font-semibold text-warelyn-primary" to={`/returns/${row.id}`}>{row.return_number}</Link></td>
+                <td><span className="mono-cell">#{row.sales_order_id}</span></td>
+                <td><StatusBadge status={row.status}>{row.status}</StatusBadge></td>
+                <td className="number-cell">{row.items.length}</td>
+                <td>{formatDate(row.created_at)}</td>
+                <td className="text-right">
+                  <ActionMenu items={[
+                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/returns/${row.id}`) },
+                    ...(canWrite.has(user?.role) && ['SUBMITTED', 'INSPECTION_PENDING'].includes(row.status) ? [{ label: 'Inspect', icon: ClipboardCheck, onClick: () => window.location.assign(`/returns/${row.id}/inspect`) }] : []),
+                  ]} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

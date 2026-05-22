@@ -29,7 +29,7 @@ const productFields = [
 export function ProductsPage() {
   return (
     <MasterDataPage
-      actions={<Button as="span"><Link to="/catalog/products/import">Import Products</Link></Button>}
+      actions={<Link to="/catalog/products/import"><Button>Import Products</Button></Link>}
       createRecord={catalogService.createProduct}
       description="Create product masters without stock quantities or movements. Search by name, SKU, or barcode."
       fields={productFields}

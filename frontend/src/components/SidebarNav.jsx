@@ -59,7 +59,7 @@ export function SidebarNav({ collapsed, mobile = false, onCollapse, onNavigate, 
 
       <button className="sidebar-collapse" onClick={onCollapse} type="button">
         {mobile ? <PanelLeftClose size={18} /> : collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        <span>{mobile ? 'Close menu' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
+        <span>{mobile ? 'Close menu' : collapsed ? 'Expand sidebar' : ''}</span>
       </button>
     </aside>
   );

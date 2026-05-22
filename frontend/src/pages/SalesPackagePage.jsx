@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
+import { formatDecimal } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import * as catalogService from '../services/catalogService.js';
 import * as fulfillmentService from '../services/fulfillmentService.js';
 import * as salesService from '../services/salesService.js';
 
@@ -20,22 +24,32 @@ export function SalesPackagePage() {
   const [order, setOrder] = useState(null);
   const [pickTasks, setPickTasks] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [productsById, setProductsById] = useState({});
   const [packageNumber, setPackageNumber] = useState(`PKG-${Date.now()}`);
   const [selectedItems, setSelectedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const mayWrite = canWrite.has(user?.role);
-  const pickedItems = pickTasks.flatMap((task) => task.items.map((item) => ({ ...item, pick_number: task.pick_number }))).filter((item) => item.status === 'PICKED');
+
+  const pickedItems = pickTasks
+    .flatMap((task) => task.items.map((item) => ({ ...item, pick_number: task.pick_number })))
+    .filter((item) => item.status === 'PICKED');
 
   async function load() {
     setIsLoading(true);
     setError('');
     try {
-      const [orderRow, taskRows, packageRows] = await Promise.all([salesService.getSalesOrder(accessToken, id), fulfillmentService.listPickTasksForOrder(accessToken, id), fulfillmentService.listPackagesForOrder(accessToken, id)]);
+      const [orderRow, taskRows, packageRows, productRows] = await Promise.all([
+        salesService.getSalesOrder(accessToken, id),
+        fulfillmentService.listPickTasksForOrder(accessToken, id),
+        fulfillmentService.listPackagesForOrder(accessToken, id),
+        catalogService.listProducts(accessToken),
+      ]);
       setOrder(orderRow);
       setPickTasks(taskRows);
       setPackages(packageRows);
+      setProductsById(Object.fromEntries(productRows.map((product) => [product.id, product])));
     } catch (loadError) {
       setError(loadError.message);
     } finally {
@@ -43,10 +57,14 @@ export function SalesPackagePage() {
     }
   }
 
-  useEffect(() => { load(); }, [accessToken, id]);
+  useEffect(() => {
+    load();
+  }, [accessToken, id]);
 
   function toggleItem(itemId) {
-    setSelectedItems((current) => (current.includes(itemId) ? current.filter((idValue) => idValue !== itemId) : [...current, itemId]));
+    setSelectedItems((current) =>
+      current.includes(itemId) ? current.filter((idValue) => idValue !== itemId) : [...current, itemId],
+    );
   }
 
   async function createPackage(event) {
@@ -54,7 +72,10 @@ export function SalesPackagePage() {
     setIsSaving(true);
     setError('');
     try {
-      await fulfillmentService.createPackage(accessToken, id, { package_number: packageNumber, pick_task_item_ids: selectedItems });
+      await fulfillmentService.createPackage(accessToken, id, {
+        package_number: packageNumber,
+        pick_task_item_ids: selectedItems,
+      });
       setPackageNumber(`PKG-${Date.now()}`);
       setSelectedItems([]);
       await load();
@@ -68,12 +89,127 @@ export function SalesPackagePage() {
   if (isLoading) return <LoadingState />;
   if (!order) return <ErrorState description={error || 'Sales order not found.'} />;
 
+  const selectedQuantity = pickedItems
+    .filter((item) => selectedItems.includes(item.id))
+    .reduce((sum, item) => sum + Number(item.picked_quantity), 0);
+
   return (
     <div className="space-y-6">
-      <div><Badge tone="primary">Packing</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Package {order.order_number}</h1><p className="mt-2 text-sm text-warelyn-muted">Packages group picked items for operations. They do not deduct stock and are optional before fulfillment.</p></div>
+      <PageHeader
+        actions={
+          mayWrite ? (
+            <Button disabled={isSaving || selectedItems.length === 0} form="create-package-form" type="submit">
+              Create package
+            </Button>
+          ) : null
+        }
+        backTo={`/sales/${order.id}`}
+        description="Packages group already-picked items into shipping-ready units. Packing does not create ledger entries on its own."
+        kicker="Packing"
+        status={<StatusBadge status={order.status}>{order.status}</StatusBadge>}
+        title={`Package ${order.order_number}`}
+      />
       {error ? <ErrorState description={error} /> : null}
-      {mayWrite ? <form onSubmit={createPackage}><Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Create package</h2></CardHeader><CardBody className="space-y-4"><Input label="Package number" required value={packageNumber} onChange={(event) => setPackageNumber(event.target.value)} />{pickedItems.length === 0 ? <EmptyState title="No picked items" description="Pick items before creating a package." /> : <div className="grid gap-3 md:grid-cols-2">{pickedItems.map((item) => <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-warelyn-border p-4" key={item.id}><input checked={selectedItems.includes(item.id)} type="checkbox" onChange={() => toggleItem(item.id)} /><span><span className="block font-semibold text-warelyn-text">Pick {item.pick_number} item #{item.id}</span><span className="block text-sm text-warelyn-muted">Product #{item.product_id}, quantity {item.picked_quantity}</span></span></label>)}</div>}<div className="flex justify-end"><Button disabled={isSaving || selectedItems.length === 0} type="submit">Create package</Button></div></CardBody></Card></form> : null}
-      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Packages</h2></CardHeader><CardBody>{packages.length === 0 ? <EmptyState title="No packages" description="Package creation is optional in Phase 7." /> : <div className="grid gap-3 md:grid-cols-2">{packages.map((pkg) => <Link className="rounded-xl border border-warelyn-border p-4 transition hover:border-warelyn-primary" key={pkg.id} to={`/packages/${pkg.id}`}><div className="flex items-center justify-between"><span className="font-semibold text-warelyn-text">{pkg.package_number}</span><Badge tone={pkg.status === 'PACKED' ? 'success' : pkg.status === 'CANCELLED' ? 'danger' : 'neutral'}>{pkg.status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">{pkg.items.length} item(s)</p></Link>)}</div>}</CardBody></Card>
+
+      <div className="record-summary-grid">
+        <Card className="record-summary-card">
+          <CardBody>
+            <span>Picked lines</span>
+            <strong>{pickedItems.length}</strong>
+            <small>Available for package selection</small>
+          </CardBody>
+        </Card>
+        <Card className="record-summary-card">
+          <CardBody>
+            <span>Selected lines</span>
+            <strong>{selectedItems.length}</strong>
+            <small>Ready for the next package</small>
+          </CardBody>
+        </Card>
+        <Card className="record-summary-card">
+          <CardBody>
+            <span>Selected qty</span>
+            <strong>{formatDecimal(selectedQuantity)}</strong>
+            <small>Picked quantity in selection</small>
+          </CardBody>
+        </Card>
+        <Card className="record-summary-card">
+          <CardBody>
+            <span>Packages</span>
+            <strong>{packages.length}</strong>
+            <small>Document records on this order</small>
+          </CardBody>
+        </Card>
+      </div>
+
+      {mayWrite ? (
+        <form className="space-y-6" id="create-package-form" onSubmit={createPackage}>
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-warelyn-text">Create package</h2>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <Input label="Package number" required value={packageNumber} onChange={(event) => setPackageNumber(event.target.value)} />
+              {pickedItems.length === 0 ? (
+                <EmptyState title="No picked items" description="Pick items before creating a package." />
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {pickedItems.map((item) => {
+                    const product = productsById[item.product_id];
+                    return (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-warelyn-border p-4" key={item.id}>
+                        <input checked={selectedItems.includes(item.id)} type="checkbox" onChange={() => toggleItem(item.id)} />
+                        <span>
+                          <span className="block font-semibold text-warelyn-text">{product?.name ?? `Product #${item.product_id}`}</span>
+                          <span className="mt-1 block text-xs text-warelyn-muted">SKU {product?.sku ?? '-'} • Pick {item.pick_number}</span>
+                          <span className="mt-1 block text-sm text-warelyn-muted">Picked quantity {formatDecimal(item.picked_quantity)}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </form>
+      ) : null}
+
+      <TableShell
+        description="Existing packages linked to this sales order."
+        isEmpty={packages.length === 0}
+        rowCount={packages.length}
+        title="Packages"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Status</th>
+              <th className="text-right">Items</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {packages.map((pkg) => (
+              <tr key={pkg.id}>
+                <td>
+                  <div className="space-y-1">
+                    <span className="font-semibold text-warelyn-text">{pkg.package_number}</span>
+                    <p className="text-xs text-warelyn-muted">Sales order {order.order_number}</p>
+                  </div>
+                </td>
+                <td><StatusBadge status={pkg.status}>{pkg.status}</StatusBadge></td>
+                <td className="number-cell">{pkg.items.length}</td>
+                <td>
+                  <Link className="text-sm font-semibold text-warelyn-primary" to={`/packages/${pkg.id}`}>
+                    Open package
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

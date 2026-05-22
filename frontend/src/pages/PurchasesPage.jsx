@@ -1,23 +1,30 @@
-import { useEffect, useState } from 'react';
+import { Eye, ReceiptText } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { ActionMenu } from '../components/ui/ActionMenu.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
-import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
-import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
+import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import * as catalogService from '../services/catalogService.js';
 import * as purchasingService from '../services/purchasingService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF']);
-const statusTone = { DRAFT: 'neutral', SUBMITTED: 'primary', PARTIALLY_RECEIVED: 'warning', RECEIVED: 'success', CANCELLED: 'danger', CLOSED: 'neutral' };
+const statusTabs = ['ALL', 'DRAFT', 'SUBMITTED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED', 'CLOSED'];
 
 export function PurchasesPage() {
   const { accessToken, user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [vendorsById, setVendorsById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
   const mayWrite = canWrite.has(user?.role);
 
   useEffect(() => {
@@ -25,7 +32,9 @@ export function PurchasesPage() {
       setIsLoading(true);
       setError('');
       try {
-        setOrders(await purchasingService.listPurchaseOrders(accessToken));
+        const [orderRows, vendorRows] = await Promise.all([purchasingService.listPurchaseOrders(accessToken), catalogService.listVendors(accessToken)]);
+        setOrders(orderRows);
+        setVendorsById(Object.fromEntries(vendorRows.map((row) => [row.id, row])));
       } catch (loadError) {
         setError(loadError.message);
       } finally {
@@ -35,43 +44,83 @@ export function PurchasesPage() {
     load();
   }, [accessToken]);
 
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      if (statusFilter !== 'ALL' && order.status !== statusFilter) return false;
+      if (!search) return true;
+      const value = search.toLowerCase();
+      const vendorName = vendorsById[order.vendor_id]?.name ?? '';
+      return `${order.po_number} ${vendorName} ${order.status}`.toLowerCase().includes(value);
+    });
+  }, [orders, search, statusFilter, vendorsById]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="primary">Purchasing</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Purchase orders</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-warelyn-muted">Create purchase orders and receive goods into warehouse locations. Stock changes only after receipt commit.</p>
-        </div>
-        {mayWrite ? <Link to="/purchases/new"><Button>New purchase order</Button></Link> : null}
-      </div>
-      {error ? <ErrorState description={error} /> : null}
-      {isLoading ? <LoadingState variant="table" /> : (
-        <Card>
-          <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Orders</h2></CardHeader>
-          <CardBody>
-            {orders.length === 0 ? <EmptyState title="No purchase orders" description="Create a purchase order when procurement is ready." /> : (
-              <div className="overflow-hidden rounded-xl border border-warelyn-border">
-                <table className="min-w-full divide-y divide-warelyn-border text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted">
-                    <tr><th className="px-4 py-3">PO Number</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Order Date</th><th className="px-4 py-3">Lines</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-warelyn-border bg-white">
-                    {orders.map((order) => (
-                      <tr key={order.id}>
-                        <td className="px-4 py-3"><Link className="font-semibold text-warelyn-primary" to={`/purchases/${order.id}`}>{order.po_number}</Link></td>
-                        <td className="px-4 py-3"><Badge tone={statusTone[order.status] ?? 'neutral'}>{order.status}</Badge></td>
-                        <td className="px-4 py-3 text-warelyn-muted">{order.order_date}</td>
-                        <td className="px-4 py-3 text-warelyn-muted">{order.items.length}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      )}
+      <PageHeader
+        kicker="Purchasing"
+        title="Purchase orders"
+        description="Create purchase orders and receive goods into warehouse locations. Stock changes only after receipt commit."
+        actions={mayWrite ? <Link to="/purchases/new"><Button>New purchase order</Button></Link> : null}
+      />
+      <TableShell
+        description={`${filteredOrders.length} purchase order(s) in view`}
+        emptyAction={mayWrite ? <Link to="/purchases/new"><Button>Create purchase order</Button></Link> : null}
+        emptyDescription="Create your first purchase order to start receiving stock."
+        emptyTitle="No purchase orders yet"
+        error={error}
+        isEmpty={filteredOrders.length === 0}
+        isLoading={isLoading}
+        rowCount={filteredOrders.length}
+        title="Orders"
+        toolbar={
+          <ScreenToolbar
+            onReset={() => {
+              setSearch('');
+              setStatusFilter('ALL');
+            }}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search PO number or vendor"
+            searchValue={search}
+            tabs={statusTabs.map((status) => ({
+              key: status,
+              label: status === 'ALL' ? 'All' : status.replaceAll('_', ' '),
+              active: statusFilter === status,
+              count: status === 'ALL' ? orders.length : orders.filter((row) => row.status === status).length,
+              onClick: () => setStatusFilter(status),
+            }))}
+          />
+        }
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>PO number</th>
+              <th>Vendor</th>
+              <th>Status</th>
+              <th className="text-right">Lines</th>
+              <th>Date</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredOrders.map((order) => (
+              <tr key={order.id}>
+                <td><Link className="font-semibold text-warelyn-primary" to={`/purchases/${order.id}`}>{order.po_number}</Link></td>
+                <td>{vendorsById[order.vendor_id]?.name ?? `Vendor #${order.vendor_id}`}</td>
+                <td><StatusBadge status={order.status}>{order.status}</StatusBadge></td>
+                <td className="number-cell">{order.items.length}</td>
+                <td>{formatDate(order.order_date)}</td>
+                <td className="text-right">
+                  <ActionMenu items={[
+                    { label: 'View', icon: Eye, onClick: () => window.location.assign(`/purchases/${order.id}`) },
+                    ...(mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? [{ label: 'Receive', icon: ReceiptText, onClick: () => window.location.assign(`/purchases/${order.id}/receive`) }] : []),
+                  ]} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

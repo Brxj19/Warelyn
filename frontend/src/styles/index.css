@@ -72,66 +72,55 @@ tbody tr:hover {
 
 @layer components {
   .app-logo {
-    @apply inline-flex items-center justify-center shrink-0;
+    @apply inline-flex items-center justify-center shrink-0 overflow-hidden;
   }
 
   .app-logo-frame {
-    @apply flex h-full w-full items-center justify-center overflow-hidden;
+    @apply flex h-full w-full items-center justify-center overflow-hidden p-1;
   }
 
   .app-logo-image {
     @apply h-full w-full object-contain;
   }
 
-  .app-logo[data-variant='full'] .app-logo-image {
-    transform: scale(1.36);
-    transform-origin: center;
-  }
-
-  .app-logo[data-variant='mark'] .app-logo-image,
-  .app-logo[data-variant='collapsed'] .app-logo-image {
-    transform: scale(1.04);
-    transform-origin: center;
-  }
-
   .app-logo--topbar {
-    width: 172px;
-    height: 44px;
+    width: 96px;
+    height: 28px;
   }
 
   .app-logo--sidebar {
-    width: 192px;
-    height: 52px;
+    width: 112px;
+    height: 32px;
   }
 
   .app-logo--sidebar-collapsed {
-    width: 48px;
-    height: 48px;
+    width: 24px;
+    height: 24px;
   }
 
   .app-logo--auth {
-    width: 250px;
-    height: 84px;
+    width: 144px;
+    height: 42px;
   }
 
   .app-logo--auth-form {
-    width: 226px;
-    height: 74px;
+    width: 132px;
+    height: 38px;
   }
 
   .app-logo--landing-nav {
-    width: 26px;
-    height: 26px;
+    width: 112px;
+    height: 32px;
   }
 
   .app-logo--landing-hero {
-    width: 108px;
-    height: 108px;
+    width: 168px;
+    height: 48px;
   }
 
   .app-logo--landing-footer {
-    width: 18px;
-    height: 18px;
+    width: 84px;
+    height: 24px;
   }
 
   .app-shell {
@@ -174,6 +163,10 @@ tbody tr:hover {
 
   .topbar-icon-btn {
     @apply inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 px-0 py-0 text-white hover:bg-white/10 hover:text-white;
+  }
+
+  .topbar-icon-btn svg {
+    @apply h-[18px] w-[18px] shrink-0;
   }
 
   .topbar-icon-btn-quiet {
@@ -365,12 +358,20 @@ tbody tr:hover {
     @apply mb-6 flex flex-col gap-4 rounded-2xl border border-warelyn-border bg-white p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between;
   }
 
+  .page-back-link {
+    @apply mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-warelyn-primary;
+  }
+
   .page-kicker {
     @apply text-xs font-bold uppercase tracking-[0.18em] text-warelyn-primary;
   }
 
+  .page-title-row {
+    @apply mt-2 flex flex-wrap items-center gap-3;
+  }
+
   .page-header h1 {
-    @apply mt-2 text-2xl font-bold tracking-tight text-warelyn-text sm:text-3xl;
+    @apply text-2xl font-bold tracking-tight text-warelyn-text sm:text-3xl;
   }
 
   .page-header p:not(.page-kicker) {
@@ -389,8 +390,16 @@ tbody tr:hover {
     @apply flex flex-col gap-3 border-b border-warelyn-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between;
   }
 
+  .table-title-row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
   .table-header h2 {
     @apply text-base font-bold text-warelyn-text;
+  }
+
+  .table-row-count {
+    @apply inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600;
   }
 
   .table-header p {
@@ -403,6 +412,10 @@ tbody tr:hover {
 
   .table-scroll {
     @apply overflow-x-auto;
+  }
+
+  .table-toolbar {
+    @apply border-b border-warelyn-border px-5 py-4;
   }
 
   .table-shell table {
@@ -440,12 +453,22 @@ tbody tr:hover {
     @apply text-warelyn-primary;
   }
 
+  .progress-step.is-blocked,
+  .progress-step.is-terminal {
+    @apply text-red-600;
+  }
+
   .progress-step.is-complete .progress-node {
     @apply bg-emerald-100 text-emerald-700;
   }
 
   .progress-step.is-active .progress-node {
     @apply bg-blue-100 text-warelyn-primary ring-2 ring-blue-200;
+  }
+
+  .progress-step.is-blocked .progress-node,
+  .progress-step.is-terminal .progress-node {
+    @apply bg-red-100 text-red-700 ring-2 ring-red-200;
   }
 
   .auth-panel {
@@ -614,6 +637,281 @@ tbody tr:hover {
 
   .landing-footer-brand {
     @apply inline-flex items-center gap-2 font-medium text-slate-900;
+  }
+
+  .screen-toolbar {
+    @apply flex flex-col gap-4;
+  }
+
+  .screen-toolbar-main,
+  .screen-toolbar-actions {
+    @apply flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between;
+  }
+
+  .screen-toolbar-search {
+    @apply relative min-w-0 flex-1 lg:max-w-md;
+  }
+
+  .screen-toolbar-search-icon {
+    @apply pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400;
+  }
+
+  .screen-toolbar-search .screen-toolbar-search-input {
+    @apply pl-10;
+  }
+
+  .screen-toolbar-search .screen-toolbar-search-input + p {
+    @apply hidden;
+  }
+
+  .screen-toolbar-date-range {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .screen-toolbar-date-range > span {
+    @apply text-sm font-medium text-warelyn-muted;
+  }
+
+  .screen-toolbar-tabs {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .screen-toolbar-tab {
+    @apply inline-flex items-center gap-2 rounded-full border border-warelyn-border bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-blue-200 hover:text-warelyn-primary;
+  }
+
+  .screen-toolbar-tab small {
+    @apply rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500;
+  }
+
+  .screen-toolbar-tab.is-active {
+    @apply border-blue-200 bg-blue-50 text-warelyn-primary;
+  }
+
+  .screen-toolbar-tab.is-active small {
+    @apply bg-white text-warelyn-primary;
+  }
+
+  .screen-toolbar-filter-chips {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .filter-chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-warelyn-primary;
+  }
+
+  .filter-chip button {
+    @apply inline-flex items-center justify-center rounded-full text-warelyn-primary hover:bg-blue-100;
+  }
+
+  .screen-toolbar-reset {
+    @apply h-10 rounded-xl px-3;
+  }
+
+  .record-meta-grid {
+    @apply mt-4 flex flex-wrap gap-3;
+  }
+
+  .record-meta-item {
+    @apply rounded-xl border border-warelyn-border bg-slate-50 px-3 py-2;
+  }
+
+  .record-meta-item span {
+    @apply block text-[11px] font-bold uppercase tracking-[0.16em] text-warelyn-muted;
+  }
+
+  .record-meta-item strong {
+    @apply mt-1 block text-sm font-semibold text-warelyn-text;
+  }
+
+  .record-summary-grid {
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .record-summary-card {
+    @apply overflow-hidden;
+  }
+
+  .record-summary-card .px-5,
+  .record-summary-card .sm\:px-6 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .record-summary-card span {
+    @apply block text-[11px] font-bold uppercase tracking-[0.16em] text-warelyn-muted;
+  }
+
+  .record-summary-card strong {
+    @apply mt-2 block text-2xl font-bold tracking-tight text-warelyn-text;
+  }
+
+  .record-summary-card small {
+    @apply mt-1 block text-xs text-warelyn-muted;
+  }
+
+  .record-detail-layout {
+    @apply grid gap-6;
+  }
+
+  .record-detail-layout.has-side-panel {
+    @apply xl:grid-cols-[minmax(0,1fr)_320px];
+  }
+
+  .record-detail-main {
+    @apply space-y-6;
+  }
+
+  .record-detail-side {
+    @apply space-y-6;
+  }
+
+  .action-menu {
+    @apply relative inline-flex;
+  }
+
+  .action-menu-trigger {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border border-warelyn-border bg-white text-slate-500 hover:border-blue-200 hover:text-warelyn-primary;
+  }
+
+  .action-menu-popover {
+    @apply absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-[180px] rounded-2xl border border-warelyn-border bg-white p-2 shadow-xl;
+  }
+
+  .action-menu-item {
+    @apply flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-warelyn-text;
+  }
+
+  .action-menu-item.is-danger {
+    @apply text-red-600 hover:bg-red-50 hover:text-red-700;
+  }
+
+  .action-menu-item:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .stock-impact-preview {
+    @apply rounded-2xl border border-blue-100 bg-blue-50/70 p-4;
+  }
+
+  .stock-impact-preview-header h3 {
+    @apply text-sm font-bold text-warelyn-primary;
+  }
+
+  .stock-impact-preview-header p {
+    @apply mt-1 text-xs text-warelyn-muted;
+  }
+
+  .stock-impact-preview-grid {
+    @apply mt-3 grid gap-3 md:grid-cols-2;
+  }
+
+  .stock-impact-preview-item {
+    @apply rounded-xl border border-blue-100 bg-white p-3 text-sm;
+  }
+
+  .stock-impact-title {
+    @apply font-semibold text-warelyn-text;
+  }
+
+  .stock-impact-meta {
+    @apply mt-1 text-xs text-warelyn-muted;
+  }
+
+  .stock-impact-effect {
+    @apply mt-2 text-xs font-semibold text-warelyn-primary;
+  }
+
+  .stock-impact-warning {
+    @apply mt-2 text-xs font-semibold text-amber-700;
+  }
+
+  .barcode-input-shell {
+    @apply flex items-center rounded-xl border border-warelyn-border bg-white px-3 shadow-sm transition focus-within:border-warelyn-primary focus-within:ring-4 focus-within:ring-blue-900/10;
+  }
+
+  .barcode-input-icon {
+    @apply shrink-0 text-warelyn-primary;
+  }
+
+  .barcode-input-field {
+    @apply block min-h-[48px] flex-1 border-0 bg-transparent px-3 text-sm text-warelyn-text outline-none placeholder:text-slate-400;
+  }
+
+  .barcode-input-clear {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700;
+  }
+
+  .metric-link-card {
+    @apply block rounded-2xl border border-warelyn-border bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-soft;
+  }
+
+  .metric-link-card-body {
+    @apply relative overflow-hidden rounded-2xl p-5;
+  }
+
+  .metric-link-card-icon {
+    @apply mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-warelyn-primary;
+  }
+
+  .metric-link-card-label {
+    @apply text-xs font-bold uppercase tracking-[0.18em] text-warelyn-muted;
+  }
+
+  .metric-link-card-value {
+    @apply mt-3 text-3xl font-bold tracking-tight text-warelyn-text;
+  }
+
+  .metric-link-card-copy {
+    @apply mt-2 text-sm text-warelyn-muted;
+  }
+
+  .metric-link-card-status {
+    @apply mt-4 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .metric-link-card-status.primary {
+    @apply bg-blue-50 text-warelyn-primary;
+  }
+
+  .metric-link-card-status.warning {
+    @apply bg-amber-50 text-amber-700;
+  }
+
+  .metric-link-card-status.danger {
+    @apply bg-red-50 text-red-700;
+  }
+
+  .metric-link-card-status.success {
+    @apply bg-emerald-50 text-emerald-700;
+  }
+
+  .inline-code {
+    @apply font-mono text-[13px] tracking-tight text-slate-700;
+  }
+
+  .mono-cell {
+    @apply font-mono text-[13px] tracking-tight text-slate-700;
+  }
+
+  .number-cell {
+    @apply text-right tabular-nums;
+  }
+
+  .sticky-form-footer {
+    @apply sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warelyn-border bg-white/95 px-5 py-4 shadow-soft backdrop-blur;
+  }
+
+  .workflow-helper-panel {
+    @apply rounded-2xl border border-warelyn-border bg-slate-50 p-5;
+  }
+
+  .workflow-helper-panel h3 {
+    @apply text-sm font-bold text-warelyn-text;
+  }
+
+  .workflow-helper-panel p {
+    @apply mt-2 text-sm leading-6 text-warelyn-muted;
   }
 }
 

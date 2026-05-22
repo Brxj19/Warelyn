@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as warehouseService from '../services/warehouseService.js';
 
@@ -57,15 +59,16 @@ export function WarehouseDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Badge tone="primary">Warehouse Setup</Badge>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Warehouse locations</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-warelyn-muted">Configure bins and locations for warehouse #{id}. Location setup does not create stock balances.</p>
-      </div>
+      <PageHeader backTo="/warehouses" description={`Configure bins and locations for warehouse #${id}. Location setup does not create stock balances.`} kicker="Warehouse setup" title="Warehouse locations" />
       {error ? <ErrorState description={error} /> : null}
+      <div className="record-summary-grid">
+        <Card className="record-summary-card"><CardBody><span>Warehouse</span><strong>#{id}</strong><small>Tenant-scoped master data</small></CardBody></Card>
+        <Card className="record-summary-card"><CardBody><span>Location count</span><strong>{locations.length}</strong><small>Configured bins and zones</small></CardBody></Card>
+        <Card className="record-summary-card"><CardBody><span>Active locations</span><strong>{locations.filter((row) => row.status === 'ACTIVE').length}</strong><small>Ready for workflow use</small></CardBody></Card>
+      </div>
       {mayWrite ? (
         <Card>
-          <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Create Location</h2></CardHeader>
+          <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Create location</h2><p className="mt-1 text-sm text-warelyn-muted">Use receiving, storage, picking, packing, or return locations to structure warehouse operations.</p></CardHeader>
           <CardBody>
             <form className="grid gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
               {['name', 'code', 'barcode'].map((field) => (
@@ -77,25 +80,37 @@ export function WarehouseDetailPage() {
         </Card>
       ) : null}
       {isLoading ? <LoadingState /> : (
-        <Card>
-          <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Locations</h2></CardHeader>
-          <CardBody>
-            {locations.length === 0 ? <EmptyState title="No locations yet" description="Create receiving, storage, picking, or packing locations when your role allows it." /> : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {locations.map((location) => (
-                  <div className="rounded-xl border border-warelyn-border p-4" key={location.id}>
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-semibold text-warelyn-text">{location.name}</h3>
-                      <Badge tone="success">{location.status}</Badge>
-                    </div>
-                    <p className="mt-2 text-sm text-warelyn-muted">Code: {location.code}</p>
-                    <p className="text-sm text-warelyn-muted">Type: {location.location_type}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <TableShell
+          description={`${locations.length} configured location(s)`}
+          emptyDescription="Create receiving, storage, picking, or packing locations when your role allows it."
+          emptyTitle="No locations yet"
+          isEmpty={locations.length === 0}
+          rowCount={locations.length}
+          title="Locations"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Barcode</th>
+                <th>Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {locations.map((location) => (
+                <tr key={location.id}>
+                  <td className="font-semibold text-warelyn-text">{location.name}</td>
+                  <td><span className="mono-cell">{location.code}</span></td>
+                  <td><span className="mono-cell">{location.barcode ?? '-'}</span></td>
+                  <td>{location.location_type}</td>
+                  <td><StatusBadge status={location.status}>{location.status}</StatusBadge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableShell>
       )}
     </div>
   );

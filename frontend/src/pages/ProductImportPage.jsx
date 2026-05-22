@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 
 import { CSVImportDropzone } from '../components/imports/CSVImportDropzone.jsx';
 import { ImportPreviewTable } from '../components/imports/ImportPreviewTable.jsx';
-import { Badge } from '../components/ui/Badge.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
+import { WorkflowProgress } from '../components/ui/WorkflowProgress.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as importService from '../services/importService.js';
 
@@ -67,15 +69,17 @@ export function ProductImportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="primary">CSV Import</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Import products</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-warelyn-muted">Upload product master data with preview and validation. This does not import or mutate stock.</p>
-        </div>
-        <Link className="text-sm font-semibold text-warelyn-primary" to="/catalog/products">Back to products</Link>
-      </div>
+      <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="CSV import" title="Import products" />
       {error ? <ErrorState description={error} /> : null}
+      <WorkflowProgress
+        current={job?.status === 'COMMITTED' ? 'COMMITTED' : job?.status === 'VALIDATED' || job?.status === 'HAS_ERRORS' ? 'VALIDATED' : job ? 'UPLOADED' : 'PENDING'}
+        steps={[
+          { key: 'PENDING', label: 'Upload' },
+          { key: 'UPLOADED', label: 'Validate' },
+          { key: 'VALIDATED', label: 'Preview' },
+          { key: 'COMMITTED', label: 'Commit' },
+        ]}
+      />
       <Card>
         <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">CSV Columns</h2></CardHeader>
         <CardBody className="grid gap-4 md:grid-cols-2">
@@ -108,7 +112,7 @@ export function ProductImportPage() {
           <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Import summary</h2></CardHeader>
           <CardBody className="space-y-4">
             <div className="grid gap-3 md:grid-cols-6">
-              {['status', 'total_rows', 'valid_rows', 'error_rows', 'created_count', 'updated_count'].map((field) => <div key={field}><p className="text-xs uppercase text-warelyn-muted">{field}</p><p className="font-semibold text-warelyn-text">{job[field]}</p></div>)}
+              {['status', 'total_rows', 'valid_rows', 'error_rows', 'created_count', 'updated_count'].map((field) => <div key={field}><p className="text-xs uppercase text-warelyn-muted">{field.replaceAll('_', ' ')}</p><p className="font-semibold text-warelyn-text">{field === 'status' ? <StatusBadge status={job[field]}>{job[field]}</StatusBadge> : job[field]}</p></div>)}
             </div>
             <div className="flex gap-3"><Button disabled={isBusy || job.status === 'COMMITTED'} onClick={validate}>Validate</Button><Button disabled={isBusy || !canCommit} variant="accent" onClick={commit}>Commit valid rows</Button></div>
             {rows.length ? <ImportPreviewTable rows={rows} /> : null}

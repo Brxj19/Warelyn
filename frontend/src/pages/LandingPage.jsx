@@ -17,7 +17,6 @@ export function LandingPage() {
         <div className="landing-nav">
           <Link className="landing-brand" to="/">
             <AppLogo size="landing-nav" variant="mark" />
-            <span>Warelyn</span>
           </Link>
           <nav className="landing-links">
             <a href="#features">Features</a>
@@ -35,7 +34,10 @@ export function LandingPage() {
           <div className="landing-hero-mark">
             <AppLogo size="landing-hero" variant="mark" />
           </div>
-          <h1>WARELYN</h1>
+          <h1>WARELYN INVENTORY</h1>
+          <p>
+            Inventory that moves with your business
+          </p>
           <p>
             High-precision warehouse operations. Distilling complex logistics into a clean,
             top-down operational grid system.
@@ -59,7 +61,7 @@ export function LandingPage() {
 
         <section className="landing-preview" id="pricing">
           <div className="landing-preview-image-shell">
-            <img alt="Warelyn system preview reference" className="landing-preview-image" src="/landing-preview-reference.png" />
+            <img alt="Warelyn system preview reference" className="landing-preview-image" src="/LandingPageScreen.png" />
             <div className="landing-preview-overlay" />
             <div className="landing-preview-center">
               <Button className="landing-preview-button" variant="secondary">
@@ -88,7 +90,6 @@ export function LandingPage() {
       <footer className="landing-footer">
         <span className="landing-footer-brand">
           <AppLogo size="landing-footer" variant="mark" />
-          Warelyn Systems Inc.
         </span>
         <span>© 2026 Warelyn. All rights reserved. Precise logistics.</span>
       </footer>

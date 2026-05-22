@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { ActionMenu } from '../components/ui/ActionMenu.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
+import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
+import { formatDecimal, formatMoney } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER']);
 
-export function MasterDataPage({ title, description, fields, listRecords, createRecord, actions = null, searchPlaceholder = '', customInputs = {} }) {
+export function MasterDataPage({ title, description, fields, listRecords, createRecord, actions = null, searchPlaceholder = '', customInputs = {}, rowLink = null }) {
   const { accessToken, user } = useAuth();
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(Object.fromEntries(fields.map((field) => [field.name, field.defaultValue ?? ''])));
@@ -53,21 +59,21 @@ export function MasterDataPage({ title, description, fields, listRecords, create
     }
   }
 
+  const filteredRecords = records.filter((record) => {
+    if (!search) return true;
+    const value = search.toLowerCase();
+    return fields.some((field) => String(record[field.name] ?? '').toLowerCase().includes(value));
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="primary">Master Data</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">{title}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-warelyn-muted">{description}</p>
-        </div>
-        {actions}
-      </div>
+      <PageHeader kicker="Master data" title={title} description={description} actions={actions} />
       {error ? <ErrorState description={error} /> : null}
       {mayWrite ? (
         <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold text-warelyn-text">Create {title.slice(0, -1)}</h2>
+            <p className="mt-1 text-sm text-warelyn-muted">Add a new {title.slice(0, -1).toLowerCase()} record without changing inventory balances or workflow state.</p>
           </CardHeader>
           <CardBody>
             <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
@@ -93,37 +99,65 @@ export function MasterDataPage({ title, description, fields, listRecords, create
         </Card>
       ) : null}
       {isLoading ? <LoadingState variant="table" /> : (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-semibold text-warelyn-text">Records</h2>
-              {searchPlaceholder ? <Input className="sm:w-80" label="" placeholder={searchPlaceholder} value={search} onChange={(event) => setSearch(event.target.value)} /> : null}
-            </div>
-          </CardHeader>
-          <CardBody>
-            {records.length === 0 ? <EmptyState title="No records yet" description="Create master data records when your role allows it." /> : (
-              <div className="overflow-hidden rounded-xl border border-warelyn-border">
-                <table className="min-w-full divide-y divide-warelyn-border text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted">
-                    <tr>
-                      {fields.map((field) => <th className="px-4 py-3" key={field.name}>{field.label}</th>)}
-                      <th className="px-4 py-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-warelyn-border bg-white">
-                    {records.map((record) => (
-                      <tr className="hover:bg-slate-50/70" key={record.id}>
-                        {fields.map((field) => <td className="px-4 py-3 text-warelyn-text" key={field.name}>{record[field.name] ?? '-'}</td>)}
-                        <td className="px-4 py-3"><Badge tone={record.status === 'ACTIVE' ? 'success' : 'neutral'}>{record.status}</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <TableShell
+          description={`${filteredRecords.length} record(s) in this view`}
+          emptyAction={mayWrite ? <Button onClick={() => document.querySelector('form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} type="button">Create record</Button> : null}
+          emptyDescription="Create master data records when your role allows it."
+          emptyTitle={`No ${title.toLowerCase()} yet`}
+          isEmpty={filteredRecords.length === 0}
+          rowCount={filteredRecords.length}
+          title="Records"
+          toolbar={
+            <ScreenToolbar
+              onReset={() => setSearch('')}
+              onSearchChange={setSearch}
+              searchPlaceholder={searchPlaceholder || `Search ${title.toLowerCase()}`}
+              searchValue={search}
+            />
+          }
+        >
+          <table>
+            <thead>
+              <tr>
+                {fields.map((field, index) => <th className={index > 0 && isNumericField(field.name) ? 'text-right' : ''} key={field.name}>{field.label}</th>)}
+                <th>Status</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecords.map((record) => (
+                <tr key={record.id}>
+                  {fields.map((field, index) => {
+                    const content = renderCell(record[field.name], field.name);
+                    const rowUrl = index === 0 && rowLink ? rowLink(record) : null;
+                    return (
+                      <td className={isNumericField(field.name) ? 'number-cell' : ''} key={field.name}>
+                        {rowUrl ? <Link className="font-semibold text-warelyn-primary" to={rowUrl}>{content}</Link> : content}
+                      </td>
+                    );
+                  })}
+                  <td><StatusBadge status={record.status ?? 'ACTIVE'}>{record.status ?? 'ACTIVE'}</StatusBadge></td>
+                  <td className="text-right">
+                    <ActionMenu items={rowLink ? [{ label: 'View', onClick: () => window.location.assign(rowLink(record)) }] : []} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableShell>
       )}
     </div>
   );
+}
+
+function isNumericField(name) {
+  return ['cost_price', 'selling_price', 'reorder_level'].includes(name);
+}
+
+function renderCell(value, fieldName) {
+  if (value === null || value === undefined || value === '') return '-';
+  if (['sku', 'barcode', 'gst_number', 'code'].includes(fieldName)) return <span className="mono-cell">{value}</span>;
+  if (fieldName === 'reorder_level') return formatDecimal(value);
+  if (isNumericField(fieldName)) return formatMoney(value);
+  return value;
 }

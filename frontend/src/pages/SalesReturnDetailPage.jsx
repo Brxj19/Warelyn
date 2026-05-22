@@ -1,22 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { RecordDetailShell } from '../components/ui/RecordDetailShell.jsx';
+import { TableShell } from '../components/ui/TableShell.jsx';
 import { WorkflowProgress } from '../components/ui/WorkflowProgress.jsx';
+import { formatDecimal } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as catalogService from '../services/catalogService.js';
 import * as returnsService from '../services/returnsService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
 const canQC = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER']);
-const statusTone = { DRAFT: 'neutral', SUBMITTED: 'primary', INSPECTION_PENDING: 'warning', PROCESSED: 'success', CANCELLED: 'danger' };
-const returnSteps = [{ key: 'DRAFT', label: 'Draft' }, { key: 'SUBMITTED', label: 'Submitted' }, { key: 'INSPECTION_PENDING', label: 'Inspection' }, { key: 'PROCESSED', label: 'Processed' }];
-const qcTone = { ACCEPTED_RESTOCK: 'success', ACCEPTED_BLOCKED: 'warning', DAMAGED: 'danger', SCRAPPED: 'danger', REJECTED: 'neutral', PENDING: 'neutral' };
+const returnSteps = [
+  { key: 'DRAFT', label: 'Draft' },
+  { key: 'SUBMITTED', label: 'Submitted' },
+  { key: 'INSPECTION_PENDING', label: 'Inspection' },
+  { key: 'PROCESSED', label: 'Processed' },
+];
+const qcLabels = {
+  ACCEPTED_BLOCKED: 'Blocked',
+  ACCEPTED_RESTOCK: 'Restock',
+  DAMAGED: 'Damaged',
+  PENDING: 'Pending',
+  REJECTED: 'Rejected',
+  SCRAPPED: 'Scrapped',
+};
 
 export function SalesReturnDetailPage() {
   const { id } = useParams();
@@ -31,7 +45,10 @@ export function SalesReturnDetailPage() {
     setIsLoading(true);
     setError('');
     try {
-      const [row, products] = await Promise.all([returnsService.getSalesReturn(accessToken, id), catalogService.listProducts(accessToken)]);
+      const [row, products] = await Promise.all([
+        returnsService.getSalesReturn(accessToken, id),
+        catalogService.listProducts(accessToken),
+      ]);
       setSalesReturn(row);
       setProductsById(Object.fromEntries(products.map((product) => [product.id, product])));
     } catch (loadError) {
@@ -41,7 +58,9 @@ export function SalesReturnDetailPage() {
     }
   }
 
-  useEffect(() => { load(); }, [accessToken, id]);
+  useEffect(() => {
+    load();
+  }, [accessToken, id]);
 
   async function run(action) {
     setIsSaving(true);
@@ -59,16 +78,131 @@ export function SalesReturnDetailPage() {
   if (isLoading) return <LoadingState />;
   if (!salesReturn) return <ErrorState description={error || 'Sales return not found.'} />;
 
+  const returnedQty = salesReturn.items.reduce((sum, item) => sum + Number(item.returned_quantity), 0);
+  const acceptedQty = salesReturn.items.reduce((sum, item) => sum + Number(item.accepted_quantity), 0);
+  const rejectedQty = salesReturn.items.reduce((sum, item) => sum + Number(item.rejected_quantity), 0);
+  const blockedQty = salesReturn.blocked_stock.reduce((sum, item) => sum + Number(item.quantity), 0);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div><Badge tone="primary">Sales return</Badge><h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">{salesReturn.return_number}</h1><p className="mt-2 text-sm text-warelyn-muted">Return for sales order #{salesReturn.sales_order_id}. QC outcome decides stock handling.</p></div>
-        <div className="flex flex-wrap gap-2"><Badge tone={statusTone[salesReturn.status] ?? 'neutral'}>{salesReturn.status}</Badge>{canWrite.has(user?.role) && salesReturn.status === 'DRAFT' ? <Button disabled={isSaving} onClick={() => run(returnsService.submitSalesReturn)}>Submit</Button> : null}{canWrite.has(user?.role) && ['DRAFT', 'SUBMITTED', 'INSPECTION_PENDING'].includes(salesReturn.status) ? <Button disabled={isSaving} variant="danger" onClick={() => run(returnsService.cancelSalesReturn)}>Cancel</Button> : null}{canQC.has(user?.role) && ['SUBMITTED', 'INSPECTION_PENDING'].includes(salesReturn.status) ? <Link to={`/returns/${salesReturn.id}/inspect`}><Button variant="accent">Inspect / process</Button></Link> : null}</div>
-      </div>
       {error ? <ErrorState description={error} /> : null}
-      <WorkflowProgress current={salesReturn.status} steps={returnSteps} />
-      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Return items</h2></CardHeader><CardBody><div className="overflow-hidden rounded-xl border border-warelyn-border"><table className="min-w-full divide-y divide-warelyn-border text-sm"><thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted"><tr><th className="px-4 py-3">Product</th><th className="px-4 py-3">Returned</th><th className="px-4 py-3">Accepted</th><th className="px-4 py-3">Rejected</th><th className="px-4 py-3">QC</th><th className="px-4 py-3">Tracking</th></tr></thead><tbody className="divide-y divide-warelyn-border bg-white">{salesReturn.items.map((item) => <tr key={item.id}><td className="px-4 py-3 font-semibold text-warelyn-text">{productsById[item.product_id]?.name ?? `#${item.product_id}`}</td><td className="px-4 py-3">{item.returned_quantity}</td><td className="px-4 py-3">{item.accepted_quantity}</td><td className="px-4 py-3">{item.rejected_quantity}</td><td className="px-4 py-3"><Badge tone={qcTone[item.qc_status] ?? 'neutral'}>{item.qc_status}</Badge></td><td className="px-4 py-3 text-warelyn-muted">Batch {item.batch_id ?? '-'} / Serial {item.serial_id ?? '-'}</td></tr>)}</tbody></table></div></CardBody></Card>
-      <Card><CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Blocked return stock</h2></CardHeader><CardBody>{salesReturn.blocked_stock.length === 0 ? <EmptyState title="No blocked stock" description="Rejected returns and sellable restocks do not create blocked stock records." /> : <div className="grid gap-3 md:grid-cols-2">{salesReturn.blocked_stock.map((row) => <div className="rounded-xl border border-warelyn-border p-4" key={row.id}><div className="flex items-center justify-between"><span className="font-semibold text-warelyn-text">{productsById[row.product_id]?.name ?? `#${row.product_id}`}</span><Badge tone={row.status === 'QC_HOLD' || row.status === 'QUARANTINE' ? 'warning' : 'danger'}>{row.status}</Badge></div><p className="mt-2 text-sm text-warelyn-muted">Quantity {row.quantity}. Non-sellable and excluded from warehouse stock availability.</p></div>)}</div>}</CardBody></Card>
+      <RecordDetailShell
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {canWrite.has(user?.role) && salesReturn.status === 'DRAFT' ? (
+              <Button disabled={isSaving} onClick={() => run(returnsService.submitSalesReturn)}>
+                Submit
+              </Button>
+            ) : null}
+            {canWrite.has(user?.role) && ['DRAFT', 'SUBMITTED', 'INSPECTION_PENDING'].includes(salesReturn.status) ? (
+              <Button disabled={isSaving} variant="danger" onClick={() => run(returnsService.cancelSalesReturn)}>
+                Cancel
+              </Button>
+            ) : null}
+            {canQC.has(user?.role) && ['SUBMITTED', 'INSPECTION_PENDING'].includes(salesReturn.status) ? (
+              <Link to={`/returns/${salesReturn.id}/inspect`}>
+                <Button variant="accent">Inspect / process</Button>
+              </Link>
+            ) : null}
+          </div>
+        }
+        backTo="/returns"
+        description={`Return for sales order #${salesReturn.sales_order_id}. QC outcomes decide whether quantities restock, stay blocked, or remain rejected.`}
+        kicker="Sales return"
+        meta={[
+          { label: 'Sales order', value: `#${salesReturn.sales_order_id}` },
+          { label: 'Reason', value: salesReturn.reason || 'Not specified' },
+          { label: 'Created', value: salesReturn.created_at ?? 'Return document' },
+        ]}
+        progress={<WorkflowProgress current={salesReturn.status} steps={returnSteps} />}
+        sidePanel={
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-warelyn-text">QC workflow</h2>
+            </CardHeader>
+            <CardBody className="space-y-3">
+              <StatusBadge status={salesReturn.status}>{salesReturn.status}</StatusBadge>
+              <p className="text-sm text-warelyn-muted">
+                Submitted returns move into inspection. Only processing applies the final backend stock outcome for accepted, blocked, damaged, or scrapped quantities.
+              </p>
+            </CardBody>
+          </Card>
+        }
+        status={<StatusBadge status={salesReturn.status}>{salesReturn.status}</StatusBadge>}
+        summary={[
+          { label: 'Returned qty', value: formatDecimal(returnedQty), helper: 'Quantity requested by customer' },
+          { label: 'Accepted qty', value: formatDecimal(acceptedQty), helper: 'Restock or blocked decisions' },
+          { label: 'Rejected qty', value: formatDecimal(rejectedQty), helper: 'No stock change' },
+          { label: 'Blocked qty', value: formatDecimal(blockedQty), helper: 'Non-sellable return stock' },
+        ]}
+        title={salesReturn.return_number}
+      >
+        <TableShell
+          description="Returned lines with QC progress and tracking references."
+          isEmpty={salesReturn.items.length === 0}
+          rowCount={salesReturn.items.length}
+          title="Return items"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th className="text-right">Returned</th>
+                <th className="text-right">Accepted</th>
+                <th className="text-right">Rejected</th>
+                <th>QC outcome</th>
+                <th>Tracking</th>
+              </tr>
+            </thead>
+            <tbody>
+              {salesReturn.items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <div className="space-y-1">
+                      <span className="font-semibold text-warelyn-text">{productsById[item.product_id]?.name ?? `Product #${item.product_id}`}</span>
+                      <p className="text-xs text-warelyn-muted">SKU {productsById[item.product_id]?.sku ?? '-'}</p>
+                    </div>
+                  </td>
+                  <td className="number-cell">{formatDecimal(item.returned_quantity)}</td>
+                  <td className="number-cell">{formatDecimal(item.accepted_quantity)}</td>
+                  <td className="number-cell">{formatDecimal(item.rejected_quantity)}</td>
+                  <td>
+                    <StatusBadge status={item.qc_status}>{qcLabels[item.qc_status] ?? item.qc_status}</StatusBadge>
+                  </td>
+                  <td>
+                    <span className="mono-cell">Batch {item.batch_id ?? '-'} / Serial {item.serial_id ?? '-'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableShell>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold text-warelyn-text">Blocked stock outcome</h2>
+          </CardHeader>
+          <CardBody>
+            {salesReturn.blocked_stock.length === 0 ? (
+              <EmptyState title="No blocked stock" description="Rejected returns and sellable restocks do not create blocked stock records." />
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                {salesReturn.blocked_stock.map((row) => (
+                  <div className="rounded-xl border border-warelyn-border p-4" key={row.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-warelyn-text">{productsById[row.product_id]?.name ?? `Product #${row.product_id}`}</span>
+                      <StatusBadge status={row.status}>{row.status}</StatusBadge>
+                    </div>
+                    <p className="mt-2 text-sm text-warelyn-muted">
+                      Quantity {formatDecimal(row.quantity)}. Non-sellable and excluded from available warehouse stock.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </RecordDetailShell>
     </div>
   );
 }

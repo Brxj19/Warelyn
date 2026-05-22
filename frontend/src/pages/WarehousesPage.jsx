@@ -16,6 +16,7 @@ export function WarehousesPage() {
       description="Create warehouse master records. Stock quantities are intentionally not tracked here yet."
       fields={fields}
       listRecords={warehouseService.listWarehouses}
+      rowLink={(warehouse) => `/warehouses/${warehouse.id}`}
       title="Warehouses"
     />
   );

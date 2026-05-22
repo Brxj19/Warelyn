@@ -11,8 +11,10 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
 import { formatMoney } from '../utils/formatters.js';
+import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as catalogService from '../services/catalogService.js';
 import { MasterDataFormPage, MasterDataListPage } from './MasterDataPage.jsx';
@@ -51,6 +53,7 @@ export function ProductsPage() {
   const [brandFilter, setBrandFilter] = useState('ALL');
   const [trackingFilter, setTrackingFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortState, setSortState] = useState({ key: 'name', direction: 'asc' });
   const mayWrite = canWrite.has(user?.role);
 
   useEffect(() => {
@@ -89,8 +92,30 @@ export function ProductsPage() {
       return `${product.name} ${product.sku ?? ''} ${product.barcode ?? ''}`.toLowerCase().includes(value);
     });
   }, [brandFilter, categoryFilter, products, search, statusFilter, trackingFilter]);
+  const sortedProducts = useMemo(
+    () =>
+      sortRows(filteredProducts, sortState, {
+        name: { type: 'text', accessor: (product) => product.name },
+        sku: { type: 'text', accessor: (product) => product.sku },
+        barcode: { type: 'text', accessor: (product) => product.barcode },
+        category: { type: 'text', accessor: (product) => categoriesById[product.category_id]?.name ?? '' },
+        brand: { type: 'text', accessor: (product) => brandsById[product.brand_id]?.name ?? '' },
+        tracking: { type: 'text', accessor: trackingLabel },
+        reorder_level: { type: 'number', accessor: (product) => product.reorder_level },
+        cost_price: { type: 'number', accessor: (product) => product.cost_price },
+        status: { type: 'text', accessor: (product) => product.status },
+      }),
+    [brandsById, categoriesById, filteredProducts, sortState],
+  );
 
   const activeFilters = [
+    search
+      ? {
+          key: 'search',
+          label: `Search: ${search}`,
+          onRemove: () => setSearch(''),
+        }
+      : null,
     categoryFilter !== 'ALL'
       ? {
           key: 'category',
@@ -112,6 +137,7 @@ export function ProductsPage() {
       ? { key: 'status', label: `Status: ${statusFilter}`, onRemove: () => setStatusFilter('ALL') }
       : null,
   ].filter(Boolean);
+  const hasActiveFilters = activeFilters.length > 0;
 
   return (
     <div className="space-y-6">
@@ -138,9 +164,8 @@ export function ProductsPage() {
         title="Products"
         description="Manage product records, SKUs, barcode tracking, and inventory configuration."
       />
-      {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredProducts.length} product record(s) in view`}
+        description={`${sortedProducts.length} product record(s) in view`}
         emptyAction={
           mayWrite ? (
             <div className="flex flex-wrap gap-2">
@@ -153,23 +178,27 @@ export function ProductsPage() {
             </div>
           ) : null
         }
-        emptyDescription="Create a product or import a product sheet to start building your SKU catalog."
-        emptyTitle="No products yet"
+        emptyDescription={hasActiveFilters ? 'Reset filters to review the full catalog.' : 'Create a product or import a product sheet to start building your SKU catalog.'}
+        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No products yet'}
         error={error}
-        isEmpty={filteredProducts.length === 0}
+        isEmpty={sortedProducts.length === 0}
         isLoading={isLoading}
-        rowCount={filteredProducts.length}
+        rowCount={sortedProducts.length}
         title="Product records"
         toolbar={
           <ScreenToolbar
             activeFilters={activeFilters}
-            onReset={() => {
-              setSearch('');
-              setCategoryFilter('ALL');
-              setBrandFilter('ALL');
-              setTrackingFilter('ALL');
-              setStatusFilter('ALL');
-            }}
+            onReset={
+              hasActiveFilters
+                ? () => {
+                    setSearch('');
+                    setCategoryFilter('ALL');
+                    setBrandFilter('ALL');
+                    setTrackingFilter('ALL');
+                    setStatusFilter('ALL');
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
             searchPlaceholder="Search by product name, SKU, or barcode"
             searchValue={search}
@@ -186,19 +215,19 @@ export function ProductsPage() {
         <table>
           <thead>
             <tr>
-              <th>Product name</th>
-              <th>SKU</th>
-              <th>Barcode</th>
-              <th>Category</th>
-              <th>Brand</th>
-              <th>Tracking type</th>
-              <th className="text-right">Reorder level</th>
-              <th className="text-right">Cost</th>
-              <th>Status</th>
+              <th><SortableHeader label="Product name" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="name" sortState={sortState} /></th>
+              <th><SortableHeader label="SKU" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="sku" sortState={sortState} /></th>
+              <th><SortableHeader label="Barcode" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="barcode" sortState={sortState} /></th>
+              <th><SortableHeader label="Category" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="category" sortState={sortState} /></th>
+              <th><SortableHeader label="Brand" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="brand" sortState={sortState} /></th>
+              <th><SortableHeader label="Tracking type" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="tracking" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Reorder level" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="reorder_level" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Cost" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="cost_price" sortState={sortState} /></th>
+              <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.map((product) => (
+            {sortedProducts.map((product) => (
               <tr key={product.id}>
                 <td>
                   <div className="space-y-1">

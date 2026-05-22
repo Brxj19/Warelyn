@@ -129,7 +129,7 @@ export function SalesFulfillmentDetailPage() {
             </div>
           ) : null
         }
-        backTo={`/sales/${fulfillment.sales_order_id}`}
+        backTo="/sales-fulfillments"
         description={`Fulfillment for sales order #${fulfillment.sales_order_id}. This is the stock-changing step in the outbound workflow once committed.`}
         kicker="Sales fulfillment"
         meta={[

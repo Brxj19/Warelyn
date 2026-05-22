@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { Badge } from '../components/ui/Badge.jsx';
+import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { StockImpactPreview } from '../components/ui/StockImpactPreview.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as purchasingService from '../services/purchasingService.js';
@@ -73,14 +74,21 @@ export function PurchaseReceiptDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Badge tone="primary">Purchase Receipt</Badge>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">{receipt.receipt_number}</h1>
-          <p className="mt-2 text-sm text-warelyn-muted">Receipt for <Link className="font-semibold text-warelyn-primary" to={`/purchases/${receipt.purchase_order_id}`}>purchase order #{receipt.purchase_order_id}</Link>.</p>
-        </div>
-        <Badge tone={receipt.status === 'COMMITTED' ? 'success' : receipt.status === 'CANCELLED' ? 'danger' : 'neutral'}>{receipt.status}</Badge>
-      </div>
+      <PageHeader
+        backTo="/purchase-receipts"
+        description={
+          <>
+            Receipt for{' '}
+            <Link className="font-semibold text-warelyn-primary" to={`/purchases/${receipt.purchase_order_id}`}>
+              purchase order #{receipt.purchase_order_id}
+            </Link>
+            . Stock remains backend-controlled and only changes when this draft is committed.
+          </>
+        }
+        kicker="Purchase receipt"
+        status={<StatusBadge status={receipt.status}>{receipt.status}</StatusBadge>}
+        title={receipt.receipt_number}
+      />
       {error ? <ErrorState description={error} /> : null}
       <Card>
         <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">Receipt lines</h2></CardHeader>

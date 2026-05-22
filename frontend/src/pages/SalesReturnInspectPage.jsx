@@ -122,7 +122,7 @@ export function SalesReturnInspectPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        backTo={`/returns/${salesReturn.id}`}
+        backTo="/returns"
         description="Choose the final QC decision for each returned line. The preview below mirrors backend outcomes and does not calculate authoritative stock on the frontend."
         kicker="QC inspection"
         title={`Inspect ${salesReturn.return_number}`}

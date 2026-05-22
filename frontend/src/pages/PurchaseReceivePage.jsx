@@ -126,7 +126,7 @@ export function PurchaseReceivePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader backTo={`/purchases/${order.id}`} description="Choose warehouse and location for each received line. The backend validates remaining quantities before stock changes." kicker="Receiving" title={`Receive ${order.po_number}`} />
+      <PageHeader backTo="/purchases" description="Choose warehouse and location for each received line. The backend validates remaining quantities before stock changes." kicker="Receiving" title={`Receive ${order.po_number}`} />
       {error ? <ErrorState description={error} /> : null}
       <form className="space-y-6" onSubmit={handleSubmit}>
         <Card>
@@ -165,7 +165,7 @@ export function PurchaseReceivePage() {
             <p>This creates a receipt draft only. Stock changes later when the receipt is committed by the backend through InventoryEngine.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/purchases/${order.id}`)} type="button" variant="ghost">Cancel</Button>
+            <Button onClick={() => navigate('/purchases')} type="button" variant="ghost">Cancel</Button>
             <Button disabled={isSaving} type="submit">{isSaving ? 'Creating...' : 'Create receipt draft'}</Button>
           </div>
         </div>

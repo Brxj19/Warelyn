@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -9,7 +9,10 @@ import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as warehouseService from '../services/warehouseService.js';
 
@@ -23,6 +26,10 @@ export function WarehouseDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortState, setSortState] = useState({ key: 'code', direction: 'asc' });
   const mayWrite = canWrite.has(user?.role);
 
   async function loadLocations() {
@@ -40,6 +47,36 @@ export function WarehouseDetailPage() {
   useEffect(() => {
     loadLocations();
   }, [accessToken, id]);
+
+  const filteredLocations = useMemo(
+    () =>
+      locations.filter((location) => {
+        if (typeFilter !== 'ALL' && location.location_type !== typeFilter) return false;
+        if (statusFilter !== 'ALL' && location.status !== statusFilter) return false;
+        if (!search) return true;
+        const value = search.toLowerCase();
+        return `${location.name} ${location.code} ${location.barcode ?? ''}`.toLowerCase().includes(value);
+      }),
+    [locations, search, statusFilter, typeFilter],
+  );
+  const sortedLocations = useMemo(
+    () =>
+      sortRows(filteredLocations, sortState, {
+        name: { type: 'text', accessor: (location) => location.name },
+        code: { type: 'text', accessor: (location) => location.code },
+        barcode: { type: 'text', accessor: (location) => location.barcode },
+        location_type: { type: 'text', accessor: (location) => location.location_type },
+        status: { type: 'text', accessor: (location) => location.status },
+      }),
+    [filteredLocations, sortState],
+  );
+  const activeFilters = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    typeFilter !== 'ALL' ? { key: 'type', label: `Type: ${typeFilter}`, onRemove: () => setTypeFilter('ALL') } : null,
+    statusFilter !== 'ALL' ? { key: 'status', label: `Status: ${statusFilter}`, onRemove: () => setStatusFilter('ALL') } : null,
+  ].filter(Boolean);
+  const hasActiveFilters = activeFilters.length > 0;
+  const locationTypes = Array.from(new Set(locations.map((location) => location.location_type).filter(Boolean))).sort();
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -81,25 +118,75 @@ export function WarehouseDetailPage() {
       ) : null}
       {isLoading ? <LoadingState /> : (
         <TableShell
-          description={`${locations.length} configured location(s)`}
-          emptyDescription="Create receiving, storage, picking, or packing locations when your role allows it."
-          emptyTitle="No locations yet"
-          isEmpty={locations.length === 0}
-          rowCount={locations.length}
+          description={`${sortedLocations.length} configured location(s)`}
+          emptyDescription={hasActiveFilters ? 'Reset filters to review the full location list.' : 'Create receiving, storage, picking, or packing locations when your role allows it.'}
+          emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No locations yet'}
+          isEmpty={sortedLocations.length === 0}
+          rowCount={sortedLocations.length}
           title="Locations"
+          toolbar={
+            <ScreenToolbar
+              activeFilters={activeFilters}
+              onReset={
+                hasActiveFilters
+                  ? () => {
+                      setSearch('');
+                      setTypeFilter('ALL');
+                      setStatusFilter('ALL');
+                    }
+                  : undefined
+              }
+              onSearchChange={setSearch}
+              searchPlaceholder="Search locations by code, name, or barcode"
+              searchValue={search}
+            >
+              <div className="flex flex-wrap gap-2">
+                <label className="block min-w-[160px]">
+                  <span className="mb-2 block text-sm font-medium text-warelyn-text">Location type</span>
+                  <select
+                    className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                    onChange={(event) => setTypeFilter(event.target.value)}
+                    value={typeFilter}
+                  >
+                    <option value="ALL">All types</option>
+                    {locationTypes.map((locationType) => (
+                      <option key={locationType} value={locationType}>
+                        {locationType}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block min-w-[160px]">
+                  <span className="mb-2 block text-sm font-medium text-warelyn-text">Status</span>
+                  <select
+                    className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                    value={statusFilter}
+                  >
+                    <option value="ALL">All statuses</option>
+                    {Array.from(new Set(locations.map((location) => location.status).filter(Boolean))).sort().map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </ScreenToolbar>
+          }
         >
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Code</th>
-                <th>Barcode</th>
-                <th>Type</th>
-                <th>Status</th>
+                <th><SortableHeader label="Name" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="name" sortState={sortState} /></th>
+                <th><SortableHeader label="Code" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="code" sortState={sortState} /></th>
+                <th><SortableHeader label="Barcode" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="barcode" sortState={sortState} /></th>
+                <th><SortableHeader label="Type" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="location_type" sortState={sortState} /></th>
+                <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
               </tr>
             </thead>
             <tbody>
-              {locations.map((location) => (
+              {sortedLocations.map((location) => (
                 <tr key={location.id}>
                   <td className="font-semibold text-warelyn-text">{location.name}</td>
                   <td><span className="mono-cell">{location.code}</span></td>

@@ -8,25 +8,32 @@ import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
+import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
 import { formatDate, formatDecimal } from '../utils/formatters.js';
+import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as catalogService from '../services/catalogService.js';
 import * as fulfillmentService from '../services/fulfillmentService.js';
 import * as purchasingService from '../services/purchasingService.js';
 import * as salesService from '../services/salesService.js';
+import * as warehouseService from '../services/warehouseService.js';
 
 const canPurchaseWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF']);
-const canSalesWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
 
 export function PurchaseReceiptsPage() {
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const [receipts, setReceipts] = useState([]);
   const [vendorsById, setVendorsById] = useState({});
+  const [warehousesById, setWarehousesById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [warehouseFilter, setWarehouseFilter] = useState('ALL');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [search, setSearch] = useState('');
+  const [sortState, setSortState] = useState({ key: 'created_at', direction: 'desc' });
   const mayWrite = canPurchaseWrite.has(user?.role);
 
   useEffect(() => {
@@ -38,6 +45,7 @@ export function PurchaseReceiptsPage() {
           purchasingService.listPurchaseOrders(accessToken),
           catalogService.listVendors(accessToken),
         ]);
+        const warehouseRows = await warehouseService.listWarehouses(accessToken);
         const receiptGroups = await Promise.all(
           orders.map(async (order) => ({
             order,
@@ -45,12 +53,14 @@ export function PurchaseReceiptsPage() {
           })),
         );
         setVendorsById(Object.fromEntries(vendorRows.map((row) => [row.id, row])));
+        setWarehousesById(Object.fromEntries(warehouseRows.map((row) => [row.id, row])));
         setReceipts(
           receiptGroups.flatMap(({ order, receipts: orderReceipts }) =>
             orderReceipts.map((receipt) => ({
               ...receipt,
               po_number: order.po_number,
               vendor_id: order.vendor_id,
+              warehouse_ids: Array.from(new Set((receipt.items ?? []).map((item) => item.warehouse_id).filter(Boolean))),
             })),
           ),
         );
@@ -64,14 +74,52 @@ export function PurchaseReceiptsPage() {
   }, [accessToken]);
 
   const filteredReceipts = useMemo(() => {
-    if (!search) return receipts;
-    const value = search.toLowerCase();
-    return receipts.filter((receipt) =>
-      `${receipt.receipt_number} ${receipt.po_number} ${vendorsById[receipt.vendor_id]?.name ?? ''} ${receipt.status}`
+    return receipts.filter((receipt) => {
+      if (statusFilter !== 'ALL' && receipt.status !== statusFilter) return false;
+      if (warehouseFilter !== 'ALL' && !(receipt.warehouse_ids ?? []).some((id) => String(id) === warehouseFilter)) return false;
+      if ((dateRange.from || dateRange.to) && !isDateInRange(receipt.created_at, dateRange)) return false;
+      if (!search) return true;
+      const value = search.toLowerCase();
+      return `${receipt.receipt_number} ${receipt.po_number} ${vendorsById[receipt.vendor_id]?.name ?? ''} ${receipt.status}`
         .toLowerCase()
-        .includes(value),
-    );
-  }, [receipts, search, vendorsById]);
+        .includes(value);
+    });
+  }, [dateRange, receipts, search, statusFilter, vendorsById, warehouseFilter]);
+  const sortedReceipts = useMemo(
+    () =>
+      sortRows(filteredReceipts, sortState, {
+        receipt_number: { type: 'text', accessor: (receipt) => receipt.receipt_number },
+        po_number: { type: 'text', accessor: (receipt) => receipt.po_number },
+        vendor: { type: 'text', accessor: (receipt) => vendorsById[receipt.vendor_id]?.name ?? '' },
+        warehouse: {
+          type: 'text',
+          accessor: (receipt) =>
+            (receipt.warehouse_ids ?? [])
+              .map((warehouseId) => warehousesById[warehouseId]?.name)
+              .filter(Boolean)
+              .join(', '),
+        },
+        status: { type: 'text', accessor: (receipt) => receipt.status },
+        lines: { type: 'number', accessor: (receipt) => receipt.items.length },
+        created_at: { type: 'date', accessor: (receipt) => receipt.created_at },
+      }),
+    [filteredReceipts, sortState, vendorsById, warehousesById],
+  );
+  const activeFilters = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    statusFilter !== 'ALL' ? { key: 'status', label: `Status: ${statusFilter.replaceAll('_', ' ')}`, onRemove: () => setStatusFilter('ALL') } : null,
+    warehouseFilter !== 'ALL'
+      ? {
+          key: 'warehouse',
+          label: `Warehouse: ${warehousesById[Number(warehouseFilter)]?.name ?? warehouseFilter}`,
+          onRemove: () => setWarehouseFilter('ALL'),
+        }
+      : null,
+    dateRange.from || dateRange.to
+      ? { key: 'date', label: `Date: ${getDateRangeLabel(dateRange)}`, onRemove: () => setDateRange({ from: '', to: '' }) }
+      : null,
+  ].filter(Boolean);
+  const hasActiveFilters = activeFilters.length > 0;
 
   return (
     <div className="space-y-6">
@@ -87,9 +135,8 @@ export function PurchaseReceiptsPage() {
         title="Purchase receipts"
         description="Review receipt drafts and committed inbound stock documents without mixing them into purchase order list pages."
       />
-      {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredReceipts.length} receipt(s) in view`}
+        description={`${sortedReceipts.length} receipt(s) in view`}
         emptyAction={
           mayWrite ? (
             <Link to="/purchase-receipts/new">
@@ -97,36 +144,84 @@ export function PurchaseReceiptsPage() {
             </Link>
           ) : null
         }
-        emptyDescription="Open a receivable purchase order to create the first receipt."
-        emptyTitle="No purchase receipts yet"
+        emptyDescription={hasActiveFilters ? 'Reset filters to review the full receipts list.' : 'Open a receivable purchase order to create the first receipt.'}
+        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No purchase receipts yet'}
         error={error}
-        isEmpty={filteredReceipts.length === 0}
+        isEmpty={sortedReceipts.length === 0}
         isLoading={isLoading}
-        rowCount={filteredReceipts.length}
+        rowCount={sortedReceipts.length}
         title="Receipts"
         toolbar={
           <ScreenToolbar
-            onReset={() => setSearch('')}
+            activeFilters={activeFilters}
+            dateRange={dateRange}
+            onDateChange={setDateRange}
+            onReset={
+              hasActiveFilters
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('ALL');
+                    setWarehouseFilter('ALL');
+                    setDateRange({ from: '', to: '' });
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
             searchPlaceholder="Search receipt number, PO, or vendor"
             searchValue={search}
-          />
+          >
+            <div className="flex flex-wrap gap-2">
+              <label className="block min-w-[160px]">
+                <span className="mb-2 block text-sm font-medium text-warelyn-text">Status</span>
+                <select
+                  className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  value={statusFilter}
+                >
+                  <option value="ALL">All statuses</option>
+                  {Array.from(new Set(receipts.map((receipt) => receipt.status).filter(Boolean))).sort().map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block min-w-[180px]">
+                <span className="mb-2 block text-sm font-medium text-warelyn-text">Warehouse</span>
+                <select
+                  className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                  onChange={(event) => setWarehouseFilter(event.target.value)}
+                  value={warehouseFilter}
+                >
+                  <option value="ALL">All warehouses</option>
+                  {Object.values(warehousesById)
+                    .sort((left, right) => left.name.localeCompare(right.name))
+                    .map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+          </ScreenToolbar>
         }
       >
         <table>
           <thead>
             <tr>
-              <th>Receipt number</th>
-              <th>Purchase order</th>
-              <th>Vendor</th>
-              <th>Status</th>
-              <th className="text-right">Lines</th>
-              <th>Created</th>
+              <th><SortableHeader label="Receipt number" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="receipt_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Purchase order" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="po_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Vendor" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="vendor" sortState={sortState} /></th>
+              <th><SortableHeader label="Warehouse" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="warehouse" sortState={sortState} /></th>
+              <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Lines" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="lines" sortState={sortState} /></th>
+              <th><SortableHeader label="Created" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="created_at" sortState={sortState} /></th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {filteredReceipts.map((receipt) => (
+            {sortedReceipts.map((receipt) => (
               <tr key={receipt.id}>
                 <td>
                   <Link className="font-semibold text-warelyn-primary" to={`/purchase-receipts/${receipt.id}`}>
@@ -135,6 +230,7 @@ export function PurchaseReceiptsPage() {
                 </td>
                 <td><span className="mono-cell">{receipt.po_number}</span></td>
                 <td>{vendorsById[receipt.vendor_id]?.name ?? `Vendor #${receipt.vendor_id}`}</td>
+                <td>{(receipt.warehouse_ids ?? []).map((warehouseId) => warehousesById[warehouseId]?.name).filter(Boolean).join(', ') || '-'}</td>
                 <td><StatusBadge status={receipt.status}>{receipt.status}</StatusBadge></td>
                 <td className="number-cell">{receipt.items.length}</td>
                 <td>{receipt.created_at ? formatDate(receipt.created_at) : '-'}</td>
@@ -158,6 +254,7 @@ export function PurchaseReceiptStartPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [sortState, setSortState] = useState({ key: 'po_number', direction: 'asc' });
 
   useEffect(() => {
     async function load() {
@@ -186,6 +283,17 @@ export function PurchaseReceiptStartPage() {
       `${order.po_number} ${vendorsById[order.vendor_id]?.name ?? ''} ${order.status}`.toLowerCase().includes(value),
     );
   }, [orders, search, vendorsById]);
+  const sortedOrders = useMemo(
+    () =>
+      sortRows(filteredOrders, sortState, {
+        po_number: { type: 'text', accessor: (order) => order.po_number },
+        vendor: { type: 'text', accessor: (order) => vendorsById[order.vendor_id]?.name ?? '' },
+        status: { type: 'text', accessor: (order) => order.status },
+        lines: { type: 'number', accessor: (order) => order.items.length },
+      }),
+    [filteredOrders, sortState, vendorsById],
+  );
+  const activeFilters = search ? [{ key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') }] : [];
 
   return (
     <div className="space-y-6">
@@ -197,17 +305,18 @@ export function PurchaseReceiptStartPage() {
       />
       {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredOrders.length} receivable purchase order(s) in view`}
-        emptyDescription="Purchase orders must be submitted before goods can be received."
-        emptyTitle="No receivable purchase orders"
+        description={`${sortedOrders.length} receivable purchase order(s) in view`}
+        emptyDescription={activeFilters.length ? 'Reset filters to review all receivable purchase orders.' : 'Purchase orders must be submitted before goods can be received.'}
+        emptyTitle={activeFilters.length ? 'No records match your filters' : 'No receivable purchase orders'}
         error={error}
-        isEmpty={filteredOrders.length === 0}
+        isEmpty={sortedOrders.length === 0}
         isLoading={isLoading}
-        rowCount={filteredOrders.length}
+        rowCount={sortedOrders.length}
         title="Select purchase order"
         toolbar={
           <ScreenToolbar
-            onReset={() => setSearch('')}
+            activeFilters={activeFilters}
+            onReset={activeFilters.length ? () => setSearch('') : undefined}
             onSearchChange={setSearch}
             searchPlaceholder="Search purchase order or vendor"
             searchValue={search}
@@ -217,15 +326,15 @@ export function PurchaseReceiptStartPage() {
         <table>
           <thead>
             <tr>
-              <th>PO number</th>
-              <th>Vendor</th>
-              <th>Status</th>
-              <th className="text-right">Lines</th>
+              <th><SortableHeader label="PO number" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="po_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Vendor" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="vendor" sortState={sortState} /></th>
+              <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Lines" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="lines" sortState={sortState} /></th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map((order) => (
+            {sortedOrders.map((order) => (
               <tr key={order.id}>
                 <td><span className="font-semibold text-warelyn-text">{order.po_number}</span></td>
                 <td>{vendorsById[order.vendor_id]?.name ?? `Vendor #${order.vendor_id}`}</td>
@@ -251,16 +360,24 @@ export function PackagesPage() {
   const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [salesOrdersById, setSalesOrdersById] = useState({});
+  const [customersById, setCustomersById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [search, setSearch] = useState('');
+  const [sortState, setSortState] = useState({ key: 'created_at', direction: 'desc' });
 
   useEffect(() => {
     async function load() {
       setIsLoading(true);
       setError('');
       try {
-        const orders = await salesService.listSalesOrders(accessToken);
+        const [orders, customerRows] = await Promise.all([
+          salesService.listSalesOrders(accessToken),
+          catalogService.listCustomers(accessToken),
+        ]);
+        const customerMap = Object.fromEntries(customerRows.map((row) => [row.id, row]));
         const packageGroups = await Promise.all(
           orders.map(async (order) => ({
             order,
@@ -268,11 +385,13 @@ export function PackagesPage() {
           })),
         );
         setSalesOrdersById(Object.fromEntries(orders.map((row) => [row.id, row])));
+        setCustomersById(customerMap);
         setPackages(
           packageGroups.flatMap(({ order, packages: orderPackages }) =>
             orderPackages.map((pkg) => ({
               ...pkg,
               order_number: order.order_number,
+              customer_name: customerMap[order.customer_id]?.name ?? '',
             })),
           ),
         );
@@ -286,10 +405,34 @@ export function PackagesPage() {
   }, [accessToken]);
 
   const filteredPackages = useMemo(() => {
-    if (!search) return packages;
-    const value = search.toLowerCase();
-    return packages.filter((pkg) => `${pkg.package_number} ${pkg.order_number} ${pkg.status}`.toLowerCase().includes(value));
-  }, [packages, search]);
+    return packages.filter((pkg) => {
+      if (statusFilter !== 'ALL' && pkg.status !== statusFilter) return false;
+      if ((dateRange.from || dateRange.to) && !isDateInRange(pkg.created_at, dateRange)) return false;
+      if (!search) return true;
+      const value = search.toLowerCase();
+      const customerName = customersById[salesOrdersById[pkg.sales_order_id]?.customer_id]?.name ?? '';
+      return `${pkg.package_number} ${pkg.order_number} ${customerName} ${pkg.status}`.toLowerCase().includes(value);
+    });
+  }, [customersById, dateRange, packages, salesOrdersById, search, statusFilter]);
+  const sortedPackages = useMemo(
+    () =>
+      sortRows(filteredPackages, sortState, {
+        package_number: { type: 'text', accessor: (pkg) => pkg.package_number },
+        order_number: { type: 'text', accessor: (pkg) => pkg.order_number },
+        customer: { type: 'text', accessor: (pkg) => customersById[salesOrdersById[pkg.sales_order_id]?.customer_id]?.name ?? '' },
+        status: { type: 'text', accessor: (pkg) => pkg.status },
+        items: { type: 'number', accessor: (pkg) => pkg.items.length },
+        created_at: { type: 'date', accessor: (pkg) => pkg.created_at },
+      }),
+    [customersById, filteredPackages, salesOrdersById, sortState],
+  );
+  const packageFilters = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    statusFilter !== 'ALL' ? { key: 'status', label: `Status: ${statusFilter.replaceAll('_', ' ')}`, onRemove: () => setStatusFilter('ALL') } : null,
+    dateRange.from || dateRange.to
+      ? { key: 'date', label: `Date: ${getDateRangeLabel(dateRange)}`, onRemove: () => setDateRange({ from: '', to: '' }) }
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -303,38 +446,67 @@ export function PackagesPage() {
         title="Packages"
         description="Review package records separately from the focused package creation workflow."
       />
-      {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredPackages.length} package record(s) in view`}
-        emptyDescription="Create packages from picked sales order items."
-        emptyTitle="No packages yet"
+        description={`${sortedPackages.length} package record(s) in view`}
+        emptyDescription={packageFilters.length ? 'Reset filters to review the full package list.' : 'Create packages from picked sales order items.'}
+        emptyTitle={packageFilters.length ? 'No records match your filters' : 'No packages yet'}
         error={error}
-        isEmpty={filteredPackages.length === 0}
+        isEmpty={sortedPackages.length === 0}
         isLoading={isLoading}
-        rowCount={filteredPackages.length}
+        rowCount={sortedPackages.length}
         title="Package records"
         toolbar={
           <ScreenToolbar
-            onReset={() => setSearch('')}
+            activeFilters={packageFilters}
+            dateRange={dateRange}
+            onDateChange={setDateRange}
+            onReset={
+              packageFilters.length
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('ALL');
+                    setDateRange({ from: '', to: '' });
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
-            searchPlaceholder="Search package number or sales order"
+            searchPlaceholder="Search package number, sales order, or customer"
             searchValue={search}
-          />
+          >
+            <label className="block min-w-[160px]">
+              <span className="mb-2 block text-sm font-medium text-warelyn-text">Status</span>
+              <select
+                className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilter}
+              >
+                <option value="ALL">All statuses</option>
+                {Array.from(new Set(packages.map((pkg) => pkg.status).filter(Boolean))).sort().map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </ScreenToolbar>
         }
       >
         <table>
           <thead>
             <tr>
-              <th>Package number</th>
-              <th>Sales order</th>
-              <th>Status</th>
-              <th className="text-right">Items</th>
-              <th>Created</th>
+              <th><SortableHeader label="Package number" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="package_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Sales order" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="order_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Customer" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="customer" sortState={sortState} /></th>
+              <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Items" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="items" sortState={sortState} /></th>
+              <th><SortableHeader label="Created" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="created_at" sortState={sortState} /></th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {filteredPackages.map((pkg) => (
+            {sortedPackages.map((pkg) => {
+              const customerName = customersById[salesOrdersById[pkg.sales_order_id]?.customer_id]?.name ?? '-';
+              return (
               <tr key={pkg.id}>
                 <td>
                   <Link className="font-semibold text-warelyn-primary" to={`/packages/${pkg.id}`}>
@@ -342,6 +514,7 @@ export function PackagesPage() {
                   </Link>
                 </td>
                 <td><Link className="text-warelyn-primary" to={`/sales/${pkg.sales_order_id}`}>{pkg.order_number}</Link></td>
+                <td>{customerName}</td>
                 <td><StatusBadge status={pkg.status}>{pkg.status}</StatusBadge></td>
                 <td className="number-cell">{pkg.items.length}</td>
                 <td>{pkg.created_at ? formatDate(pkg.created_at) : '-'}</td>
@@ -349,7 +522,8 @@ export function PackagesPage() {
                   <ActionMenu items={[{ label: 'View', icon: Eye, onClick: () => navigate(`/packages/${pkg.id}`) }]} />
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </TableShell>
@@ -362,16 +536,23 @@ export function SalesFulfillmentsPage() {
   const navigate = useNavigate();
   const [fulfillments, setFulfillments] = useState([]);
   const [salesOrdersById, setSalesOrdersById] = useState({});
+  const [customersById, setCustomersById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [search, setSearch] = useState('');
+  const [sortState, setSortState] = useState({ key: 'created_at', direction: 'desc' });
 
   useEffect(() => {
     async function load() {
       setIsLoading(true);
       setError('');
       try {
-        const orders = await salesService.listSalesOrders(accessToken);
+        const [orders, customerRows] = await Promise.all([
+          salesService.listSalesOrders(accessToken),
+          catalogService.listCustomers(accessToken),
+        ]);
         const fulfillmentGroups = await Promise.all(
           orders.map(async (order) => ({
             order,
@@ -379,6 +560,7 @@ export function SalesFulfillmentsPage() {
           })),
         );
         setSalesOrdersById(Object.fromEntries(orders.map((row) => [row.id, row])));
+        setCustomersById(Object.fromEntries(customerRows.map((row) => [row.id, row])));
         setFulfillments(
           fulfillmentGroups.flatMap(({ order, fulfillments: orderFulfillments }) =>
             orderFulfillments.map((fulfillment) => ({
@@ -397,10 +579,34 @@ export function SalesFulfillmentsPage() {
   }, [accessToken]);
 
   const filteredFulfillments = useMemo(() => {
-    if (!search) return fulfillments;
-    const value = search.toLowerCase();
-    return fulfillments.filter((row) => `${row.fulfillment_number} ${row.order_number} ${row.status}`.toLowerCase().includes(value));
-  }, [fulfillments, search]);
+    return fulfillments.filter((row) => {
+      if (statusFilter !== 'ALL' && row.status !== statusFilter) return false;
+      if ((dateRange.from || dateRange.to) && !isDateInRange(row.created_at, dateRange)) return false;
+      if (!search) return true;
+      const value = search.toLowerCase();
+      const customerName = customersById[salesOrdersById[row.sales_order_id]?.customer_id]?.name ?? '';
+      return `${row.fulfillment_number} ${row.order_number} ${customerName} ${row.status}`.toLowerCase().includes(value);
+    });
+  }, [customersById, dateRange, fulfillments, salesOrdersById, search, statusFilter]);
+  const sortedFulfillments = useMemo(
+    () =>
+      sortRows(filteredFulfillments, sortState, {
+        fulfillment_number: { type: 'text', accessor: (row) => row.fulfillment_number },
+        order_number: { type: 'text', accessor: (row) => row.order_number },
+        customer: { type: 'text', accessor: (row) => customersById[salesOrdersById[row.sales_order_id]?.customer_id]?.name ?? '' },
+        status: { type: 'text', accessor: (row) => row.status },
+        lines: { type: 'number', accessor: (row) => row.items.length },
+        created_at: { type: 'date', accessor: (row) => row.created_at },
+      }),
+    [customersById, filteredFulfillments, salesOrdersById, sortState],
+  );
+  const fulfillmentFilters = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    statusFilter !== 'ALL' ? { key: 'status', label: `Status: ${statusFilter.replaceAll('_', ' ')}`, onRemove: () => setStatusFilter('ALL') } : null,
+    dateRange.from || dateRange.to
+      ? { key: 'date', label: `Date: ${getDateRangeLabel(dateRange)}`, onRemove: () => setDateRange({ from: '', to: '' }) }
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -414,38 +620,67 @@ export function SalesFulfillmentsPage() {
         title="Fulfillments"
         description="Review fulfillment drafts and committed outbound stock documents separately from sales order list screens."
       />
-      {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredFulfillments.length} fulfillment record(s) in view`}
-        emptyDescription="Create fulfillments from sales orders with active reservations."
-        emptyTitle="No fulfillments yet"
+        description={`${sortedFulfillments.length} fulfillment record(s) in view`}
+        emptyDescription={fulfillmentFilters.length ? 'Reset filters to review the full fulfillment list.' : 'Create fulfillments from sales orders with active reservations.'}
+        emptyTitle={fulfillmentFilters.length ? 'No records match your filters' : 'No fulfillments yet'}
         error={error}
-        isEmpty={filteredFulfillments.length === 0}
+        isEmpty={sortedFulfillments.length === 0}
         isLoading={isLoading}
-        rowCount={filteredFulfillments.length}
+        rowCount={sortedFulfillments.length}
         title="Fulfillment records"
         toolbar={
           <ScreenToolbar
-            onReset={() => setSearch('')}
+            activeFilters={fulfillmentFilters}
+            dateRange={dateRange}
+            onDateChange={setDateRange}
+            onReset={
+              fulfillmentFilters.length
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('ALL');
+                    setDateRange({ from: '', to: '' });
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
-            searchPlaceholder="Search fulfillment number or sales order"
+            searchPlaceholder="Search fulfillment number, sales order, or customer"
             searchValue={search}
-          />
+          >
+            <label className="block min-w-[160px]">
+              <span className="mb-2 block text-sm font-medium text-warelyn-text">Status</span>
+              <select
+                className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilter}
+              >
+                <option value="ALL">All statuses</option>
+                {Array.from(new Set(fulfillments.map((row) => row.status).filter(Boolean))).sort().map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </ScreenToolbar>
         }
       >
         <table>
           <thead>
             <tr>
-              <th>Fulfillment number</th>
-              <th>Sales order</th>
-              <th>Status</th>
-              <th className="text-right">Lines</th>
-              <th>Created</th>
+              <th><SortableHeader label="Fulfillment number" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="fulfillment_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Sales order" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="order_number" sortState={sortState} /></th>
+              <th><SortableHeader label="Customer" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="customer" sortState={sortState} /></th>
+              <th><SortableHeader label="Status" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="status" sortState={sortState} /></th>
+              <th className="text-right"><SortableHeader align="right" label="Lines" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="lines" sortState={sortState} /></th>
+              <th><SortableHeader label="Created" onSort={(key) => setSortState((current) => getNextSort(current, key))} sortKey="created_at" sortState={sortState} /></th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {filteredFulfillments.map((fulfillment) => (
+            {sortedFulfillments.map((fulfillment) => {
+              const customerName = customersById[salesOrdersById[fulfillment.sales_order_id]?.customer_id]?.name ?? '-';
+              return (
               <tr key={fulfillment.id}>
                 <td>
                   <Link className="font-semibold text-warelyn-primary" to={`/sales-fulfillments/${fulfillment.id}`}>
@@ -453,6 +688,7 @@ export function SalesFulfillmentsPage() {
                   </Link>
                 </td>
                 <td><Link className="text-warelyn-primary" to={`/sales/${fulfillment.sales_order_id}`}>{fulfillment.order_number}</Link></td>
+                <td>{customerName}</td>
                 <td><StatusBadge status={fulfillment.status}>{fulfillment.status}</StatusBadge></td>
                 <td className="number-cell">{fulfillment.items.length}</td>
                 <td>{fulfillment.created_at ? formatDate(fulfillment.created_at) : '-'}</td>
@@ -460,7 +696,8 @@ export function SalesFulfillmentsPage() {
                   <ActionMenu items={[{ label: 'View', icon: Eye, onClick: () => navigate(`/sales-fulfillments/${fulfillment.id}`) }]} />
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </TableShell>

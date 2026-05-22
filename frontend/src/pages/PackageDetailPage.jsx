@@ -111,7 +111,7 @@ export function PackageDetailPage() {
             ) : null}
           </div>
         }
-        backTo={`/sales/${pkg.sales_order_id}/package`}
+        backTo="/packages"
         description={`Sales order #${pkg.sales_order_id}. Packing organizes picked items but does not create a stock ledger entry.`}
         kicker="Package"
         meta={[

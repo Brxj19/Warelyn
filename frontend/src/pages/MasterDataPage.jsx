@@ -7,11 +7,12 @@ import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
-import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
 import { formatDecimal, formatMoney } from '../utils/formatters.js';
+import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER']);
@@ -37,6 +38,11 @@ export function MasterDataListPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sortState, setSortState] = useState(() => ({
+    key: fields[0]?.name ?? 'name',
+    direction: 'asc',
+  }));
   const mayWrite = canWrite.has(user?.role);
 
   async function loadRecords() {
@@ -55,34 +61,101 @@ export function MasterDataListPage({
     loadRecords();
   }, [accessToken]);
 
+  const hasStatusFilter = useMemo(
+    () => records.some((record) => record.status && String(record.status).trim()),
+    [records],
+  );
+  const sortDefinitions = useMemo(
+    () =>
+      Object.fromEntries([
+        ...fields.map((field) => [field.name, { type: field.numeric || field.type === 'number' ? 'number' : 'text' }]),
+        ['status', { type: 'text' }],
+      ]),
+    [fields],
+  );
   const filteredRecords = useMemo(() => {
     const value = search.trim().toLowerCase();
-    if (!value) return records;
-    return records.filter((record) =>
-      fields.some((field) => String(record[field.name] ?? '').toLowerCase().includes(value)),
-    );
-  }, [fields, records, search]);
+    return records.filter((record) => {
+      if (hasStatusFilter && statusFilter !== 'ALL' && record.status !== statusFilter) return false;
+      if (!value) return true;
+      return fields.some((field) => String(record[field.name] ?? '').toLowerCase().includes(value));
+    });
+  }, [fields, hasStatusFilter, records, search, statusFilter]);
+  const visibleRecords = useMemo(
+    () => sortRows(filteredRecords, sortState, sortDefinitions),
+    [filteredRecords, sortDefinitions, sortState],
+  );
+  const activeFilters = [
+    search
+      ? {
+          key: 'search',
+          label: `Search: ${search}`,
+          onRemove: () => setSearch(''),
+        }
+      : null,
+    hasStatusFilter && statusFilter !== 'ALL'
+      ? {
+          key: 'status',
+          label: `Status: ${statusFilter}`,
+          onRemove: () => setStatusFilter('ALL'),
+        }
+      : null,
+  ].filter(Boolean);
+  const hasActiveFilters = activeFilters.length > 0;
+  const statusOptions = Array.from(
+    new Set(records.map((record) => record.status).filter(Boolean)),
+  ).sort();
+
+  const emptyTitleValue = hasActiveFilters ? 'No records match your filters' : emptyTitle ?? `No ${title.toLowerCase()} yet`;
+  const emptyDescriptionValue = hasActiveFilters
+    ? 'Reset filters to review the full record list.'
+    : emptyDescription;
 
   return (
     <div className="space-y-6">
       <PageHeader kicker={kicker} title={title} description={description} actions={mayWrite ? actions : null} />
-      {error ? <ErrorState description={error} /> : null}
       <TableShell
-        description={`${filteredRecords.length} record(s) in this view`}
-        emptyDescription={emptyDescription}
-        emptyTitle={emptyTitle ?? `No ${title.toLowerCase()} yet`}
+        description={`${visibleRecords.length} record(s) in this view`}
+        emptyDescription={emptyDescriptionValue}
+        emptyTitle={emptyTitleValue}
         error={error}
-        isEmpty={filteredRecords.length === 0}
+        isEmpty={visibleRecords.length === 0}
         isLoading={isLoading}
-        rowCount={filteredRecords.length}
+        rowCount={visibleRecords.length}
         title={tableTitle}
         toolbar={
           <ScreenToolbar
-            onReset={() => setSearch('')}
+            activeFilters={activeFilters}
+            onReset={
+              hasActiveFilters
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('ALL');
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
             searchPlaceholder={searchPlaceholder || `Search ${title.toLowerCase()}`}
             searchValue={search}
-          />
+          >
+            {hasStatusFilter ? (
+              <label className="block min-w-[160px]">
+                <span className="mb-2 block text-sm font-medium text-warelyn-text">Status</span>
+                <select
+                  className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  value={statusFilter}
+                >
+                  <option value="ALL">All statuses</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </ScreenToolbar>
         }
       >
         <table>
@@ -90,15 +163,28 @@ export function MasterDataListPage({
             <tr>
               {fields.map((field) => (
                 <th className={field.numeric ? 'text-right' : ''} key={field.name}>
-                  {field.label}
+                  <SortableHeader
+                    align={field.numeric ? 'right' : 'left'}
+                    label={field.label}
+                    onSort={(key) => setSortState((current) => getNextSort(current, key))}
+                    sortKey={field.name}
+                    sortState={sortState}
+                  />
                 </th>
               ))}
-              <th>Status</th>
+              <th>
+                <SortableHeader
+                  label="Status"
+                  onSort={(key) => setSortState((current) => getNextSort(current, key))}
+                  sortKey="status"
+                  sortState={sortState}
+                />
+              </th>
               {rowLink || rowActions ? <th /> : null}
             </tr>
           </thead>
           <tbody>
-            {filteredRecords.map((record) => {
+            {visibleRecords.map((record) => {
               const menuItems = rowActions ? rowActions(record) : rowLink ? [{ label: 'View', onClick: () => navigate(rowLink(record)) }] : [];
               return (
                 <tr key={record.id}>
@@ -136,7 +222,7 @@ export function MasterDataListPage({
 }
 
 export function MasterDataFormPage({
-  backLabel = 'Back',
+  backLabel,
   backTo,
   createRecord,
   customInputs = {},

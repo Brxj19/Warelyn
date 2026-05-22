@@ -6,8 +6,10 @@ import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
+import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
 import { formatDate, formatDateTime, formatDecimal, formatMoney, titleCaseStatus } from '../utils/formatters.js';
+import { getNextSort, inferSortType, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export const reportLinks = [
@@ -69,6 +71,10 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
   const [data, setData] = useState(null);
   const [query, setQuery] = useState({});
   const [search, setSearch] = useState('');
+  const [sortState, setSortState] = useState(() => ({
+    key: columns[0]?.key ?? '',
+    direction: 'asc',
+  }));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -98,31 +104,63 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
       }),
     );
   }, [columns, normalizedRows, search]);
+  const sortedRows = useMemo(
+    () =>
+      sortRows(
+        rows,
+        sortState,
+        Object.fromEntries(
+          columns.map((column) => [
+            column.key,
+            {
+              type: column.type ?? inferSortType(column.key),
+              accessor: (row) => row[column.key],
+            },
+          ]),
+        ),
+      ),
+    [columns, rows, sortState],
+  );
+  const activeFilters = [
+    search ? { key: 'search', label: `Search: ${search}`, onRemove: () => setSearch('') } : null,
+    ...filters
+      .map((filter) => {
+        const value = query[filter.key];
+        if (!value) return null;
+        return {
+          key: filter.key,
+          label: `${filter.label}: ${value}`,
+          onRemove: () => setQuery((current) => ({ ...current, [filter.key]: '' })),
+        };
+      })
+      .filter(Boolean),
+  ];
+  const hasActiveFilters = activeFilters.length > 0;
 
   return (
     <div className="space-y-6">
-      <PageHeader kicker="Report" title={title} description={description} actions={<Link to="/reports" className="text-sm font-semibold text-warelyn-primary hover:text-blue-900">Back to reports</Link>} />
+      <PageHeader backTo="/reports" kicker="Report" title={title} description={description} />
       {summary ? summary(data) : null}
       <TableShell
-        description={`${rows.length} backend-returned row(s)`}
-        emptyDescription="No data matched this report."
-        emptyTitle="No report rows"
+        description={`${sortedRows.length} backend-returned row(s)`}
+        emptyDescription={hasActiveFilters ? 'Reset filters to review the full report result.' : 'No data matched this report.'}
+        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No report rows'}
         error={error}
-        isEmpty={rows.length === 0}
+        isEmpty={sortedRows.length === 0}
         isLoading={isLoading}
-        rowCount={rows.length}
+        rowCount={sortedRows.length}
         title="Results"
         toolbar={
           <ScreenToolbar
-            activeFilters={filters.map((filter) => {
-              const value = query[filter.key];
-              if (!value) return null;
-              return { key: filter.key, label: `${filter.label}: ${value}`, onRemove: () => setQuery((current) => ({ ...current, [filter.key]: '' })) };
-            }).filter(Boolean)}
-            onReset={() => {
-              setQuery({});
-              setSearch('');
-            }}
+            activeFilters={activeFilters}
+            onReset={
+              hasActiveFilters
+                ? () => {
+                    setQuery({});
+                    setSearch('');
+                  }
+                : undefined
+            }
             onSearchChange={setSearch}
             searchPlaceholder="Search rows"
             searchValue={search}
@@ -145,13 +183,28 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
       >
         <table>
           <thead>
-            <tr>{columns.map((column) => <th className={column.numeric ? 'text-right' : ''} key={column.key}>{column.label}</th>)}</tr>
+            <tr>
+              {columns.map((column) => {
+                const isNumeric = column.numeric ?? inferSortType(column.key) === 'number';
+                return (
+                <th className={isNumeric ? 'text-right' : ''} key={column.key}>
+                  <SortableHeader
+                    align={isNumeric ? 'right' : 'left'}
+                    label={column.label}
+                    onSort={(key) => setSortState((current) => getNextSort(current, key))}
+                    sortKey={column.key}
+                    sortState={sortState}
+                  />
+                </th>
+                );
+              })}
+            </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {sortedRows.map((row, index) => (
               <tr key={row.id ?? index}>
                 {columns.map((column) => (
-                  <td className={column.numeric ? 'number-cell whitespace-nowrap' : 'whitespace-nowrap'} key={column.key}>
+                  <td className={(column.numeric ?? inferSortType(column.key) === 'number') ? 'number-cell whitespace-nowrap' : 'whitespace-nowrap'} key={column.key}>
                     {renderReportCell(row[column.key], column.key)}
                   </td>
                 ))}

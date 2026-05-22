@@ -137,7 +137,7 @@ export function SalesFulfillPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        backTo={`/sales/${order.id}`}
+        backTo="/sales"
         description="Create a fulfillment draft against active reservation IDs. Stock is only deducted later when the draft is committed."
         kicker="Fulfillment"
         title={`Fulfill ${order.order_number}`}
@@ -229,7 +229,7 @@ export function SalesFulfillPage() {
             <p>The draft opens in the fulfillment detail screen. Committing there deducts reserved stock through backend inventory workflows and cannot be simulated on the frontend.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/sales/${order.id}`)} type="button" variant="ghost">
+            <Button onClick={() => navigate('/sales')} type="button" variant="ghost">
               Cancel
             </Button>
             <Button disabled={isSaving} type="submit">

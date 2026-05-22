@@ -18,7 +18,12 @@ export function SidebarNav({ collapsed, mobile = false, onCollapse, onNavigate, 
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobile ? 'is-mobile' : ''}`}>
       <div className="sidebar-brand">
         <Link className="sidebar-brand-link" onClick={onNavigate} title="Dashboard" to="/dashboard">
-          <AppLogo size={collapsed ? 'sidebar-collapsed' : 'sidebar'} variant={collapsed ? 'collapsed' : 'full'} />
+          <AppLogo
+            className={collapsed ? 'sidebar-logo-collapsed' : ''}
+            imageClassName={collapsed ? 'sidebar-logo-collapsed-image' : ''}
+            size={collapsed ? 'sidebar-collapsed' : 'sidebar'}
+            variant={collapsed ? 'collapsed' : 'full'}
+          />
         </Link>
       </div>
 

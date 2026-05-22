@@ -103,7 +103,7 @@ export function SalesPackagePage() {
             </Button>
           ) : null
         }
-        backTo={`/sales/${order.id}`}
+        backTo="/sales"
         description="Packages group already-picked items into shipping-ready units. Packing does not create ledger entries on its own."
         kicker="Packing"
         status={<StatusBadge status={order.status}>{order.status}</StatusBadge>}

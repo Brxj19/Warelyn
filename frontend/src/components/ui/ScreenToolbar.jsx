@@ -1,5 +1,6 @@
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 
+import { ActiveFilterChips } from './ActiveFilterChips.jsx';
 import { Button } from './Button.jsx';
 import { Input } from './Input.jsx';
 
@@ -7,7 +8,7 @@ export function ScreenToolbar({
   activeFilters = [],
   children,
   dateRange = null,
-  filtersLabel = 'Filters',
+  filtersLabel = 'Reset filters',
   onDateChange,
   onReset,
   onSearchChange,
@@ -16,6 +17,8 @@ export function ScreenToolbar({
   searchValue = '',
   tabs = [],
 }) {
+  const shouldShowReset = Boolean(onReset && (activeFilters.length || searchValue.trim() || dateRange?.from || dateRange?.to));
+
   return (
     <section className="screen-toolbar">
       <div className="screen-toolbar-main">
@@ -70,23 +73,9 @@ export function ScreenToolbar({
           </div>
         ) : null}
 
-        {activeFilters.length ? (
-          <div className="screen-toolbar-filter-chips">
-            {activeFilters.map((filter) => (
-              <span className="filter-chip" key={`${filter.key}-${filter.label}`}>
-                <SlidersHorizontal size={12} />
-                {filter.label}
-                {filter.onRemove ? (
-                  <button aria-label={`Remove ${filter.label}`} onClick={filter.onRemove} type="button">
-                    <X size={12} />
-                  </button>
-                ) : null}
-              </span>
-            ))}
-          </div>
-        ) : null}
+        <ActiveFilterChips filters={activeFilters} />
 
-        {onReset ? (
+        {shouldShowReset ? (
           <Button className="screen-toolbar-reset" onClick={onReset} type="button" variant="ghost">
             {filtersLabel}
           </Button>

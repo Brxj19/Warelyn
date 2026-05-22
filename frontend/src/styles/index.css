@@ -94,8 +94,8 @@ tbody tr:hover {
   }
 
   .app-logo--sidebar-collapsed {
-    width: 24px;
-    height: 24px;
+    width: 54px;
+    height: 54px;
   }
 
   .app-logo--auth {
@@ -392,7 +392,7 @@ tbody tr:hover {
   }
 
   .page-back-link {
-    @apply mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-warelyn-primary;
+    @apply mb-3 inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-1.5 text-sm font-semibold text-slate-500 transition hover:bg-blue-50 hover:text-warelyn-primary;
   }
 
   .page-kicker {
@@ -457,6 +457,18 @@ tbody tr:hover {
 
   .table-shell thead {
     @apply sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-warelyn-muted;
+  }
+
+  .sortable-header {
+    @apply inline-flex items-center gap-1.5 transition hover:text-warelyn-primary;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+  }
+
+  .sortable-header.is-right {
+    @apply ml-auto;
   }
 
   .table-shell th,
@@ -743,6 +755,23 @@ tbody tr:hover {
 
   .screen-toolbar-reset {
     @apply h-10 rounded-xl px-3;
+  }
+
+  .sidebar-logo-collapsed {
+    @apply grid place-items-center overflow-hidden;
+    width: 54px;
+    height: 54px;
+  }
+
+  .sidebar-logo-collapsed .app-logo-frame {
+    padding: 3px;
+  }
+
+  .sidebar-logo-collapsed-image {
+    width: 48px !important;
+    height: 48px !important;
+    transform: scale(1.18);
+    transform-origin: center;
   }
 
   .record-meta-grid {

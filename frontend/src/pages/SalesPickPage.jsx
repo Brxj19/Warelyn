@@ -82,7 +82,7 @@ export function SalesPickPage() {
             </Button>
           ) : null
         }
-        backTo={`/sales/${order.id}`}
+        backTo="/sales"
         description="Create and manage operational pick work from active reservations. Picking records movement of work, not stock deduction."
         kicker="Sales picking"
         status={<StatusBadge status={order.status}>{order.status}</StatusBadge>}

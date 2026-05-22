@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { AppLogo } from '../components/AppLogo.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { AppLogo } from '../components/ui/AppLogo.jsx';
 import { Card, CardBody } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
@@ -67,12 +67,13 @@ export function RegisterPage() {
   }
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardBody className="p-8">
+    <Card className="w-full max-w-lg rounded-[28px] border border-warelyn-border shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+      <CardBody className="p-8 sm:p-9">
         <div className="mb-8">
-          <AppLogo className="mb-5" imageClassName="h-16 max-w-[210px]" />
-          <h1 className="text-2xl font-bold tracking-tight text-warelyn-text">Create your Warelyn workspace</h1>
-          <p className="mt-2 text-sm text-warelyn-muted">Set up a tenant workspace and first admin account.</p>
+          <AppLogo className="mb-6" size="auth-form" variant="full" />
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-warelyn-primary">New workspace</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-warelyn-text">Create your Warelyn workspace</h1>
+          <p className="mt-2 text-sm leading-6 text-warelyn-muted">Set up the tenant workspace and first admin account for your operations team.</p>
         </div>
 
         {error ? <ErrorState description={error} title="Registration failed" /> : null}

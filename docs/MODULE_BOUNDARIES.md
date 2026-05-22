@@ -5,7 +5,7 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md`.
 ## Current Repo State
 
 - This checkout has a runnable FastAPI backend under `backend/` and React/Vite frontend under `frontend/`.
-- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, Phase 8 returns QC/blocked stock foundation, and Phase 9 reports/reorder/dashboard foundation are implemented.
+- Phase 0 foundation, Phase 1A auth/tenant foundation, Phase 1B catalog/warehouse foundation, Phase 2 InventoryEngine/stock ledger foundation, Phase 3 product import/barcode-ready catalog, Phase 4 purchase receiving workflow, Phase 5 batch/expiry/serial tracking foundation, Phase 6 sales reservation/fulfillment foundation, Phase 7 picking/packing/serial allocation foundation, Phase 8 returns QC/blocked stock foundation, Phase 9 reports/reorder/dashboard foundation, Phase 10 frontend workflow polish, and Phase 11 regression/deployment readiness are implemented.
 - Current implemented business foundations include tenant-scoped products, warehouses, warehouse locations, warehouse stock projection, stock ledger entries, stock reservations, idempotency keys, reconciliation dry-run, product import jobs, product import rows, purchase orders, purchase receipts, inventory batches, inventory serials, sales orders, sales fulfillments, pick tasks, pick task items, packages, package items, sales returns, return QC inspections, blocked return stock, and read-only operational reports.
 - The structure below remains the target direction for future modules; some current paths are flatter while the codebase is built progressively.
 
@@ -143,6 +143,7 @@ frontend/src/
 - Frontend pages orchestrate UI state and call hooks/services; they do not own backend business decisions.
 - Frontend API clients are grouped by module and hide transport details from pages and reusable components.
 - Reusable UI components are presentation-first and must not know inventory workflow rules.
+- Regression tests and deployment scripts must validate existing behavior only; they must not introduce alternate stock mutation paths or background business workflows.
 
 ## Backend Boundaries
 

@@ -25,6 +25,7 @@ Completed:
 - Phase 8 returns QC and blocked stock foundation: sales returns, return items, QC inspections, blocked return stock, sellable restock through `InventoryEngine.return_restock()`, serial return status updates, frontend return screens, and workflow tests.
 - Phase 9 reports, reorder rules, and operational dashboards: read-only report APIs, operational dashboard API, query-based reorder suggestions, reconciliation visibility, frontend reports pages, and report tests.
 - Phase 10 frontend workflow improvements and production UI polish: Warelyn branded dark topbar/white sidebar shell, grouped navigation, polished auth shell, standardized UI primitives and confirmation modal, workflow-first dashboard/report/table states, and scanner-friendly input treatment without frontend stock mutation.
+- Phase 11 regression testing, production hardening, and deployment readiness: targeted backend regression coverage, import validation hardening, deployment readiness documentation, validation script, and minimal CI workflow.
 - Phase 1A implementation commit: `dbd9752 implement Warelyn auth and tenant foundation`.
 - Phase 1A planning alignment commit: `0137f69 update backlog with auth and tenant foundation phase`.
 
@@ -42,7 +43,7 @@ Current implemented auth models:
 - `User`
 - `RefreshToken`
 
-Next recommended phase: `Phase 11 - Regression Tests and Production Hardening`.
+Next recommended work: production infrastructure planning or the next explicitly approved product phase.
 
 ## Required Phase Order
 
@@ -225,7 +226,7 @@ Phase 10 is frontend-only. It does not add backend business features, migrations
 | V2-091 | Phase 9 - Reports and reconciliation | P2 | Audit visibility | Operators need to see who changed what and why. | Add audit tabs and activity timelines for product, warehouse, order, receive, return, and stock movements. | audit models/services/router, frontend detail tabs | Critical workflows show actor, action, time, reference, and stock impact. | Audit API tests; frontend smoke tests later. |
 | V2-100 | Phase 10 - Frontend workflow improvements | P2 | CRUD-like UI risk | Real operations need workflow-first screens, not isolated forms. | Completed frontend shell, shared states, dashboard/report polish, scanner-friendly input treatment, and confirmations for key stock-affecting workflow actions. | `frontend/src/layouts/*`, `frontend/src/components/*`, `frontend/src/pages/*` | Users can understand current state, next action, and stock impact before mutation. | Frontend build; backend tests; compose config. |
 | V2-101 | Phase 10 - Frontend workflow improvements | P2 | Brand consistency | UI should preserve Warelyn's operational SaaS direction. | Completed Warelyn-branded dark topbar, white sidebar, clean cards/tables, status badges, logo-backed auth/app identity, and public logo asset. | frontend styles/theme/layout components | Screens use Warelyn branding and avoid Zoho branding/assets. | Frontend build; visual review later. |
-| V2-110 | Phase 11 - Regression tests and production hardening | P0 | Regression risk | Inventory workflows can silently break without broad tests. | Add backend test suites for auth, tenant isolation, inventory engine, ledger, reservations, receiving, delivery, return QC, reconciliation, import, documents, email/SMS. | backend tests, fixtures, CI config | Core invariants and workflows are covered in automated tests. | Full backend test suite. |
+| V2-110 | Phase 11 - Regression tests and production hardening | P0 | Regression risk | Inventory workflows can silently break without broad tests. | Completed targeted regression hardening for auth/session edge cases, import validation, read-only reports/reconciliation behavior, existing tenant isolation/role coverage, validation script, deployment notes, and minimal CI. | backend tests, docs, `scripts/validate.sh`, `.github/workflows/ci.yml` | Core implemented invariants and workflows are covered by the backend suite and deployment readiness checklist. | Full backend test suite; frontend build; compose config; Alembic upgrade. |
 | V2-111 | Phase 11 - Regression tests and production hardening | P2 | End-to-end confidence | Critical user journeys need browser-level coverage. | Add Playwright later for signup, login, warehouse, product, import stock, PO receive, sales reserve/deliver, invoice, return QC, reports, audit. | `frontend/e2e/*`, test config, CI config | Critical E2E flow passes against seeded environment. | Playwright E2E suite when frontend/backend exist. |
 | V2-112 | Phase 11 - Regression tests and production hardening | P2 | Operational readiness | Background jobs, email, SMS outbox, PDFs, and reconciliation need safe production behavior. | Add job tests, outbox handling, failure retries, safe dev SMS/email behavior, and manual runbooks. | jobs, events/outbox, services/email_service.py, services/sms_service.py, docs/manual QA | Jobs are idempotent, observable, and safe to rerun. | Job tests; manual QA checklist. |
 

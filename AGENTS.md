@@ -43,3 +43,4 @@ Warelyn Inventory is a multi-tenant inventory SaaS foundation. Read these docs b
 - Backend foundation: `cd backend && .venv/bin/python -m compileall app && .venv/bin/python -m pytest` after installing `backend/requirements.txt`.
 - Frontend foundation: `cd frontend && npm install && npm run build`.
 - Compose validation: `docker compose config`.
+- Full hardening validation: `./scripts/validate.sh` when local backend `.venv`, frontend dependencies, Docker, and database access are available.

@@ -167,7 +167,10 @@ class ProductImportService:
         return job
 
     def _parse_csv(self, content: bytes) -> list[dict[str, str]]:
-        text = content.decode("utf-8-sig")
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise AppError("INVALID_IMPORT_FILE", "CSV file must be UTF-8 encoded.", 400) from exc
         reader = csv.DictReader(StringIO(text))
         if not reader.fieldnames:
             raise AppError("INVALID_IMPORT_FILE", "CSV file must include a header row.", 400)

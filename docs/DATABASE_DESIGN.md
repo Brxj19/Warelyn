@@ -4,7 +4,7 @@ Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus current Alembic migrat
 
 ## Current Phase
 
-Phase 9 reports, reorder rules, and operational dashboards foundation is complete.
+Phase 11 regression testing, production hardening, and deployment readiness is complete. No Phase 11 business tables were added.
 
 Related commits:
 
@@ -50,9 +50,16 @@ Current implemented models:
 - `ReturnQCInspection`
 - `BlockedReturnStock`
 
-Next recommended phase: `Phase 10 - Frontend Workflow Improvements and Production UI Polish`. All stock mutation must go through `InventoryEngine`.
+Next recommended work should remain deployment/readiness or explicitly approved product phases. All stock mutation must go through `InventoryEngine`.
 
-Phase 9 added no tables or migrations. Reports and dashboard data are query-based over existing tenant-scoped tables.
+Phase 9 added no tables or migrations. Phase 10 and Phase 11 also added no business tables or migrations. Reports and dashboard data are query-based over existing tenant-scoped tables.
+
+## Migration Readiness
+
+- Alembic migrations are ordered from auth/tenant foundation through returns QC/blocked stock foundation.
+- `alembic upgrade head` must succeed against an empty MySQL database before deployment.
+- Released migrations should be treated as append-only; do not rewrite shipped migration files.
+- Tenant-owned tables should retain tenant-scoped indexes or unique constraints where business identity is tenant-specific.
 
 ## Tables
 

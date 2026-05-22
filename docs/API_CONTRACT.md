@@ -2,6 +2,8 @@
 
 Source of truth: `docs/WARELYN_REAL_WORLD_V2_PRD.md` plus implemented backend routes.
 
+Current implementation is complete through Phase 11 regression/deployment readiness. Phase 11 adds tests and operational readiness only; it does not add business endpoints.
+
 ## Response Shape
 
 Successful responses return endpoint-specific JSON.
@@ -254,6 +256,8 @@ Upload request is `multipart/form-data`:
 - `file`: CSV file.
 - `mode`: `create_only`, `update_existing`, or `upsert`.
 - `create_missing_references`: `true` or `false`.
+
+Malformed or non-UTF-8 CSV uploads return `400 INVALID_IMPORT_FILE` with the standard error envelope.
 
 Required CSV columns:
 

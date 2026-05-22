@@ -53,6 +53,21 @@ def test_upload_invalid_csv_missing_required_column(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "INVALID_IMPORT_COLUMNS"
 
 
+def test_upload_invalid_utf8_file_returns_clean_error(client: TestClient) -> None:
+    login = register_and_login(client)
+
+    response = client.post(
+        "/api/imports/products/upload",
+        data={"mode": "create_only", "create_missing_references": "false"},
+        files={"file": ("products.csv", b"\xff\xfe\x00", "text/csv")},
+        headers=auth_headers(login["access_token"]),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_IMPORT_FILE"
+    assert "request_id" in response.json()["error"]
+
+
 def test_duplicate_sku_and_barcode_in_file_are_errors(client: TestClient) -> None:
     login = register_and_login(client)
     content = "name,sku,unit,barcode\nWidget,W-1,pcs,111\nOther,W-1,pcs,111\n"

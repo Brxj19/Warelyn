@@ -22,6 +22,8 @@ Phase 8 adds returns QC and blocked return stock foundation. Sellable accepted r
 
 Phase 9 adds read-only reports and operational dashboard queries. Reports may read `warehouse_stock`, `stock_ledger_entries`, batches, serials, returns, purchases, sales, picking, and packages, but they must not call `InventoryEngine` mutation methods, update projections, create ledger entries, or create purchase orders.
 
+Phase 10 and Phase 11 add frontend polish, regression coverage, deployment readiness, validation scripts, and CI only. They do not add stock mutation behavior or change the `InventoryEngine` authority boundary.
+
 ## Required Public Methods
 
 ```python
@@ -120,6 +122,8 @@ Movement types:
 - `QC_HOLD`
 - `QC_RELEASE`
 - `CYCLE_COUNT_ADJUSTMENT`
+
+Implemented enum names currently include `STOCK_IN`, `STOCK_OUT`, `ADJUSTMENT_IN`, `ADJUSTMENT_OUT`, `SALES_RESERVE`, `SALES_RELEASE`, `SALES_DEDUCT`, `RETURN_RESTOCK`, `TRANSFER_OUT`, `TRANSFER_IN`, and `CYCLE_COUNT_ADJUSTMENT`. Product import, reports, dashboard reads, picking, packing, and non-sellable return records must not create ledger entries.
 
 Ledger rules:
 

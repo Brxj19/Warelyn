@@ -6,7 +6,7 @@ Warelyn Inventory is a production-style inventory and warehouse operations platf
 
 ## Current Status
 
-This repository has completed **Phase 10 - Frontend Workflow Improvements and Production UI Polish**.
+This repository has completed **Phase 11 - Regression Testing, Production Hardening, and Deployment Readiness**.
 
 Related commits:
 
@@ -36,6 +36,7 @@ The current implementation provides:
 - Sales returns list, return creation, return detail, and QC/process screens.
 - Reports pages and backend-driven operational dashboard widgets.
 - Northstar-inspired Warelyn frontend polish with a dark topbar, white grouped sidebar, logo-backed branding, compact cards, clean table shells, standardized status/loading/empty/error states, and confirmation modals for stock-affecting workflow actions.
+- Phase 11 hardening with additional regression tests, deployment readiness documentation, validation script, and minimal CI workflow.
 - MySQL, backend, and frontend development services in Docker Compose.
 
 Not implemented yet:
@@ -49,7 +50,7 @@ Not implemented yet:
 
 ## Next Phase
 
-Next recommended phase: **Phase 11 - Regression Tests and Production Hardening**.
+Next recommended phase: production infrastructure planning or the next approved product workflow. Do not add new business features until deployment readiness and regression coverage remain stable.
 
 Before adding later workflows, keep tenant context backend-derived from authenticated users and avoid passing arbitrary tenant IDs from normal tenant APIs. All stock mutation must continue through `InventoryEngine`; reports are read-only, query-based, and must not mutate stock, create ledger entries, or create purchase orders. Frontend pages must keep authoritative stock values backend-driven.
 
@@ -131,6 +132,14 @@ cd backend
 .venv/bin/python -m app.utils.seed_super_admin
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Full validation helper:
+
+```bash
+./scripts/validate.sh
+```
+
+Deployment readiness notes are in `docs/DEPLOYMENT_READINESS.md`. `docker-compose.yml` is development-only and uses local credentials, bind mounts, and reload/dev servers.
 
 Health check:
 
@@ -257,7 +266,7 @@ Report endpoints:
 - `GET /api/reports/blocked-stock`
 - `GET /api/reports/reconciliation`
 
-Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings.
+Required backend environment variables are listed in `backend/.env.example`, including JWT settings and optional super admin seed settings. Production deployments must override the example JWT secret, database credentials, CORS origins, debug setting, and super admin bootstrap values.
 
 ## Frontend Commands
 

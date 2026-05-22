@@ -71,6 +71,22 @@ def test_stock_movement_low_stock_reorder_and_valuation_reports(client: TestClie
     assert db_session.query(StockLedgerEntry).count() == before_ledger
 
 
+def test_reconciliation_report_is_read_only(client: TestClient, db_session: Session) -> None:
+    login = register_and_login(client)
+    token = login["access_token"]
+    create_report_fixture(client, token, "READONLY")
+    before_stock = db_session.query(WarehouseStock).count()
+    before_ledger = db_session.query(StockLedgerEntry).count()
+
+    first = client.get("/api/reports/reconciliation", headers=auth_headers(token))
+    second = client.get("/api/reports/reconciliation", headers=auth_headers(token))
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert db_session.query(WarehouseStock).count() == before_stock
+    assert db_session.query(StockLedgerEntry).count() == before_ledger
+
+
 def test_out_of_stock_report_uses_projection_available(client: TestClient) -> None:
     login = register_and_login(client)
     token = login["access_token"]

@@ -1,8 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
+import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.security import get_password_hash
 from app.dependencies.auth import require_roles, require_tenant_user
@@ -87,6 +89,26 @@ def test_auth_me_fails_without_token(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "MISSING_TOKEN"
 
 
+def test_auth_me_fails_with_invalid_token_and_error_envelope(client: TestClient) -> None:
+    response = client.get("/api/auth/me", headers={"Authorization": "Bearer not-a-valid-token"})
+
+    body = response.json()
+    assert response.status_code == 401
+    assert body["error"]["code"] == "INVALID_TOKEN"
+    assert body["error"]["message"]
+    assert "request_id" in body["error"]
+
+
+def test_auth_me_fails_with_expired_token(client: TestClient) -> None:
+    settings = get_settings()
+    token = jwt.encode({"sub": "1", "type": "access", "exp": datetime.now(UTC) - timedelta(minutes=1), "iat": datetime.now(UTC) - timedelta(minutes=2)}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+    response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "EXPIRED_TOKEN"
+
+
 def test_disabled_user_cannot_login(client: TestClient, db_session: Session) -> None:
     register_user(client)
     user = db_session.query(User).filter(User.email == "admin@example.com").one()
@@ -94,6 +116,19 @@ def test_disabled_user_cannot_login(client: TestClient, db_session: Session) -> 
     db_session.commit()
 
     response = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "StrongPass123!"})
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "DISABLED_USER"
+
+
+def test_disabled_user_existing_token_is_rejected(client: TestClient, db_session: Session) -> None:
+    register_user(client)
+    login = login_user(client)
+    user = db_session.query(User).filter(User.email == "admin@example.com").one()
+    user.status = UserStatus.DISABLED
+    db_session.commit()
+
+    response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "DISABLED_USER"
@@ -111,6 +146,19 @@ def test_disabled_tenant_user_cannot_login(client: TestClient, db_session: Sessi
     assert response.json()["error"]["code"] == "DISABLED_TENANT"
 
 
+def test_disabled_tenant_existing_token_is_rejected(client: TestClient, db_session: Session) -> None:
+    register_user(client)
+    login = login_user(client)
+    tenant = db_session.query(Tenant).one()
+    tenant.status = TenantStatus.DISABLED
+    db_session.commit()
+
+    response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "DISABLED_TENANT"
+
+
 def test_refresh_token_works(client: TestClient) -> None:
     register_user(client)
     login = login_user(client)
@@ -120,6 +168,16 @@ def test_refresh_token_works(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["access_token"]
     assert response.json()["token_type"] == "bearer"
+
+
+def test_refresh_rejects_access_token_type(client: TestClient) -> None:
+    register_user(client)
+    login = login_user(client)
+
+    response = client.post("/api/auth/refresh", json={"refresh_token": login["access_token"]})
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "INVALID_TOKEN"
 
 
 def test_logout_revokes_refresh_token(client: TestClient) -> None:

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, status
+import csv
+from io import StringIO
+
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -92,6 +95,56 @@ def update_customer(customer_id: int, request: CustomerUpdate, context: UserCont
 @router.get("/products", response_model=list[ProductRead])
 def list_products(search: str | None = None, context: UserContext = Depends(require_roles(*product_reader_roles)), db: Session = Depends(get_db)) -> list[ProductRead]:
     return CatalogService(db).list_products(context.tenant_id, search)
+
+
+@router.get("/products/export.csv")
+def export_products(search: str | None = None, context: UserContext = Depends(require_roles(*product_reader_roles)), db: Session = Depends(get_db)) -> Response:
+    products = CatalogService(db).list_products(context.tenant_id, search)
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "name",
+            "sku",
+            "barcode",
+            "description",
+            "unit",
+            "category_id",
+            "brand_id",
+            "cost_price",
+            "selling_price",
+            "reorder_level",
+            "track_batch",
+            "track_expiry",
+            "track_serial",
+            "status",
+        ],
+    )
+    writer.writeheader()
+    for product in products:
+        writer.writerow(
+            {
+                "name": product.name,
+                "sku": product.sku,
+                "barcode": product.barcode,
+                "description": product.description,
+                "unit": product.unit,
+                "category_id": product.category_id,
+                "brand_id": product.brand_id,
+                "cost_price": product.cost_price,
+                "selling_price": product.selling_price,
+                "reorder_level": product.reorder_level,
+                "track_batch": product.track_batch,
+                "track_expiry": product.track_expiry,
+                "track_serial": product.track_serial,
+                "status": product.status.value if hasattr(product.status, "value") else product.status,
+            }
+        )
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="products.csv"'},
+    )
 
 
 @router.post("/products", response_model=ProductRead, status_code=status.HTTP_201_CREATED)

@@ -21,3 +21,18 @@ export function getSerialStatus(accessToken, params) { return apiRequest(`/repor
 export function getBlockedStock(accessToken, params) { return apiRequest(`/reports/blocked-stock${query(params)}`, { accessToken }); }
 export function getReconciliation(accessToken, params) { return apiRequest(`/reports/reconciliation${query(params)}`, { accessToken }); }
 export function getOperationalDashboard(accessToken) { return apiRequest('/dashboard/operations', { accessToken }); }
+
+export async function downloadReportCsv(accessToken, reportKey, params = {}) {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'}/reports/${reportKey}/export.csv${query(params)}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (!response.ok) {
+    let message = 'Export failed.';
+    try {
+      const payload = await response.json();
+      message = payload?.error?.message ?? message;
+    } catch {}
+    throw new Error(message);
+  }
+  return response.blob();
+}

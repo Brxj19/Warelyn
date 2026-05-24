@@ -1,5 +1,7 @@
+import csv
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -287,6 +289,47 @@ class ReportsService:
             ],
         }
 
+    def export_csv(self, tenant_id: int, report_key: str, filters: dict[str, Any] | None = None) -> str:
+        rows = self.export_rows(tenant_id, report_key, filters)
+        output = StringIO()
+        if not rows:
+            output.write("message\r\nNo data\r\n")
+            return output.getvalue()
+        fieldnames = list(rows[0].keys())
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: self._csv_value(value) for key, value in row.items()})
+        return output.getvalue()
+
+    def export_rows(self, tenant_id: int, report_key: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        filters = filters or {}
+        if report_key == "inventory-summary":
+            return [self.inventory_summary(tenant_id)]
+        if report_key == "warehouse-stock":
+            return self.warehouse_stock(tenant_id, filters)
+        if report_key == "location-stock":
+            return self.location_stock(tenant_id, filters)
+        if report_key == "stock-movements":
+            return self.stock_movements(tenant_id, filters)
+        if report_key == "low-stock":
+            return self.low_stock(tenant_id, filters)
+        if report_key == "reorder-suggestions":
+            return self.reorder_suggestions(tenant_id, filters)
+        if report_key == "product-valuation":
+            report = self.product_valuation(tenant_id, filters)
+            return report["rows"]
+        if report_key == "batch-expiry":
+            return self.batch_expiry(tenant_id, filters)
+        if report_key == "serial-status":
+            return self.serial_status(tenant_id, filters)
+        if report_key == "blocked-stock":
+            return self.blocked_stock(tenant_id, filters)
+        if report_key == "reconciliation":
+            report = self.reconciliation(tenant_id)
+            return report["mismatches"]
+        raise ValueError(report_key)
+
     def _products(self, tenant_id: int) -> dict[int, Product]:
         return {row.id: row for row in self.repository.products(tenant_id)}
 
@@ -346,3 +389,14 @@ class ReportsService:
         if filters.get("status") and row["status"] != filters["status"]:
             return False
         return True
+
+    def _csv_value(self, value: Any) -> Any:
+        if isinstance(value, Decimal):
+            return str(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if hasattr(value, "value"):
+            return value.value
+        return value

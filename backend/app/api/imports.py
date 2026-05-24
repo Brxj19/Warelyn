@@ -19,10 +19,19 @@ async def upload_product_import(
     file: UploadFile = File(...),
     mode: ProductImportMode = Form(ProductImportMode.create_only),
     create_missing_references: bool = Form(False),
+    column_mapping_json: str | None = Form(default=None),
     context: UserContext = Depends(require_roles(*writer_roles)),
     db: Session = Depends(get_db),
 ) -> ProductImportUploadResponse:
-    job = ProductImportService(db).upload(context.tenant_id, context.user.id, file.filename or "products.csv", await file.read(), mode, create_missing_references)
+    job = ProductImportService(db).upload(
+        context.tenant_id,
+        context.user.id,
+        file.filename or "products.csv",
+        await file.read(),
+        mode,
+        create_missing_references,
+        column_mapping_json=column_mapping_json,
+    )
     return {"job": job}
 
 

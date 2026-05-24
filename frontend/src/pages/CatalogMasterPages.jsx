@@ -1,4 +1,4 @@
-import { Plus, Upload } from 'lucide-react';
+import { Download, Plus, Upload } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -55,6 +55,16 @@ export function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortState, setSortState] = useState({ key: 'name', direction: 'asc' });
   const mayWrite = canWrite.has(user?.role);
+
+  async function exportProducts() {
+    const blob = await catalogService.downloadProductsCsv(accessToken, search);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'products.csv';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     async function load() {
@@ -145,6 +155,10 @@ export function ProductsPage() {
         actions={
           mayWrite ? (
             <>
+              <Button variant="secondary" onClick={exportProducts}>
+                <Download size={16} />
+                Export CSV
+              </Button>
               <Link to="/catalog/products/import">
                 <Button variant="secondary">
                   <Upload size={16} />

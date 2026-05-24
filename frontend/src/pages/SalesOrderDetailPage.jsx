@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Boxes, ListChecks, PackageCheck, Truck, Undo2 } from 'lucide-react';
 
 import { StatusBadge } from '../components/ui/Badge.jsx';
@@ -20,6 +20,7 @@ import * as catalogService from '../services/catalogService.js';
 import * as fulfillmentService from '../services/fulfillmentService.js';
 import * as salesService from '../services/salesService.js';
 import * as warehouseService from '../services/warehouseService.js';
+import * as documentService from '../services/documentService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
 const fulfillableStatuses = new Set(['CONFIRMED', 'PARTIALLY_FULFILLED']);
@@ -35,6 +36,7 @@ const selectClass = 'block w-full rounded-lg border border-warelyn-border bg-whi
 export function SalesOrderDetailPage() {
   const { id } = useParams();
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [fulfillments, setFulfillments] = useState([]);
   const [pickTasks, setPickTasks] = useState([]);
@@ -146,6 +148,19 @@ export function SalesOrderDetailPage() {
     }
   }
 
+  async function generateInvoiceFromOrder() {
+    setIsSaving(true);
+    setError('');
+    try {
+      const invoice = await documentService.createInvoice(accessToken, { sales_order_id: Number(id) });
+      navigate(`/invoices/${invoice.id}`);
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (isLoading) return <LoadingState />;
   if (!order) return <ErrorState description={error || 'Sales order not found.'} />;
 
@@ -244,6 +259,7 @@ export function SalesOrderDetailPage() {
                 <Button variant="secondary">Create return</Button>
               </Link>
             ) : null}
+            {mayWrite ? <Button disabled={isSaving} variant="secondary" onClick={generateInvoiceFromOrder}>Generate invoice</Button> : null}
           </div>
         }
         backTo="/sales"

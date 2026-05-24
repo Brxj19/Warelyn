@@ -8,12 +8,14 @@ from app.core.exceptions import AppError
 from app.db.session import get_db
 from app.dependencies.auth import require_tenant_user
 from app.models.communication import OTPPurpose, OTPSource
+from app.models.documents import DocumentTemplateChannel, DocumentTemplateKey
 from app.repositories.audit import AuditLogRepository
+from app.services.documents import DocumentTemplateService
 from app.repositories.notification import NotificationService
 from app.repositories.otp import OTPRepository
 from app.schemas.communication import VerificationConfirmRequest, VerificationConfirmResponse, VerificationSendResponse, VerificationStatusResponse
 from app.services.auth import UserContext
-from app.services.email_service import EmailDeliveryError, send_verification_email
+from app.services.email_service import EmailDeliveryError, send_email
 from app.services.otp_service import OTPError, OTPService
 from app.services.sms_service import SMSDevOutboxService
 
@@ -35,15 +37,43 @@ def _notify(db: Session, user_id: int, tenant_id: int | None, title: str, messag
     )
 
 
+def _mask_destination(value: str | None) -> str | None:
+    if not value:
+        return None
+    if "@" in value:
+        name, domain = value.split("@", 1)
+        masked_name = (name[:2] + "***") if len(name) > 2 else "***"
+        return f"{masked_name}@{domain}"
+    cleaned = value.strip()
+    if len(cleaned) <= 4:
+        return cleaned
+    return f"{'*' * max(len(cleaned) - 4, 0)}{cleaned[-4:]}"
+
+
 @router.post("/email/send", response_model=VerificationSendResponse)
 def send_email_verification(context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationSendResponse:
     svc = _otp_service(db)
     code = svc.create_otp(context.user.id, context.tenant_id, context.user.email, OTPSource.EMAIL, OTPPurpose.EMAIL_VERIFICATION)
     try:
-        send_verification_email(context.user.email, code)
+        rendered = DocumentTemplateService(db).render_by_key(
+            context.tenant_id,
+            DocumentTemplateChannel.EMAIL,
+            DocumentTemplateKey.EMAIL_VERIFICATION,
+            {
+                "user_name": context.user.name,
+                "code": code,
+                "expiry_minutes": 10,
+                "company_name": "Warelyn",
+            },
+        )
+        send_email(context.user.email, rendered["subject"] or "Verify your Warelyn email", rendered["body"])
     except (OSError, EmailDeliveryError) as exc:
         raise AppError("EMAIL_DELIVERY_FAILED", f"Failed to send verification email: {exc}", 502) from exc
-    return VerificationSendResponse(message="Verification code sent to your email.")
+    return VerificationSendResponse(
+        message="Verification code sent to your email.",
+        development_code=code,
+        destination_hint=_mask_destination(context.user.email),
+    )
 
 
 @router.post("/email/confirm", response_model=VerificationConfirmResponse)
@@ -71,7 +101,11 @@ def send_phone_verification(context: UserContext = Depends(require_tenant_user),
     code = svc.create_otp(context.user.id, context.tenant_id, context.user.phone, OTPSource.PHONE, OTPPurpose.PHONE_VERIFICATION)
     sms = SMSDevOutboxService(db)
     sms.send(phone=context.user.phone, message=f"Your Warelyn verification code is: {code}", purpose="PHONE_VERIFICATION", tenant_id=context.tenant_id, user_id=context.user.id)
-    return VerificationSendResponse(message="Verification code sent to your phone.")
+    return VerificationSendResponse(
+        message="Verification code sent to your phone.",
+        development_code=code,
+        destination_hint=_mask_destination(context.user.phone),
+    )
 
 
 @router.post("/phone/confirm", response_model=VerificationConfirmResponse)

@@ -18,13 +18,15 @@ export function VerifyPhonePage() {
   const [confirming, setConfirming] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [sendMeta, setSendMeta] = useState(null);
 
   async function handleSend() {
     setSending(true);
     setError('');
     try {
-      await verificationService.sendPhoneVerification(accessToken);
+      const response = await verificationService.sendPhoneVerification(accessToken);
       setSent(true);
+      setSendMeta(response);
       toast.success('Verification code sent to your phone.');
     } catch (e) {
       setError(e.message || 'Failed to send verification code.');
@@ -74,6 +76,12 @@ export function VerifyPhonePage() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-warelyn-muted">Enter the 6-digit code sent to your phone. Code expires in 10 minutes.</p>
+              {sendMeta?.destination_hint ? <p className="text-xs text-warelyn-muted">Sent to {sendMeta.destination_hint}.</p> : null}
+              {sendMeta?.development_code ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  Development code: <span className="font-semibold tracking-[0.2em]">{sendMeta.development_code}</span>
+                </div>
+              ) : null}
               <input
                 className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-center text-2xl tracking-[8px] text-warelyn-text shadow-sm outline-none transition placeholder:text-slate-400 focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
                 maxLength={6}

@@ -1,8 +1,11 @@
 import csv
+import json
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from io import StringIO
+from io import BytesIO, StringIO
 from typing import Any
+from xml.etree import ElementTree as ET
+from zipfile import ZipFile
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -28,6 +31,19 @@ OPTIONAL_FIELDS = {
     "status",
 }
 BOOLEAN_VALUES = {"true": True, "yes": True, "1": True, "false": False, "no": False, "0": False, "": False}
+HEADER_ALIASES = {
+    "product_name": "name",
+    "item_name": "name",
+    "item_code": "sku",
+    "product_code": "sku",
+    "hsn_code": "barcode",
+    "category": "category_name",
+    "brand": "brand_name",
+    "vendor": "vendor_name",
+    "cost": "cost_price",
+    "price": "selling_price",
+    "reorder": "reorder_level",
+}
 
 
 class ProductImportService:
@@ -35,8 +51,17 @@ class ProductImportService:
         self.db = db
         self.repository = ImportRepository(db)
 
-    def upload(self, tenant_id: int, actor_id: int, filename: str, content: bytes, mode: ProductImportMode, create_missing_references: bool) -> ImportJob:
-        rows = self._parse_csv(content)
+    def upload(
+        self,
+        tenant_id: int,
+        actor_id: int,
+        filename: str,
+        content: bytes,
+        mode: ProductImportMode,
+        create_missing_references: bool,
+        column_mapping_json: str | None = None,
+    ) -> ImportJob:
+        rows = self._parse_rows(filename, content, column_mapping_json)
         job = self.repository.create_job(
             {
                 "tenant_id": tenant_id,
@@ -166,7 +191,31 @@ class ProductImportService:
         self.db.refresh(job)
         return job
 
-    def _parse_csv(self, content: bytes) -> list[dict[str, str]]:
+    def _parse_rows(self, filename: str, content: bytes, column_mapping_json: str | None = None) -> list[dict[str, str]]:
+        mapping = self._parse_mapping(column_mapping_json)
+        lower_filename = filename.lower()
+        if lower_filename.endswith(".xlsx") or content[:2] == b"PK":
+            return self._parse_xlsx(content, mapping)
+        return self._parse_csv(content, mapping)
+
+    def _parse_mapping(self, column_mapping_json: str | None) -> dict[str, str]:
+        if not column_mapping_json:
+            return {}
+        try:
+            raw = json.loads(column_mapping_json)
+        except json.JSONDecodeError as exc:
+            raise AppError("INVALID_COLUMN_MAPPING", "Column mapping JSON is invalid.", 400) from exc
+        if not isinstance(raw, dict):
+            raise AppError("INVALID_COLUMN_MAPPING", "Column mapping JSON must be an object.", 400)
+        return {str(source).strip().lower(): str(target).strip().lower() for source, target in raw.items() if source and target}
+
+    def _canonical_header(self, value: str, mapping: dict[str, str]) -> str:
+        normalized = value.strip().lower().replace(" ", "_").replace("-", "_")
+        if normalized in mapping:
+            return mapping[normalized]
+        return HEADER_ALIASES.get(normalized, normalized)
+
+    def _parse_csv(self, content: bytes, mapping: dict[str, str]) -> list[dict[str, str]]:
         try:
             text = content.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
@@ -174,14 +223,74 @@ class ProductImportService:
         reader = csv.DictReader(StringIO(text))
         if not reader.fieldnames:
             raise AppError("INVALID_IMPORT_FILE", "CSV file must include a header row.", 400)
-        normalized_headers = [field.strip().lower() for field in reader.fieldnames]
+        normalized_headers = [self._canonical_header(field or "", mapping) for field in reader.fieldnames]
         missing = REQUIRED_FIELDS - set(normalized_headers)
         if missing:
             raise AppError("INVALID_IMPORT_COLUMNS", f"Missing required columns: {', '.join(sorted(missing))}.", 400)
         rows = []
         for row in reader:
-            rows.append({(key or "").strip().lower(): (value or "").strip() for key, value in row.items()})
+            rows.append({self._canonical_header((key or ""), mapping): (value or "").strip() for key, value in row.items()})
         return rows
+
+    def _parse_xlsx(self, content: bytes, mapping: dict[str, str]) -> list[dict[str, str]]:
+        try:
+            with ZipFile(BytesIO(content)) as archive:
+                shared_strings = self._shared_strings(archive)
+                sheet_name = "xl/worksheets/sheet1.xml"
+                if sheet_name not in archive.namelist():
+                    raise AppError("INVALID_IMPORT_FILE", "XLSX workbook must include a first worksheet.", 400)
+                root = ET.fromstring(archive.read(sheet_name))
+        except AppError:
+            raise
+        except Exception as exc:
+            raise AppError("INVALID_IMPORT_FILE", "Unable to parse the uploaded XLSX workbook.", 400) from exc
+        namespace = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        rows = []
+        header: list[str] | None = None
+        for row in root.findall(".//a:sheetData/a:row", namespace):
+            cells = [self._cell_value(cell, shared_strings, namespace).strip() for cell in row.findall("a:c", namespace)]
+            if not any(cells):
+                continue
+            if header is None:
+                header = [self._canonical_header(cell, mapping) for cell in cells]
+                missing = REQUIRED_FIELDS - set(header)
+                if missing:
+                    raise AppError("INVALID_IMPORT_COLUMNS", f"Missing required columns: {', '.join(sorted(missing))}.", 400)
+                continue
+            record = {}
+            for index, value in enumerate(cells):
+                if index >= len(header):
+                    continue
+                record[header[index]] = value
+            rows.append(record)
+        return rows
+
+    def _shared_strings(self, archive: ZipFile) -> list[str]:
+        if "xl/sharedStrings.xml" not in archive.namelist():
+            return []
+        root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+        namespace = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        values = []
+        for item in root.findall(".//a:si", namespace):
+            text = "".join(node.text or "" for node in item.findall(".//a:t", namespace))
+            values.append(text)
+        return values
+
+    def _cell_value(self, cell: ET.Element, shared_strings: list[str], namespace: dict[str, str]) -> str:
+        cell_type = cell.attrib.get("t")
+        value_node = cell.find("a:v", namespace)
+        inline_text = cell.find("a:is/a:t", namespace)
+        if inline_text is not None:
+            return inline_text.text or ""
+        if value_node is None or value_node.text is None:
+            return ""
+        raw = value_node.text
+        if cell_type == "s":
+            try:
+                return shared_strings[int(raw)]
+            except (IndexError, ValueError):
+                return ""
+        return raw
 
     def _validate_row(self, tenant_id: int, row: ImportJobRow, mode: ProductImportMode, create_missing: bool, seen_skus: dict[str, int], seen_barcodes: dict[str, int]) -> tuple[dict[str, Any], list[str], list[str], int | None]:
         raw = row.raw_data

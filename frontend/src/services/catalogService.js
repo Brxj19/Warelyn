@@ -37,6 +37,22 @@ export function listProducts(accessToken, search = '') {
   return apiRequest(`/catalog/products${query}`, { accessToken });
 }
 
+export async function downloadProductsCsv(accessToken, search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'}/catalog/products/export.csv${query}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (!response.ok) {
+    let message = 'Export failed.';
+    try {
+      const payload = await response.json();
+      message = payload?.error?.message ?? message;
+    } catch {}
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
 export function createProduct(accessToken, payload) {
   return apiRequest('/catalog/products', { accessToken, method: 'POST', body: JSON.stringify(payload) });
 }

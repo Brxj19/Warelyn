@@ -20,6 +20,7 @@ import {
   VendorsPage,
 } from '../pages/CatalogMasterPages.jsx';
 import { DashboardPage } from '../pages/DashboardPage.jsx';
+import { BillDetailPage, BillsPage, InvoiceDetailPage, InvoicesPage } from '../pages/DocumentsPages.jsx';
 import { InventorySummaryReportPage } from '../pages/InventorySummaryReportPage.jsx';
 import { LocationStockReportPage } from '../pages/LocationStockReportPage.jsx';
 import { LandingPage } from '../pages/LandingPage.jsx';
@@ -112,6 +113,10 @@ export function AppRoutes() {
           <Route path="packages/:id" element={<PackageDetailPage />} />
           <Route path="sales-fulfillments" element={<SalesFulfillmentsPage />} />
           <Route path="sales-fulfillments/:id" element={<SalesFulfillmentDetailPage />} />
+          <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
+          <Route path="bills" element={<BillsPage />} />
+          <Route path="bills/:id" element={<BillDetailPage />} />
           <Route path="inventory" element={<DashboardPage />} />
           <Route path="reports" element={<Outlet />}>
             <Route index element={<ReportsPage />} />

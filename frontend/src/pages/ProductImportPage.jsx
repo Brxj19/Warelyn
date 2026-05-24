@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -22,6 +23,7 @@ export function ProductImportPage() {
   const [createMissing, setCreateMissing] = useState(false);
   const [job, setJob] = useState(null);
   const [rows, setRows] = useState([]);
+  const [columnMapping, setColumnMapping] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -43,7 +45,11 @@ export function ProductImportPage() {
       return;
     }
     run(async () => {
-      const response = await importService.uploadProductImport(accessToken, file, { mode, create_missing_references: createMissing });
+      const response = await importService.uploadProductImport(accessToken, file, {
+        mode,
+        create_missing_references: createMissing,
+        column_mapping_json: columnMapping.trim() || undefined,
+      });
       setJob(response.job);
       setRows(await importService.listProductImportRows(accessToken, response.job.id));
     });
@@ -69,7 +75,7 @@ export function ProductImportPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="CSV import" title="Import products" />
+      <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="Catalog import" title="Import products" />
       {error ? <ErrorState description={error} /> : null}
       <WorkflowProgress
         current={job?.status === 'COMMITTED' ? 'COMMITTED' : job?.status === 'VALIDATED' || job?.status === 'HAS_ERRORS' ? 'VALIDATED' : job ? 'UPLOADED' : 'PENDING'}
@@ -81,7 +87,20 @@ export function ProductImportPage() {
         ]}
       />
       <Card>
-        <CardHeader><h2 className="text-lg font-semibold text-warelyn-text">CSV Columns</h2></CardHeader>
+        <CardHeader className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-warelyn-text">Import Template</h2>
+            <p className="mt-1 text-sm text-warelyn-muted">Download the sample template to prepare bulk import rows in the correct format.</p>
+          </div>
+          <a
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-warelyn-border bg-white px-4 py-2.5 text-sm font-semibold text-warelyn-text transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-300"
+            download="products-import-sample.csv"
+            href="/products-import-sample.csv"
+          >
+            <Download size={16} />
+            <span>Download sample CSV</span>
+          </a>
+        </CardHeader>
         <CardBody className="grid gap-4 md:grid-cols-2">
           <div><p className="text-sm font-semibold text-warelyn-text">Required</p><p className="mt-2 text-sm text-warelyn-muted">{requiredColumns.join(', ')}</p></div>
           <div><p className="text-sm font-semibold text-warelyn-text">Optional</p><p className="mt-2 text-sm text-warelyn-muted">{optionalColumns.join(', ')}</p></div>
@@ -103,7 +122,21 @@ export function ProductImportPage() {
               <input checked={createMissing} type="checkbox" onChange={(event) => setCreateMissing(event.target.checked)} />
               Create missing category, brand, vendor
             </label>
-            <div className="flex items-end"><Button disabled={isBusy} onClick={upload}>{isBusy ? 'Working...' : 'Upload CSV'}</Button></div>
+            <div className="flex items-end"><Button disabled={isBusy} onClick={upload}>{isBusy ? 'Working...' : 'Upload File'}</Button></div>
+          </div>
+          <div>
+            <label className="block" htmlFor="column_mapping_json">
+              <span className="mb-2 block text-sm font-medium text-warelyn-text">Column mapping JSON (optional)</span>
+              <textarea
+                className="block min-h-[120px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                id="column_mapping_json"
+                placeholder='{"Product Name":"name","Item Code":"sku"}'
+                rows={4}
+                value={columnMapping}
+                onChange={(event) => setColumnMapping(event.target.value)}
+              />
+            </label>
+            <p className="mt-2 text-xs text-warelyn-muted">Use this when your spreadsheet headers differ from Warelyn import columns. Keys are source headers and values are Warelyn target fields.</p>
           </div>
         </CardBody>
       </Card>

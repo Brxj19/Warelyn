@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import * as settingsService from '../services/settingsService.js';
 import * as verificationService from '../services/verificationService.js';
+import * as documentService from '../services/documentService.js';
 
 function TenantSettingsSection({ accessToken }) {
   const [settings, setSettings] = useState(null);
@@ -227,6 +228,104 @@ function UserPreferencesSection({ accessToken }) {
   );
 }
 
+function DocumentTemplatesSection({ accessToken, channel }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState({});
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setTemplates(await documentService.listDocumentTemplates(accessToken, channel));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [accessToken, channel]);
+
+  if (loading) return <LoadingState message={`Loading ${channel.toLowerCase()} templates...`} />;
+  if (error) return <ErrorState description={error} />;
+
+  return (
+    <div className="space-y-4">
+      {templates.map((template) => (
+        <Card key={template.id}>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-warelyn-text">{template.name}</h3>
+                <p className="text-xs text-warelyn-muted">{template.template_key}</p>
+              </div>
+              <StatusBadge status={template.is_active ? 'ACTIVE' : 'INACTIVE'}>{template.is_active ? 'Active' : 'Inactive'}</StatusBadge>
+            </div>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            {channel === 'EMAIL' ? (
+              <Input
+                defaultValue={template.subject_template ?? ''}
+                id={`template-subject-${template.id}`}
+                label="Subject"
+              />
+            ) : null}
+            <div>
+              <label className="block" htmlFor={`template-body-${template.id}`}>
+                <span className="mb-2 block text-sm font-medium text-warelyn-text">Body</span>
+                <textarea
+                  className="block min-h-[180px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                  defaultValue={template.body_template}
+                  id={`template-body-${template.id}`}
+                  rows={8}
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  const data = await documentService.previewDocumentTemplate(accessToken, template.id, {});
+                  setPreview((current) => ({ ...current, [template.id]: data }));
+                }}
+              >
+                Preview
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  const payload = {
+                    body_template: document.getElementById(`template-body-${template.id}`)?.value ?? template.body_template,
+                    is_active: true,
+                  };
+                  if (channel === 'EMAIL') {
+                    payload.subject_template = document.getElementById(`template-subject-${template.id}`)?.value ?? template.subject_template;
+                  }
+                  await documentService.updateDocumentTemplate(accessToken, template.id, payload);
+                  await load();
+                }}
+              >
+                Save template
+              </Button>
+            </div>
+            {preview[template.id] ? (
+              <div className="rounded-xl border border-warelyn-border bg-slate-50 p-4 text-sm text-warelyn-text">
+                {preview[template.id].subject ? <p className="mb-2 font-semibold">Subject: {preview[template.id].subject}</p> : null}
+                <pre className="whitespace-pre-wrap font-sans text-sm">{preview[template.id].body}</pre>
+              </div>
+            ) : null}
+          </CardBody>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const { accessToken, user } = useAuth();
   const [tab, setTab] = useState(user?.role === 'TENANT_ADMIN' ? 'tenant' : 'preferences');
@@ -253,11 +352,23 @@ export function SettingsPage() {
         <button className={`rounded-xl px-4 py-2 text-sm font-medium transition ${tab === 'preferences' ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`} onClick={() => setTab('preferences')} type="button">
           My Preferences
         </button>
+        {user?.role === 'TENANT_ADMIN' ? (
+          <>
+            <button className={`rounded-xl px-4 py-2 text-sm font-medium transition ${tab === 'email-templates' ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`} onClick={() => setTab('email-templates')} type="button">
+              Email Templates
+            </button>
+            <button className={`rounded-xl px-4 py-2 text-sm font-medium transition ${tab === 'pdf-templates' ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`} onClick={() => setTab('pdf-templates')} type="button">
+              PDF Templates
+            </button>
+          </>
+        ) : null}
       </div>
 
       {tab === 'tenant' ? <TenantSettingsSection accessToken={accessToken} /> : null}
       {tab === 'verification' ? <VerificationSection /> : null}
       {tab === 'preferences' ? <UserPreferencesSection accessToken={accessToken} /> : null}
+      {tab === 'email-templates' ? <DocumentTemplatesSection accessToken={accessToken} channel="EMAIL" /> : null}
+      {tab === 'pdf-templates' ? <DocumentTemplatesSection accessToken={accessToken} channel="PDF" /> : null}
     </div>
   );
 }

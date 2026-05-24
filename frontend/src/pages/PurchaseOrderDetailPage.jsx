@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { RecordDetailShell } from '../components/ui/RecordDetailShell.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
@@ -14,6 +14,7 @@ import { WorkflowProgress } from '../components/ui/WorkflowProgress.jsx';
 import { formatDate, formatDecimal, formatMoney } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as purchasingService from '../services/purchasingService.js';
+import * as documentService from '../services/documentService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF']);
 const receivableStatuses = new Set(['SUBMITTED', 'PARTIALLY_RECEIVED']);
@@ -23,6 +24,7 @@ const purchaseSteps = [{ key: 'DRAFT', label: 'Draft' }, { key: 'SUBMITTED', lab
 export function PurchaseOrderDetailPage() {
   const { id } = useParams();
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [receipts, setReceipts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +64,19 @@ export function PurchaseOrderDetailPage() {
     }
   }
 
+  async function generateBillFromOrder() {
+    setIsSaving(true);
+    setError('');
+    try {
+      const bill = await documentService.createBill(accessToken, { purchase_order_id: Number(id) });
+      navigate(`/bills/${bill.id}`);
+    } catch (actionError) {
+      setError(actionError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (isLoading) return <LoadingState />;
   if (!order) return <ErrorState description={error || 'Purchase order not found.'} />;
 
@@ -79,6 +94,7 @@ export function PurchaseOrderDetailPage() {
             {mayWrite && ['DRAFT', 'SUBMITTED'].includes(order.status) ? <Button disabled={isSaving} variant="danger" onClick={() => setPendingAction({ action: purchasingService.cancelPurchaseOrder, description: 'Cancel this purchase order. Existing committed receipts are not reversed by this action.', label: 'Cancel order', variant: 'danger' })}>Cancel</Button> : null}
             {mayWrite && ['SUBMITTED', 'PARTIALLY_RECEIVED'].includes(order.status) ? <Button disabled={isSaving} variant="secondary" onClick={() => setPendingAction({ action: purchasingService.closePurchaseOrder, description: 'Close this purchase order to stop further receiving against it.', label: 'Close order', variant: 'secondary' })}>Close</Button> : null}
             {mayWrite && receivableStatuses.has(order.status) ? <Link to={`/purchases/${order.id}/receive`}><Button variant="accent">Receive</Button></Link> : null}
+            {mayWrite ? <Button disabled={isSaving} variant="secondary" onClick={generateBillFromOrder}>Generate bill</Button> : null}
           </div>
         }
         backTo="/purchases"

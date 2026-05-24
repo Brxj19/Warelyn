@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, BarChart3, Boxes, ClipboardList, PackageCheck, Search, ShieldCheck, Warehouse } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, Boxes, ClipboardList, Download, PackageCheck, Search, ShieldCheck, Warehouse } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ import { TableShell } from '../components/ui/TableShell.jsx';
 import { formatDate, formatDateTime, formatDecimal, formatMoney, titleCaseStatus } from '../utils/formatters.js';
 import { getNextSort, inferSortType, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import * as reportsService from '../services/reportsService.js';
 
 export const reportLinks = [
   ['Inventory summary', '/reports/inventory-summary', 'Top-level stock, value, low-stock, expiry, blocked, and reconciliation indicators.', Boxes],
@@ -137,6 +138,17 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
   ].filter(Boolean);
   const hasActiveFilters = activeFilters.length > 0;
 
+  async function exportCsv() {
+    const slug = window.location.pathname.split('/').pop();
+    const blob = await reportsService.downloadReportCsv(accessToken, slug, query);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${slug}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader backTo="/reports" kicker="Report" title={title} description={description} />
@@ -164,6 +176,12 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
             onSearchChange={setSearch}
             searchPlaceholder="Search rows"
             searchValue={search}
+            primaryAction={
+              <Button variant="secondary" onClick={exportCsv}>
+                <Download size={16} />
+                Export CSV
+              </Button>
+            }
           >
             {filters.length ? (
               <div className="flex flex-wrap gap-2">

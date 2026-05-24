@@ -187,3 +187,15 @@ def test_report_tenant_isolation(client: TestClient) -> None:
     assert stock_b.json() == []
     assert movements_b.status_code == 200
     assert movements_b.json() == []
+
+
+def test_report_csv_export_returns_text_csv(client: TestClient) -> None:
+    login = register_and_login(client, "report-export@example.com")
+    token = login["access_token"]
+    create_report_fixture(client, token, "EXPORT")
+
+    response = client.get("/api/reports/warehouse-stock/export.csv", headers=auth_headers(token))
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "warehouse_name" in response.text

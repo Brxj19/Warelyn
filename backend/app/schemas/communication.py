@@ -10,6 +10,8 @@ class VerificationSendRequest(BaseModel):
 class VerificationSendResponse(BaseModel):
     success: bool = True
     message: str = "Verification code sent."
+    development_code: str | None = None
+    destination_hint: str | None = None
 
 
 class VerificationConfirmRequest(BaseModel):

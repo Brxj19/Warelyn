@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -122,3 +123,35 @@ def reconciliation(context: UserContext = Depends(require_roles(*read_roles)), d
 @router.get("/dashboard/operations", response_model=OperationalDashboard)
 def operational_dashboard(context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> OperationalDashboard:
     return ReportsService(db).operational_dashboard(context.tenant_id)
+
+
+@router.get("/reports/{report_key}/export.csv")
+def export_report_csv(
+    report_key: str,
+    filters: dict = Depends(common_filters),
+    context: UserContext = Depends(require_roles(*read_roles)),
+    db: Session = Depends(get_db),
+) -> Response:
+    allowed = {
+        "inventory-summary",
+        "warehouse-stock",
+        "location-stock",
+        "stock-movements",
+        "low-stock",
+        "reorder-suggestions",
+        "product-valuation",
+        "batch-expiry",
+        "serial-status",
+        "blocked-stock",
+        "reconciliation",
+    }
+    if report_key not in allowed:
+        from app.core.exceptions import AppError
+
+        raise AppError("REPORT_NOT_FOUND", "Report export endpoint was not found.", 404)
+    csv_content = ReportsService(db).export_csv(context.tenant_id, report_key, filters)
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{report_key}.csv"'},
+    )

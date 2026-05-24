@@ -1,3 +1,6 @@
+from io import BytesIO
+from zipfile import ZipFile
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -19,6 +22,37 @@ def auth_headers(token: str) -> dict[str, str]:
 
 def csv_file(content: str) -> dict[str, tuple[str, bytes, str]]:
     return {"file": ("products.csv", content.encode("utf-8"), "text/csv")}
+
+
+def xlsx_file() -> dict[str, tuple[str, bytes, str]]:
+    shared = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6">
+  <si><t>Product Name</t></si>
+  <si><t>Item Code</t></si>
+  <si><t>unit</t></si>
+  <si><t>XLSX Widget</t></si>
+  <si><t>XLSX-1</t></si>
+  <si><t>pcs</t></si>
+</sst>"""
+    workbook = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>"""
+    workbook_rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>"""
+    root_rels = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"""
+    content_types = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>"""
+    sheet = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row></sheetData></worksheet>"""
+    stream = BytesIO()
+    with ZipFile(stream, "w") as archive:
+      archive.writestr("[Content_Types].xml", content_types)
+      archive.writestr("_rels/.rels", root_rels)
+      archive.writestr("xl/workbook.xml", workbook)
+      archive.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+      archive.writestr("xl/sharedStrings.xml", shared)
+      archive.writestr("xl/worksheets/sheet1.xml", sheet)
+    return {"file": ("products.xlsx", stream.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
 
 
 def upload(client: TestClient, token: str, content: str, mode: str = "create_only", create_missing: bool = False):
@@ -163,3 +197,30 @@ def test_product_search_by_name_sku_and_barcode(client: TestClient) -> None:
     assert len(by_name) == 1
     assert len(by_sku) == 1
     assert len(by_barcode) == 1
+
+
+def test_xlsx_upload_and_column_mapping_work(client: TestClient, db_session: Session) -> None:
+    login = register_and_login(client, "xlsx@example.com")
+    response = client.post(
+        "/api/imports/products/upload",
+        data={"mode": "create_only", "create_missing_references": "false"},
+        files=xlsx_file(),
+        headers=auth_headers(login["access_token"]),
+    )
+    commit = client.post(f"/api/imports/products/{response.json()['job']['id']}/commit", json={}, headers=auth_headers(login["access_token"]))
+
+    assert response.status_code == 200
+    assert commit.status_code == 200
+    assert db_session.query(Product).filter(Product.sku == "XLSX-1").count() == 1
+
+
+def test_products_csv_export_returns_rows(client: TestClient) -> None:
+    login = register_and_login(client, "product-export@example.com")
+    headers = auth_headers(login["access_token"])
+    assert client.post("/api/catalog/products", json={"name": "Export Widget", "sku": "EXPORT-1", "unit": "pcs"}, headers=headers).status_code == 201
+
+    response = client.get("/api/catalog/products/export.csv", headers=headers)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "EXPORT-1" in response.text

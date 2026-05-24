@@ -27,6 +27,9 @@ def test_send_email_verification_creates_otp(db_session, client):
     token, uid = create_tenant_user(db_session, client)
     resp = client.post("/api/verification/email/send", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code in (200, 502)
+    if resp.status_code == 200:
+        assert len(resp.json()["development_code"]) == 6
+        assert resp.json()["destination_hint"]
     otps = db_session.query(OTPVerification).filter(OTPVerification.user_id == uid).all()
     assert len(otps) == 1
     assert otps[0].purpose == "EMAIL_VERIFICATION"
@@ -73,6 +76,7 @@ def test_send_phone_verification_creates_sms_outbox(db_session, client):
     resp = client.post("/api/verification/phone/send", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json()["success"] is True
+    assert len(resp.json()["development_code"]) == 6
     from app.models.communication import SMSOutbox
     sms = db_session.query(SMSOutbox).filter(SMSOutbox.user_id == uid).all()
     assert len(sms) >= 1

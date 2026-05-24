@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -15,6 +15,7 @@ import { WorkflowProgress } from '../components/ui/WorkflowProgress.jsx';
 import { formatDecimal } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as catalogService from '../services/catalogService.js';
+import * as documentService from '../services/documentService.js';
 import * as salesService from '../services/salesService.js';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF']);
@@ -26,6 +27,7 @@ const fulfillmentSteps = [
 export function SalesFulfillmentDetailPage() {
   const { id } = useParams();
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const [fulfillment, setFulfillment] = useState(null);
   const [productsById, setProductsById] = useState({});
   const [summary, setSummary] = useState(null);
@@ -85,6 +87,19 @@ export function SalesFulfillmentDetailPage() {
     }
   }
 
+  async function generateInvoiceFromFulfillment() {
+    setIsSaving(true);
+    setError('');
+    try {
+      const invoice = await documentService.createInvoice(accessToken, { fulfillment_id: Number(id) });
+      navigate(`/invoices/${invoice.id}`);
+    } catch (commitError) {
+      setError(commitError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   if (isLoading) return <LoadingState />;
   if (!fulfillment) return <ErrorState description={error || 'Sales fulfillment not found.'} />;
 
@@ -126,6 +141,7 @@ export function SalesFulfillmentDetailPage() {
               >
                 Cancel
               </Button>
+              <Button disabled={isSaving} variant="secondary" onClick={generateInvoiceFromFulfillment}>Generate invoice</Button>
             </div>
           ) : null
         }

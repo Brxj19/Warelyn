@@ -131,6 +131,7 @@ class DocumentTemplateRead(BaseModel):
     name: str
     subject_template: str | None = None
     body_template: str
+    body_template_text: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -140,6 +141,7 @@ class DocumentTemplateUpdate(BaseModel):
     name: str | None = None
     subject_template: str | None = None
     body_template: str | None = None
+    body_template_text: str | None = None
     is_active: bool | None = None
 
 

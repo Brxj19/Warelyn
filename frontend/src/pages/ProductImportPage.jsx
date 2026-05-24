@@ -75,7 +75,7 @@ export function ProductImportPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="Catalog import" title="Import products" />
+      <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="Catalog import" title="Import Products — CSV or XLSX" />
       {error ? <ErrorState description={error} /> : null}
       <WorkflowProgress
         current={job?.status === 'COMMITTED' ? 'COMMITTED' : job?.status === 'VALIDATED' || job?.status === 'HAS_ERRORS' ? 'VALIDATED' : job ? 'UPLOADED' : 'PENDING'}
@@ -90,16 +90,26 @@ export function ProductImportPage() {
         <CardHeader className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-warelyn-text">Import Template</h2>
-            <p className="mt-1 text-sm text-warelyn-muted">Download the sample template to prepare bulk import rows in the correct format.</p>
+            <p className="mt-1 text-sm text-warelyn-muted">Download the sample template to prepare bulk import rows in the correct format. Supported: .csv and .xlsx (Excel).</p>
           </div>
-          <a
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-warelyn-border bg-white px-4 py-2.5 text-sm font-semibold text-warelyn-text transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-300"
-            download="products-import-sample.csv"
-            href="/products-import-sample.csv"
-          >
-            <Download size={16} />
-            <span>Download sample CSV</span>
-          </a>
+          <div className="flex gap-2">
+            <a
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-warelyn-border bg-white px-4 py-2.5 text-sm font-semibold text-warelyn-text transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-300"
+              download="products-import-sample.csv"
+              href="/products-import-sample.csv"
+            >
+              <Download size={16} />
+              <span>CSV Template</span>
+            </a>
+            <a
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-warelyn-border bg-white px-4 py-2.5 text-sm font-semibold text-warelyn-text transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-300"
+              download="products-import-template.xlsx"
+              href={`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api'}/imports/products/template.xlsx`}
+            >
+              <Download size={16} />
+              <span>XLSX Template</span>
+            </a>
+          </div>
         </CardHeader>
         <CardBody className="grid gap-4 md:grid-cols-2">
           <div><p className="text-sm font-semibold text-warelyn-text">Required</p><p className="mt-2 text-sm text-warelyn-muted">{requiredColumns.join(', ')}</p></div>

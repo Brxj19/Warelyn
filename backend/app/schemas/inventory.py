@@ -79,6 +79,11 @@ class WarehouseStockRead(BaseModel):
     quantity_on_hand: Decimal
     quantity_reserved: Decimal
     quantity_available: Decimal
+    quantity_in_transit: Decimal = Decimal("0")
+    quantity_qc_hold: Decimal = Decimal("0")
+    quantity_damaged: Decimal = Decimal("0")
+    quantity_expired: Decimal = Decimal("0")
+    quantity_quarantine: Decimal = Decimal("0")
     updated_at: datetime
 
 

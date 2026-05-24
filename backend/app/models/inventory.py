@@ -77,6 +77,11 @@ class WarehouseStock(Base):
     quantity_on_hand: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
     quantity_reserved: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
     quantity_available: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False, default=0)
+    quantity_in_transit: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False, default=0)
+    quantity_qc_hold: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False, default=0)
+    quantity_damaged: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False, default=0)
+    quantity_expired: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False, default=0)
+    quantity_quarantine: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 

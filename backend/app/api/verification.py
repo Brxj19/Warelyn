@@ -11,7 +11,7 @@ from app.models.communication import OTPPurpose, OTPSource
 from app.models.documents import DocumentTemplateChannel, DocumentTemplateKey
 from app.repositories.audit import AuditLogRepository
 from app.services.documents import DocumentTemplateService
-from app.repositories.notification import NotificationService
+from app.repositories.notification import NotificationRepository
 from app.repositories.otp import OTPRepository
 from app.schemas.communication import VerificationConfirmRequest, VerificationConfirmResponse, VerificationSendResponse, VerificationStatusResponse
 from app.services.auth import UserContext
@@ -27,7 +27,7 @@ def _otp_service(db: Session) -> OTPService:
 
 
 def _notify(db: Session, user_id: int, tenant_id: int | None, title: str, message: str, category: str) -> None:
-    NotificationService(db).create_notification(
+    NotificationRepository(db).create_notification(
         user_id=user_id,
         tenant_id=tenant_id,
         title=title,
@@ -60,13 +60,17 @@ def send_email_verification(context: UserContext = Depends(require_tenant_user),
             DocumentTemplateChannel.EMAIL,
             DocumentTemplateKey.EMAIL_VERIFICATION,
             {
-                "user_name": context.user.name,
                 "code": code,
-                "expiry_minutes": 10,
-                "company_name": "Warelyn",
+                "purpose": "email verification",
+                "ttl_minutes": 10,
             },
         )
-        send_email(context.user.email, rendered["subject"] or "Verify your Warelyn email", rendered["body"])
+        send_email(
+            context.user.email,
+            rendered["subject"] or "Verify your Warelyn email",
+            body_text=rendered.get("text") or rendered["body"],
+            body_html=rendered["body"] if "<html" in rendered["body"].lower() else None,
+        )
     except (OSError, EmailDeliveryError) as exc:
         raise AppError("EMAIL_DELIVERY_FAILED", f"Failed to send verification email: {exc}", 502) from exc
     return VerificationSendResponse(

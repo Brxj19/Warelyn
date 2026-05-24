@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api';
+
+let _globalErrorHandler = null;
+export function setGlobalErrorHandler(fn) { _globalErrorHandler = fn; }
 
 export async function apiRequest(path, options = {}) {
   const { accessToken, ...fetchOptions } = options;
@@ -16,7 +19,17 @@ export async function apiRequest(path, options = {}) {
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const error = new Error(payload?.error?.message ?? 'API request failed.');
+    const errorMessage = payload?.error?.message ?? 'API request failed.';
+    if (_globalErrorHandler) {
+      if (response.status === 401) {
+        _globalErrorHandler('Session expired. Please log in again.', 'error');
+      } else if (response.status === 403) {
+        _globalErrorHandler('You do not have permission for this action.', 'error');
+      } else if (response.status >= 500) {
+        _globalErrorHandler(errorMessage, 'error');
+      }
+    }
+    const error = new Error(errorMessage);
     error.status = response.status;
     error.payload = payload;
     throw error;

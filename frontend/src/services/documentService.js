@@ -1,7 +1,7 @@
 import { apiRequest } from './apiClient.js';
 
 function downloadPath(path, accessToken) {
-  return fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'}${path}`, {
+  return fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api'}${path}`, {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   }).then(async (response) => {
     if (!response.ok) {
@@ -83,4 +83,32 @@ export function updateDocumentTemplate(accessToken, id, payload) {
 
 export function previewDocumentTemplate(accessToken, id, payload) {
   return apiRequest(`/document-templates/${id}/preview`, { accessToken, method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function listTemplates(accessToken, channel) {
+  const query = channel ? `?channel=${encodeURIComponent(channel)}` : '';
+  return apiRequest(`/document-templates${query}`, { accessToken });
+}
+
+export function getTemplate(accessToken, id) {
+  return apiRequest(`/document-templates/${id}`, { accessToken });
+}
+
+export function updateTemplate(accessToken, id, payload) {
+  return apiRequest(`/document-templates/${id}`, { accessToken, method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export function previewTemplate(accessToken, id, variables) {
+  return apiRequest(`/document-templates/${id}/preview`, { accessToken, method: 'POST', body: JSON.stringify({ variables }) });
+}
+
+export async function previewTemplatePdf(accessToken, id, variables = {}) {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api';
+  const res = await fetch(`${API_BASE_URL}/document-templates/${id}/preview-pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ variables }),
+  });
+  if (!res.ok) throw new Error('PDF preview failed.');
+  return res.blob();
 }

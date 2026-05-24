@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -12,6 +12,18 @@ from app.services.imports import ProductImportService
 router = APIRouter(prefix="/imports/products", tags=["product-imports"])
 writer_roles = (UserRole.TENANT_ADMIN, UserRole.INVENTORY_MANAGER)
 reader_roles = (*writer_roles, UserRole.VIEWER)
+
+
+@router.get("/template.xlsx")
+def download_import_template_xlsx(
+    context: UserContext = Depends(require_roles(*writer_roles)),
+) -> Response:
+    content = ProductImportService.build_template_xlsx()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="products-import-template.xlsx"'},
+    )
 
 
 @router.post("/upload", response_model=ProductImportUploadResponse)

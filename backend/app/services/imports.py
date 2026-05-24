@@ -51,6 +51,59 @@ class ProductImportService:
         self.db = db
         self.repository = ImportRepository(db)
 
+    @staticmethod
+    def build_template_xlsx() -> bytes:
+        headers = list(REQUIRED_FIELDS) + sorted(OPTIONAL_FIELDS)
+        ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        ct_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+
+        shared_strings_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        shared_strings_xml += f'<sst xmlns="{ns}" count="{len(headers)}" uniqueCount="{len(headers)}">'
+        for h in headers:
+            shared_strings_xml += f"<si><t>{h}</t></si>"
+        shared_strings_xml += "</sst>"
+
+        sheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        sheet_xml += f'<worksheet xmlns="{ns}"><sheetData><row r="1">'
+        for idx, _ in enumerate(headers):
+            col_letter = chr(65 + idx) if idx < 26 else f"A{chr(65 + idx - 26)}"
+            sheet_xml += f'<c r="{col_letter}1" t="s"><v>{idx}</v></c>'
+        sheet_xml += "</row></sheetData></worksheet>"
+
+        workbook_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        workbook_xml += f'<workbook xmlns="{ns}" xmlns:r="{rel_ns}"><sheets><sheet name="Products" sheetId="1" r:id="rId1"/></sheets></workbook>'
+
+        workbook_rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        workbook_rels += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        workbook_rels += f'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        workbook_rels += f'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+        workbook_rels += "</Relationships>"
+
+        rels_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        rels_xml += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        rels_xml += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        rels_xml += "</Relationships>"
+
+        content_types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        content_types += f'<Types xmlns="{ct_ns}">'
+        content_types += '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        content_types += '<Default Extension="xml" ContentType="application/xml"/>'
+        content_types += '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        content_types += '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        content_types += '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+        content_types += "</Types>"
+
+        buf = BytesIO()
+        with ZipFile(buf, "w") as zf:
+            zf.writestr("[Content_Types].xml", content_types)
+            zf.writestr("_rels/.rels", rels_xml)
+            zf.writestr("xl/workbook.xml", workbook_xml)
+            zf.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+            zf.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+            zf.writestr("xl/sharedStrings.xml", shared_strings_xml)
+        return buf.getvalue()
+
     def upload(
         self,
         tenant_id: int,

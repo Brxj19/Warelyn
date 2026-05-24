@@ -134,3 +134,20 @@ def preview_document_template(
     db: Session = Depends(get_db),
 ) -> DocumentTemplatePreviewResponse:
     return DocumentTemplateService(db).preview_template(context.tenant_id, template_id, request.model_dump(exclude_none=True))
+
+
+@router.post("/document-templates/{template_id}/preview-pdf")
+def preview_template_pdf(
+    template_id: int,
+    request: DocumentTemplatePreviewRequest,
+    context: UserContext = Depends(require_roles(*admin_roles)),
+    db: Session = Depends(get_db),
+) -> Response:
+    pdf_bytes = DocumentsService(db).preview_template_pdf(
+        context.tenant_id, template_id, request.variables or {}
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "inline; filename=preview.pdf"},
+    )

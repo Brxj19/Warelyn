@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
+import { AdminLayout } from '../layouts/AdminLayout.jsx';
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { MainLayout } from '../layouts/MainLayout.jsx';
 import { AdminDashboardPage } from '../pages/AdminDashboardPage.jsx';
@@ -21,6 +22,7 @@ import {
 } from '../pages/CatalogMasterPages.jsx';
 import { DashboardPage } from '../pages/DashboardPage.jsx';
 import { BillDetailPage, BillsPage, InvoiceDetailPage, InvoicesPage } from '../pages/DocumentsPages.jsx';
+import { EmailTemplatesPage } from '../pages/EmailTemplatesPage.jsx';
 import { InventorySummaryReportPage } from '../pages/InventorySummaryReportPage.jsx';
 import { LocationStockReportPage } from '../pages/LocationStockReportPage.jsx';
 import { LandingPage } from '../pages/LandingPage.jsx';
@@ -31,6 +33,7 @@ import { PackageDetailPage } from '../pages/PackageDetailPage.jsx';
 import { PickTaskDetailPage } from '../pages/PickTaskDetailPage.jsx';
 import { PickTasksPage } from '../pages/PickTasksPage.jsx';
 import { PlatformHealthPage } from '../pages/PlatformHealthPage.jsx';
+import { PdfTemplatesPage } from '../pages/PdfTemplatesPage.jsx';
 import { ProductValuationReportPage } from '../pages/ProductValuationReportPage.jsx';
 import { ProductImportPage } from '../pages/ProductImportPage.jsx';
 import { PackagesPage, PurchaseReceiptStartPage, PurchaseReceiptsPage, SalesFulfillmentsPage } from '../pages/OperationalListPages.jsx';
@@ -138,9 +141,20 @@ export function AppRoutes() {
           <Route path="admin/audit-logs" element={<AuditLogsPage />} />
           <Route path="admin/platform-health" element={<PlatformHealthPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/email-templates" element={<EmailTemplatesPage />} />
+          <Route path="settings/pdf-templates" element={<PdfTemplatesPage />} />
           <Route path="verify-email" element={<VerifyEmailPage />} />
           <Route path="verify-phone" element={<VerifyPhonePage />} />
           <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Route>
+      <Route element={<ProtectedRoute requiredRole="SUPER_ADMIN" />}>
+        <Route element={<AdminLayout />}>
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="admin/tenants" element={<TenantsPage />} />
+          <Route path="admin/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="admin/audit-logs" element={<AuditLogsPage />} />
+          <Route path="admin/platform-health" element={<PlatformHealthPage />} />
         </Route>
       </Route>
       <Route element={<GuestRoute />}>

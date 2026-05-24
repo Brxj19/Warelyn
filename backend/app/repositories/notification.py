@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.communication import Notification, NotificationCategory, NotificationType
 
 
-class NotificationRepository:
+class _NotificationRepo:
     def __init__(self, db: Session) -> None:
         self.db = db
 
@@ -42,10 +42,10 @@ class NotificationRepository:
         self.db.flush()
 
 
-class NotificationService:
+class NotificationRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
-        self.repo = NotificationRepository(db)
+        self.repo = _NotificationRepo(db)
 
     def create_notification(self, user_id: int, title: str, message: str | None = None, type: str = "INFO", category: str = "SYSTEM", tenant_id: int | None = None, entity_type: str | None = None, entity_id: str | None = None) -> Notification:
         return self.repo.create(

@@ -1,4 +1,4 @@
-import { CheckCircle2, Mail, Smartphone, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, Mail, Smartphone, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -8,7 +8,6 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
-import { SettingsForm } from '../components/SettingsForm.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import * as settingsService from '../services/settingsService.js';
@@ -16,79 +15,119 @@ import * as verificationService from '../services/verificationService.js';
 import * as documentService from '../services/documentService.js';
 
 function TenantSettingsSection({ accessToken }) {
+  const toast = useToast();
   const [settings, setSettings] = useState(null);
+  const [form, setForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    settingsService.getTenantSettings(accessToken).then(setSettings).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    settingsService.getTenantSettings(accessToken)
+      .then((data) => {
+        setSettings(data);
+        setForm({
+          company_display_name: data?.company_display_name ?? '',
+          contact_email: data?.contact_email ?? '',
+          phone: data?.phone ?? '',
+          address_line1: data?.address_line1 ?? '',
+          address_line2: data?.address_line2 ?? '',
+          city: data?.city ?? '',
+          state: data?.state ?? '',
+          country: data?.country ?? '',
+          postal_code: data?.postal_code ?? '',
+          timezone: data?.timezone ?? 'UTC',
+          currency: data?.currency ?? 'USD',
+          tax_id: data?.tax_id ?? '',
+          over_receive_tolerance: data?.over_receive_tolerance ?? '',
+          low_stock_alert_enabled: data?.low_stock_alert_enabled ?? true,
+          document_logo_url: data?.document_logo_url ?? '',
+          document_footer: data?.document_footer ?? '',
+        });
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [accessToken]);
+
+  function handleChange(field) {
+    return (e) => setForm((p) => ({ ...p, [field]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  }
+
+  async function handleSave() {
+    try {
+      const data = {};
+      for (const [key, value] of Object.entries(form)) {
+        if (value !== (settings?.[key] ?? '')) data[key] = value;
+      }
+      if (Object.keys(data).length > 0) {
+        const updated = await settingsService.updateTenantSettings(accessToken, data);
+        setSettings(updated);
+        toast.success('Settings saved successfully.');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }
 
   if (loading) return <LoadingState message="Loading tenant settings..." />;
   if (error) return <ErrorState description={error} />;
 
   return (
-    <SettingsForm
-      error={error}
-      isLoading={loading}
-      onSave={async () => {
-        const data = {};
-        for (const field of ['company_display_name', 'contact_email', 'phone', 'address_line1', 'address_line2', 'city', 'state', 'country', 'postal_code', 'timezone', 'currency', 'tax_id', 'over_receive_tolerance', 'document_logo_url', 'document_footer']) {
-          const el = document.getElementById(field);
-          if (el && el.value !== undefined && el.value !== (settings[field] ?? '')) data[field] = el.value;
-        }
-        const ls = document.getElementById('low_stock_alert_enabled');
-        if (ls) data.low_stock_alert_enabled = ls.checked;
-        if (Object.keys(data).length > 0) {
-          const updated = await settingsService.updateTenantSettings(accessToken, data);
-          setSettings(updated);
-        }
-      }}
-      sections={[
-        {
-          title: 'Company Profile',
-          description: 'Basic company information for this tenant.',
-          fields: [
-            <Input defaultValue={settings?.company_display_name ?? ''} id="company_display_name" key="company_display_name" label="Company Display Name" />,
-            <Input defaultValue={settings?.contact_email ?? ''} id="contact_email" key="contact_email" label="Contact Email" type="email" />,
-            <Input defaultValue={settings?.phone ?? ''} id="phone" key="phone" label="Phone" />,
-            <Input defaultValue={settings?.address_line1 ?? ''} id="address_line1" key="address_line1" label="Address Line 1" />,
-            <Input defaultValue={settings?.address_line2 ?? ''} id="address_line2" key="address_line2" label="Address Line 2" />,
-            <Input defaultValue={settings?.city ?? ''} id="city" key="city" label="City" />,
-            <Input defaultValue={settings?.state ?? ''} id="state" key="state" label="State" />,
-            <Input defaultValue={settings?.country ?? ''} id="country" key="country" label="Country" />,
-            <Input defaultValue={settings?.postal_code ?? ''} id="postal_code" key="postal_code" label="Postal Code" />,
-            <Input defaultValue={settings?.timezone ?? 'UTC'} id="timezone" key="timezone" label="Timezone" />,
-            <Input defaultValue={settings?.currency ?? 'USD'} id="currency" key="currency" label="Currency" />,
-            <Input defaultValue={settings?.tax_id ?? ''} id="tax_id" key="tax_id" label="Tax ID" />,
-          ],
-        },
-        {
-          title: 'Inventory Preferences',
-          description: 'Default inventory behavior for this tenant.',
-          fields: [
-            <Input defaultValue={settings?.over_receive_tolerance ?? ''} id="over_receive_tolerance" key="over_receive_tolerance" label="Over-Receive Tolerance" helper="e.g. 10%" />,
-            <label className="flex items-center gap-2" key="low_stock_alert_enabled">
-              <input defaultChecked={settings?.low_stock_alert_enabled ?? true} id="low_stock_alert_enabled" type="checkbox" className="h-4 w-4 rounded border-warelyn-border text-warelyn-primary focus:ring-warelyn-primary" />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><h3 className="text-base font-semibold text-warelyn-text">Company Profile</h3></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-sm text-warelyn-muted">Basic company information for this tenant.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Company Display Name" value={form.company_display_name} onChange={handleChange('company_display_name')} />
+            <Input label="Contact Email" type="email" value={form.contact_email} onChange={handleChange('contact_email')} />
+            <Input label="Phone" value={form.phone} onChange={handleChange('phone')} />
+            <Input label="Address Line 1" value={form.address_line1} onChange={handleChange('address_line1')} />
+            <Input label="Address Line 2" value={form.address_line2} onChange={handleChange('address_line2')} />
+            <Input label="City" value={form.city} onChange={handleChange('city')} />
+            <Input label="State" value={form.state} onChange={handleChange('state')} />
+            <Input label="Country" value={form.country} onChange={handleChange('country')} />
+            <Input label="Postal Code" value={form.postal_code} onChange={handleChange('postal_code')} />
+            <Input label="Timezone" value={form.timezone} onChange={handleChange('timezone')} />
+            <Input label="Currency" value={form.currency} onChange={handleChange('currency')} />
+            <Input label="Tax ID" value={form.tax_id} onChange={handleChange('tax_id')} />
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><h3 className="text-base font-semibold text-warelyn-text">Inventory Preferences</h3></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-sm text-warelyn-muted">Default inventory behavior for this tenant.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Over-Receive Tolerance" value={form.over_receive_tolerance} onChange={handleChange('over_receive_tolerance')} helper="e.g. 10%" />
+            <label className="flex items-center gap-2">
+              <input checked={form.low_stock_alert_enabled} onChange={handleChange('low_stock_alert_enabled')} type="checkbox" className="h-4 w-4 rounded border-warelyn-border text-warelyn-primary focus:ring-warelyn-primary" />
               <span className="text-sm font-medium text-warelyn-text">Low stock alert enabled</span>
-            </label>,
-          ],
-        },
-        {
-          title: 'Documents',
-          description: 'Customize generated documents.',
-          fields: [
-            <Input defaultValue={settings?.document_logo_url ?? ''} id="document_logo_url" key="document_logo_url" label="Document Logo URL" helper="URL to your company logo" />,
-            <div className="sm:col-span-2" key="document_footer">
-              <label className="block" htmlFor="document_footer">
+            </label>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><h3 className="text-base font-semibold text-warelyn-text">Documents</h3></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-sm text-warelyn-muted">Customize generated documents.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Document Logo URL" value={form.document_logo_url} onChange={handleChange('document_logo_url')} helper="URL to your company logo" />
+            <div className="sm:col-span-2">
+              <label className="block">
                 <span className="mb-2 block text-sm font-medium text-warelyn-text">Document Footer</span>
-                <textarea className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition placeholder:text-slate-400 focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10" defaultValue={settings?.document_footer ?? ''} id="document_footer" rows={3} />
+                <textarea className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition placeholder:text-slate-400 focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10" value={form.document_footer} onChange={handleChange('document_footer')} rows={3} />
               </label>
-            </div>,
-          ],
-        },
-      ]}
-    />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave}>Save Settings</Button>
+      </div>
+    </div>
   );
 }
 
@@ -154,82 +193,105 @@ function VerificationSection() {
 }
 
 function UserPreferencesSection({ accessToken }) {
+  const toast = useToast();
   const [prefs, setPrefs] = useState(null);
+  const [form, setForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    settingsService.getUserPreferences(accessToken).then(setPrefs).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    settingsService.getUserPreferences(accessToken)
+      .then((data) => {
+        setPrefs(data);
+        setForm({
+          default_landing_page: data?.default_landing_page ?? '/dashboard',
+          table_density: data?.table_density ?? 'comfortable',
+          theme_preference: data?.theme_preference ?? 'light',
+        });
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [accessToken]);
+
+  function handleChange(field) {
+    return (e) => setForm((p) => ({ ...p, [field]: e.target.value }));
+  }
+
+  async function handleSave() {
+    try {
+      const data = {};
+      for (const [key, value] of Object.entries(form)) {
+        if (value !== (prefs?.[key] ?? '')) data[key] = value;
+      }
+      if (Object.keys(data).length > 0) {
+        const updated = await settingsService.updateUserPreferences(accessToken, data);
+        setPrefs(updated);
+        toast.success('Preferences saved successfully.');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    }
+  }
 
   if (loading) return <LoadingState message="Loading preferences..." />;
   if (error) return <ErrorState description={error} />;
 
   return (
-    <SettingsForm
-      error={error}
-      isLoading={loading}
-      onSave={async () => {
-        const data = {};
-        const landing = document.getElementById('default_landing_page');
-        if (landing && landing.value !== prefs.default_landing_page) data.default_landing_page = landing.value;
-        const density = document.getElementById('table_density');
-        if (density && density.value !== prefs.table_density) data.table_density = density.value;
-        const theme = document.getElementById('theme_preference');
-        if (theme && theme.value !== prefs.theme_preference) data.theme_preference = theme.value;
-        if (Object.keys(data).length > 0) {
-          const updated = await settingsService.updateUserPreferences(accessToken, data);
-          setPrefs(updated);
-        }
-      }}
-      sections={[
-        {
-          title: 'Display Preferences',
-          description: 'Customize your interface.',
-          fields: [
-            <div key="default_landing_page">
-              <label className="block" htmlFor="default_landing_page">
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><h3 className="text-base font-semibold text-warelyn-text">Display Preferences</h3></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-sm text-warelyn-muted">Customize your interface.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block">
                 <span className="mb-2 block text-sm font-medium text-warelyn-text">Default Landing Page</span>
-                <select id="default_landing_page" defaultValue={prefs?.default_landing_page ?? '/dashboard'} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
+                <select value={form.default_landing_page} onChange={handleChange('default_landing_page')} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
                   <option value="/dashboard">Dashboard</option>
                   <option value="/catalog/products">Products</option>
                   <option value="/reports/inventory-summary">Inventory Summary</option>
                 </select>
               </label>
-            </div>,
-            <div key="table_density">
-              <label className="block" htmlFor="table_density">
+            </div>
+            <div>
+              <label className="block">
                 <span className="mb-2 block text-sm font-medium text-warelyn-text">Table Density</span>
-                <select id="table_density" defaultValue={prefs?.table_density ?? 'comfortable'} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
+                <select value={form.table_density} onChange={handleChange('table_density')} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
                   <option value="compact">Compact</option>
                   <option value="comfortable">Comfortable</option>
                 </select>
               </label>
-            </div>,
-            <div key="theme_preference">
-              <label className="block" htmlFor="theme_preference">
+            </div>
+            <div>
+              <label className="block">
                 <span className="mb-2 block text-sm font-medium text-warelyn-text">Theme</span>
-                <select id="theme_preference" defaultValue={prefs?.theme_preference ?? 'light'} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
+                <select value={form.theme_preference} onChange={handleChange('theme_preference')} className="block w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10">
                   <option value="light">Light</option>
                 </select>
               </label>
-            </div>,
-          ],
-        },
-        {
-          title: 'Notifications',
-          description: 'Notification preferences (coming soon).',
-          fields: [
-            <p className="text-sm text-warelyn-muted sm:col-span-2" key="notice">Notification settings will be available in a future update.</p>,
-          ],
-        },
-      ]}
-    />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><h3 className="text-base font-semibold text-warelyn-text">Notifications</h3></CardHeader>
+        <CardBody>
+          <p className="text-sm text-warelyn-muted">Notification settings will be available in a future update.</p>
+        </CardBody>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave}>Save Preferences</Button>
+      </div>
+    </div>
   );
 }
 
 function DocumentTemplatesSection({ accessToken, channel }) {
+  const toast = useToast();
   const [templates, setTemplates] = useState([]);
+  const [forms, setForms] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState({});
@@ -238,7 +300,13 @@ function DocumentTemplatesSection({ accessToken, channel }) {
     setLoading(true);
     setError('');
     try {
-      setTemplates(await documentService.listDocumentTemplates(accessToken, channel));
+      const data = await documentService.listDocumentTemplates(accessToken, channel);
+      setTemplates(data);
+      const initial = {};
+      for (const t of data) {
+        initial[t.id] = { subject_template: t.subject_template ?? '', body_template: t.body_template ?? '' };
+      }
+      setForms(initial);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -246,9 +314,7 @@ function DocumentTemplatesSection({ accessToken, channel }) {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [accessToken, channel]);
+  useEffect(() => { load(); }, [accessToken, channel]);
 
   if (loading) return <LoadingState message={`Loading ${channel.toLowerCase()} templates...`} />;
   if (error) return <ErrorState description={error} />;
@@ -269,18 +335,18 @@ function DocumentTemplatesSection({ accessToken, channel }) {
           <CardBody className="space-y-4">
             {channel === 'EMAIL' ? (
               <Input
-                defaultValue={template.subject_template ?? ''}
-                id={`template-subject-${template.id}`}
                 label="Subject"
+                value={forms[template.id]?.subject_template ?? ''}
+                onChange={(e) => setForms((p) => ({ ...p, [template.id]: { ...p[template.id], subject_template: e.target.value } }))}
               />
             ) : null}
             <div>
-              <label className="block" htmlFor={`template-body-${template.id}`}>
+              <label className="block">
                 <span className="mb-2 block text-sm font-medium text-warelyn-text">Body</span>
                 <textarea
-                  className="block min-h-[180px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
-                  defaultValue={template.body_template}
-                  id={`template-body-${template.id}`}
+                  className="block min-h-[180px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 font-mono text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                  value={forms[template.id]?.body_template ?? ''}
+                  onChange={(e) => setForms((p) => ({ ...p, [template.id]: { ...p[template.id], body_template: e.target.value } }))}
                   rows={8}
                 />
               </label>
@@ -290,8 +356,12 @@ function DocumentTemplatesSection({ accessToken, channel }) {
                 size="sm"
                 variant="secondary"
                 onClick={async () => {
-                  const data = await documentService.previewDocumentTemplate(accessToken, template.id, {});
-                  setPreview((current) => ({ ...current, [template.id]: data }));
+                  try {
+                    const data = await documentService.previewDocumentTemplate(accessToken, template.id, {});
+                    setPreview((current) => ({ ...current, [template.id]: data }));
+                  } catch (e) {
+                    toast.error(e.message);
+                  }
                 }}
               >
                 Preview
@@ -299,15 +369,20 @@ function DocumentTemplatesSection({ accessToken, channel }) {
               <Button
                 size="sm"
                 onClick={async () => {
-                  const payload = {
-                    body_template: document.getElementById(`template-body-${template.id}`)?.value ?? template.body_template,
-                    is_active: true,
-                  };
-                  if (channel === 'EMAIL') {
-                    payload.subject_template = document.getElementById(`template-subject-${template.id}`)?.value ?? template.subject_template;
+                  try {
+                    const payload = {
+                      body_template: forms[template.id]?.body_template ?? template.body_template,
+                      is_active: true,
+                    };
+                    if (channel === 'EMAIL') {
+                      payload.subject_template = forms[template.id]?.subject_template ?? template.subject_template;
+                    }
+                    await documentService.updateDocumentTemplate(accessToken, template.id, payload);
+                    toast.success('Template saved.');
+                    await load();
+                  } catch (e) {
+                    toast.error(e.message);
                   }
-                  await documentService.updateDocumentTemplate(accessToken, template.id, payload);
-                  await load();
                 }}
               >
                 Save template
@@ -322,6 +397,39 @@ function DocumentTemplatesSection({ accessToken, channel }) {
           </CardBody>
         </Card>
       ))}
+    </div>
+  );
+}
+
+function TemplateShortcutCards() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Link to="/settings/email-templates" className="block">
+        <Card className="hover:shadow-md transition">
+          <CardBody>
+            <div className="flex items-center gap-3">
+              <Mail size={20} className="text-warelyn-primary" />
+              <div>
+                <h3 className="text-sm font-semibold text-warelyn-text">Email Templates</h3>
+                <p className="text-xs text-warelyn-muted">Customize email notifications</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </Link>
+      <Link to="/settings/pdf-templates" className="block">
+        <Card className="hover:shadow-md transition">
+          <CardBody>
+            <div className="flex items-center gap-3">
+              <FileText size={20} className="text-warelyn-primary" />
+              <div>
+                <h3 className="text-sm font-semibold text-warelyn-text">PDF Templates</h3>
+                <p className="text-xs text-warelyn-muted">Customize invoice and bill PDFs</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </Link>
     </div>
   );
 }
@@ -369,6 +477,13 @@ export function SettingsPage() {
       {tab === 'preferences' ? <UserPreferencesSection accessToken={accessToken} /> : null}
       {tab === 'email-templates' ? <DocumentTemplatesSection accessToken={accessToken} channel="EMAIL" /> : null}
       {tab === 'pdf-templates' ? <DocumentTemplatesSection accessToken={accessToken} channel="PDF" /> : null}
+
+      {user?.role === 'TENANT_ADMIN' && tab === 'tenant' ? (
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold text-warelyn-text">Templates</h2>
+          <TemplateShortcutCards />
+        </div>
+      ) : null}
     </div>
   );
 }

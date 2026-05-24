@@ -21,6 +21,7 @@ from app.models.master_data import Brand, Category, Customer, LocationType, Prod
 from app.models.purchasing import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptItem, PurchaseReceiptStatus
 from app.models.returns import BlockedReturnStock, BlockedReturnStockStatus, ReturnQCInspection, SalesReturn, SalesReturnItem, SalesReturnItemStatus, SalesReturnStatus
 from app.models.sales import SalesFulfillment, SalesFulfillmentItem, SalesFulfillmentStatus, SalesOrder, SalesOrderItem, SalesOrderStatus
+from app.models.operations import OutboxEvent, OutboxEventStatus, PutawayTask, PutawayTaskStatus, ReorderRule, StockCountLine, StockCountSession, StockCountSessionStatus
 from app.models.settings import TenantSettings, UserPreferences
 
 __all__ = [
@@ -104,4 +105,12 @@ __all__ = [
     "Warehouse",
     "WarehouseLocation",
     "WarehouseStock",
+    "OutboxEvent",
+    "OutboxEventStatus",
+    "PutawayTask",
+    "PutawayTaskStatus",
+    "ReorderRule",
+    "StockCountLine",
+    "StockCountSession",
+    "StockCountSessionStatus",
 ]

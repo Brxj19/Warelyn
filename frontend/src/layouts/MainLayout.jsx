@@ -11,11 +11,14 @@ import { TopbarSearch } from '../components/TopbarSearch.jsx';
 import { activeGroupFor, flattenNav, resolveRouteMeta } from '../components/navigation.js';
 import { Button } from '../components/ui/Button.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { setGlobalErrorHandler } from '../services/apiClient.js';
+import { useToast } from '../hooks/useToast.jsx';
 
 export function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, tenant, user } = useAuth();
+  const toast = useToast();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const accountRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -45,6 +48,10 @@ export function MainLayout() {
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
+  useEffect(() => {
+    setGlobalErrorHandler((msg, type) => toast[type]?.(msg));
+    return () => setGlobalErrorHandler(null);
+  }, [toast]);
 
   return (
     <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>

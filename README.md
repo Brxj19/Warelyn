@@ -163,7 +163,7 @@ Deployment readiness notes are in `docs/DEPLOYMENT_READINESS.md`. `docker-compos
 Health check:
 
 ```bash
-curl http://localhost:8000/api/health
+curl http://localhost:8001/api/health
 ```
 
 Expected response:
@@ -309,7 +309,7 @@ docker compose down
 Development URLs:
 
 - Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:8000`
+- Backend API: `http://localhost:8001`
 - MySQL: `localhost:3306`
 - MailHog: `http://localhost:8025` (dev email viewer)
 

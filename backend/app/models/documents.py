@@ -79,6 +79,7 @@ class DocumentTemplate(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     subject_template: Mapped[str | None] = mapped_column(String(255), nullable=True)
     body_template: Mapped[str] = mapped_column(Text, nullable=False)
+    body_template_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

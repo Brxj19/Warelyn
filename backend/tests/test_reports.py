@@ -199,3 +199,38 @@ def test_report_csv_export_returns_text_csv(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert "warehouse_name" in response.text
+
+
+def test_dashboard_charts_and_insights(client: TestClient) -> None:
+    login = register_and_login(client, "charts-test@example.com")
+    token = login["access_token"]
+    create_report_fixture(client, token, "CHARTS")
+
+    dashboard = client.get("/api/dashboard/operations?compare_previous=true", headers=auth_headers(token))
+
+    assert dashboard.status_code == 200
+    data = dashboard.json()
+    # Charts field present with expected structure
+    assert "charts" in data
+    charts = data["charts"]
+    assert "stock_movements_by_day" in charts
+    assert "order_status_summary" in charts
+    assert "low_stock_by_category" in charts
+    assert isinstance(charts["stock_movements_by_day"], list)
+    assert len(charts["stock_movements_by_day"]) == 30
+    # Each day entry has the right shape
+    day_entry = charts["stock_movements_by_day"][0]
+    assert "date" in day_entry
+    assert "inbound" in day_entry
+    assert "outbound" in day_entry
+    # Order status summary has correct keys
+    assert "purchase_orders" in charts["order_status_summary"]
+    assert "sales_orders" in charts["order_status_summary"]
+    # Insights field present
+    assert "insights" in data
+    assert isinstance(data["insights"], list)
+    # With only 1 low-stock item (count <= 5), no low-stock insight should fire
+    low_stock_insights = [i for i in data["insights"] if "low-stock" in (i.get("title") or "").lower()]
+    assert len(low_stock_insights) == 0
+    # previous_kpis should be None when no historical ledger data exists for previous period
+    assert data["previous_kpis"] is None

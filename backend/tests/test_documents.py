@@ -334,3 +334,188 @@ def test_jinja2_filter_lower_works_in_document_kind(client: TestClient, db_sessi
         {"title": "Invoice INV-001", "intro": "Hi", "document_kind": "Invoice", "document_number": "INV-001", "notes": None, "sender_name": "Test Co"},
     )
     assert "invoice" in rendered["body"]
+
+
+# ─── Template Purpose Validation Tests ────────────────────────────────────────
+
+
+def test_invoice_pdf_rejects_bill_template(client: TestClient, db_session: Session) -> None:
+    """Invoice PDF rendering must reject a template whose key starts with PDF_BILL."""
+    import pytest
+    from app.core.exceptions import AppError
+    from app.models.documents import DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey
+    from app.models.settings import UserPreferences
+
+    login = sales_login(client, "inv-reject-bill@example.com")
+    token = login["access_token"]
+    tenant_id = login["user"]["tenant_id"]
+    user_id = login["user"]["id"]
+
+    # Ensure default templates exist
+    svc = DocumentsService(db_session)
+    svc.templates._ensure_defaults(tenant_id)
+
+    # Find a PDF_BILL template
+    bill_template = db_session.query(DocumentTemplate).filter_by(
+        tenant_id=tenant_id, template_key=DocumentTemplateKey.PDF_BILL
+    ).first()
+    assert bill_template is not None
+
+    # Set user preference to point invoice PDF at the bill template
+    prefs = db_session.query(UserPreferences).filter_by(user_id=user_id).first()
+    if prefs is None:
+        prefs = UserPreferences(user_id=user_id)
+        db_session.add(prefs)
+    prefs.preferred_invoice_template_id = bill_template.id
+    db_session.commit()
+
+    # Create an invoice to render
+    dimension = setup_sales_dimension(client, token, "REJB")
+    order = create_sales_order(client, token, dimension, "1", "SO-REJB")
+    created = client.post("/api/invoices", json={"sales_order_id": order["id"]}, headers=sales_headers(token))
+    invoice_id = created.json()["id"]
+
+    with pytest.raises(AppError) as exc_info:
+        svc.render_invoice_pdf(tenant_id, invoice_id, user_id)
+    assert exc_info.value.code == "TEMPLATE_PURPOSE_MISMATCH"
+    assert exc_info.value.status_code == 400
+
+
+def test_bill_pdf_rejects_invoice_template(client: TestClient, db_session: Session, monkeypatch) -> None:
+    """Bill PDF rendering must reject a template whose key starts with PDF_INVOICE."""
+    import pytest
+    from app.core.exceptions import AppError
+    from app.models.documents import DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey
+    from app.models.settings import UserPreferences
+
+    monkeypatch.setattr("app.services.documents.send_email", lambda *args, **kwargs: None)
+    login = purchase_login(client, "bill-reject-inv@example.com")
+    token = login["access_token"]
+    tenant_id = login["user"]["tenant_id"]
+    user_id = login["user"]["id"]
+
+    svc = DocumentsService(db_session)
+    svc.templates._ensure_defaults(tenant_id)
+
+    # Find a PDF_INVOICE template
+    invoice_template = db_session.query(DocumentTemplate).filter_by(
+        tenant_id=tenant_id, template_key=DocumentTemplateKey.PDF_INVOICE
+    ).first()
+    assert invoice_template is not None
+
+    # Set user preference to point bill PDF at the invoice template
+    prefs = db_session.query(UserPreferences).filter_by(user_id=user_id).first()
+    if prefs is None:
+        prefs = UserPreferences(user_id=user_id)
+        db_session.add(prefs)
+    prefs.preferred_bill_template_id = invoice_template.id
+    db_session.commit()
+
+    # Create a bill to render
+    dimension = setup_purchase_dimension(client, token, "REJI")
+    po = submit_po(client, token, create_po(client, token, dimension, "2", "PO-REJI")["id"])
+    receipt = create_receipt(client, token, po, dimension, "2", "GRN-REJI")
+    created = client.post("/api/bills", json={"receipt_id": receipt["id"]}, headers=purchase_headers(token))
+    bill_id = created.json()["id"]
+
+    with pytest.raises(AppError) as exc_info:
+        svc.render_bill_pdf(tenant_id, bill_id, user_id)
+    assert exc_info.value.code == "TEMPLATE_PURPOSE_MISMATCH"
+    assert exc_info.value.status_code == 400
+
+
+def test_invoice_pdf_rejects_inactive_template(client: TestClient, db_session: Session) -> None:
+    """Invoice PDF rendering must reject an inactive preferred template."""
+    import pytest
+    from app.core.exceptions import AppError
+    from app.models.documents import DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey
+    from app.models.settings import UserPreferences
+
+    login = sales_login(client, "inv-inactive@example.com")
+    token = login["access_token"]
+    tenant_id = login["user"]["tenant_id"]
+    user_id = login["user"]["id"]
+
+    svc = DocumentsService(db_session)
+    svc.templates._ensure_defaults(tenant_id)
+
+    # Find a PDF_INVOICE template and deactivate it
+    invoice_template = db_session.query(DocumentTemplate).filter_by(
+        tenant_id=tenant_id, template_key=DocumentTemplateKey.PDF_INVOICE
+    ).first()
+    assert invoice_template is not None
+    invoice_template.is_active = False
+    db_session.commit()
+
+    # Set user preference to point at the now-inactive template
+    prefs = db_session.query(UserPreferences).filter_by(user_id=user_id).first()
+    if prefs is None:
+        prefs = UserPreferences(user_id=user_id)
+        db_session.add(prefs)
+    prefs.preferred_invoice_template_id = invoice_template.id
+    db_session.commit()
+
+    # Create an invoice to render
+    dimension = setup_sales_dimension(client, token, "INACT")
+    order = create_sales_order(client, token, dimension, "1", "SO-INACT")
+    created = client.post("/api/invoices", json={"sales_order_id": order["id"]}, headers=sales_headers(token))
+    invoice_id = created.json()["id"]
+
+    # get_template_by_id filters is_active=True, so inactive returns None -> 404
+    with pytest.raises(AppError) as exc_info:
+        svc.render_invoice_pdf(tenant_id, invoice_id, user_id)
+    assert exc_info.value.code == "DOCUMENT_TEMPLATE_NOT_FOUND"
+    assert exc_info.value.status_code == 404
+
+
+def test_bill_pdf_rejects_cross_tenant_template(client: TestClient, db_session: Session, monkeypatch) -> None:
+    """Bill PDF rendering must reject a template belonging to a different tenant."""
+    import pytest
+    from app.core.exceptions import AppError
+    from app.models.documents import DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey
+    from app.models.settings import UserPreferences
+
+    monkeypatch.setattr("app.services.documents.send_email", lambda *args, **kwargs: None)
+
+    # Create two tenants
+    login_a = purchase_login(client, "tenant-a-cross@example.com")
+    token_a = login_a["access_token"]
+    tenant_a_id = login_a["user"]["tenant_id"]
+
+    login_b = purchase_login(client, "tenant-b-cross@example.com")
+    token_b = login_b["access_token"]
+    tenant_b_id = login_b["user"]["tenant_id"]
+    user_b_id = login_b["user"]["id"]
+
+    # Ensure defaults for both tenants
+    svc_a = DocumentsService(db_session)
+    svc_a.templates._ensure_defaults(tenant_a_id)
+    svc_b = DocumentsService(db_session)
+    svc_b.templates._ensure_defaults(tenant_b_id)
+
+    # Get a PDF_BILL template from tenant A
+    template_a = db_session.query(DocumentTemplate).filter_by(
+        tenant_id=tenant_a_id, template_key=DocumentTemplateKey.PDF_BILL
+    ).first()
+    assert template_a is not None
+
+    # Set tenant B user preference to point at tenant A's template
+    prefs = db_session.query(UserPreferences).filter_by(user_id=user_b_id).first()
+    if prefs is None:
+        prefs = UserPreferences(user_id=user_b_id)
+        db_session.add(prefs)
+    prefs.preferred_bill_template_id = template_a.id
+    db_session.commit()
+
+    # Create a bill in tenant B
+    dimension = setup_purchase_dimension(client, token_b, "CROSS")
+    po = submit_po(client, token_b, create_po(client, token_b, dimension, "1", "PO-CROSS")["id"])
+    receipt = create_receipt(client, token_b, po, dimension, "1", "GRN-CROSS")
+    created = client.post("/api/bills", json={"receipt_id": receipt["id"]}, headers=purchase_headers(token_b))
+    bill_id = created.json()["id"]
+
+    # get_template_by_id filters by tenant_id, so cross-tenant returns None -> 404
+    with pytest.raises(AppError) as exc_info:
+        svc_b.render_bill_pdf(tenant_b_id, bill_id, user_b_id)
+    assert exc_info.value.code == "DOCUMENT_TEMPLATE_NOT_FOUND"
+    assert exc_info.value.status_code == 404

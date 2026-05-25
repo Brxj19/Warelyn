@@ -539,8 +539,8 @@ function UserPreferencesSection({ accessToken }) {
     { value: '/dashboard', label: 'Dashboard', icon: Home },
     { value: '/reports/inventory-summary', label: 'Inventory Summary', icon: LayoutList },
     { value: '/warehouses', label: 'Warehouse Stock', icon: LayoutList },
-    { value: '/sales/orders', label: 'Sales Orders', icon: FileText },
-    { value: '/purchasing/orders', label: 'Purchase Orders', icon: FileText },
+    { value: '/sales', label: 'Sales Orders', icon: FileText },
+    { value: '/purchases', label: 'Purchase Orders', icon: FileText },
   ];
 
   const invoicePdfTemplates = pdfTemplates.filter((t) => t.template_key?.startsWith('PDF_INVOICE'));

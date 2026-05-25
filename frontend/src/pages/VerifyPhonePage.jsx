@@ -11,7 +11,7 @@ import { useToast } from '../hooks/useToast.jsx';
 import * as verificationService from '../services/verificationService.js';
 
 export function VerifyPhonePage() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [code, setCode] = useState('');
@@ -69,6 +69,16 @@ export function VerifyPhonePage() {
           </div>
         </CardHeader>
         <CardBody>
+          {user?.phone_verified_at ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <CheckCircle2 size={24} />
+              </div>
+              <p className="text-sm font-medium text-green-700">Phone already verified</p>
+              <Button variant="secondary" onClick={() => navigate('/settings')}>Back to Settings</Button>
+            </div>
+          ) : (
+            <>
           {error ? <ErrorState className="mb-4" description={error} /> : null}
 
           {!sent ? (
@@ -101,6 +111,8 @@ export function VerifyPhonePage() {
                 </Button>
               </div>
             </div>
+          )}
+            </>
           )}
         </CardBody>
       </Card>

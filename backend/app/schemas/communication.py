@@ -42,6 +42,9 @@ class NotificationRead(BaseModel):
     category: str = "SYSTEM"
     entity_type: str | None = None
     entity_id: str | None = None
+    action_url: str | None = None
+    priority: str = "normal"
     is_read: bool = False
     read_at: datetime | None = None
+    cleared_at: datetime | None = None
     created_at: datetime

@@ -57,6 +57,13 @@ class DocumentTemplateService:
         resolved = DocumentTemplateChannel(channel) if channel else None
         return self.repository.list_templates(tenant_id, resolved)
 
+    def get_template(self, tenant_id: int, template_id: int):
+        self._ensure_defaults(tenant_id)
+        template = self.repository.get_template(tenant_id, template_id)
+        if template is None:
+            raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Document template was not found for this tenant.", 404)
+        return template
+
     def update_template(self, tenant_id: int, template_id: int, values: dict[str, Any]):
         template = self.repository.get_template(tenant_id, template_id)
         if template is None:
@@ -91,6 +98,14 @@ class DocumentTemplateService:
             template = self.repository.get_template_by_id(tenant_id, preferred_template_id)
             if template is None:
                 raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "The selected preferred template is no longer available.", 404)
+            # Validate that the preferred template's purpose matches the requested key
+            expected_prefix = self._template_purpose_prefix(template_key)
+            if expected_prefix and not template.template_key.value.startswith(expected_prefix):
+                raise AppError(
+                    "TEMPLATE_PURPOSE_MISMATCH",
+                    "Selected template cannot be used for this document type.",
+                    400,
+                )
         if template is None:
             template = self.repository.get_template_by_key(tenant_id, channel, template_key)
         if template is None or not template.is_active:
@@ -100,6 +115,22 @@ class DocumentTemplateService:
             "body": self._render(template.body_template, context),
             "text": self._render(template.body_template_text, context) if template.body_template_text else None,
         }
+
+    @staticmethod
+    def _template_purpose_prefix(template_key: DocumentTemplateKey) -> str | None:
+        """Derive the expected template_key prefix for purpose validation."""
+        key_value = template_key.value
+        if key_value.startswith("PDF_INVOICE"):
+            return "PDF_INVOICE"
+        if key_value.startswith("PDF_BILL"):
+            return "PDF_BILL"
+        if key_value.startswith("INVOICE_SEND"):
+            return "INVOICE_SEND"
+        if key_value.startswith("BILL_SEND"):
+            return "BILL_SEND"
+        if key_value.startswith("EMAIL_VERIFICATION"):
+            return "EMAIL_VERIFICATION"
+        return None
 
     def _preview_context(self, tenant_id: int, values: dict[str, Any]) -> dict[str, Any]:
         base = DocumentsService(self.db)._base_template_context(tenant_id)

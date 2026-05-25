@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, Boxes, ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, TrendingDown, TrendingUp, Undo2, Warehouse } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, Boxes, ClipboardList, Info, PackageCheck, ShieldAlert, ShoppingCart, TrendingDown, TrendingUp, Undo2, Warehouse, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 
@@ -141,6 +141,113 @@ export function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Insights */}
+      {dashboard?.insights?.length > 0 && (
+        <div className="space-y-3">
+          {dashboard.insights.map((insight, idx) => {
+            const Icon = insight.severity === 'danger' ? XCircle : insight.severity === 'warning' ? AlertTriangle : Info;
+            const colors = insight.severity === 'danger'
+              ? 'border-red-200 bg-red-50 text-red-800'
+              : insight.severity === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-blue-200 bg-blue-50 text-blue-800';
+            const iconColor = insight.severity === 'danger' ? 'text-red-600' : insight.severity === 'warning' ? 'text-amber-600' : 'text-blue-600';
+            return (
+              <div key={idx} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${colors}`}>
+                <Icon className={`mt-0.5 shrink-0 ${iconColor}`} size={18} />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{insight.title}</p>
+                  <p className="text-sm opacity-90">{insight.message}</p>
+                </div>
+                {insight.action_url && (
+                  <Link className="text-sm font-semibold hover:underline" to={insight.action_url}>View</Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Charts */}
+      {dashboard?.charts && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-warelyn-text">Stock movements (last 30 days)</h2>
+            </CardHeader>
+            <CardBody>
+              {dashboard.charts.stock_movements_by_day?.length > 0 ? (
+                <div className="max-h-64 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-warelyn-muted">
+                        <th className="pb-2 font-medium">Date</th>
+                        <th className="pb-2 text-right font-medium">Inbound</th>
+                        <th className="pb-2 text-right font-medium">Outbound</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboard.charts.stock_movements_by_day
+                        .filter((row) => row.inbound > 0 || row.outbound > 0)
+                        .map((row) => (
+                          <tr key={row.date} className="border-b border-warelyn-border/50">
+                            <td className="py-1.5">{row.date}</td>
+                            <td className="py-1.5 text-right font-medium text-emerald-600">{row.inbound || '-'}</td>
+                            <td className="py-1.5 text-right font-medium text-red-500">{row.outbound || '-'}</td>
+                          </tr>
+                        ))}
+                      {dashboard.charts.stock_movements_by_day.every((row) => row.inbound === 0 && row.outbound === 0) && (
+                        <tr><td colSpan={3} className="py-4 text-center text-warelyn-muted">No movements in the last 30 days</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState title="No movement data" description="Stock movement chart data will appear after inventory activity." />
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <h2 className="text-lg font-semibold text-warelyn-text">Order status summary</h2>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-4">
+                {dashboard.charts.order_status_summary?.purchase_orders && Object.keys(dashboard.charts.order_status_summary.purchase_orders).length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-warelyn-muted">Purchase orders</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(dashboard.charts.order_status_summary.purchase_orders).map(([status, count]) => (
+                        <span key={status} className="inline-flex items-center gap-1.5 rounded-full bg-warelyn-surface px-3 py-1 text-xs font-medium text-warelyn-text">
+                          {status.replace(/_/g, ' ')} <strong>{count}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {dashboard.charts.order_status_summary?.sales_orders && Object.keys(dashboard.charts.order_status_summary.sales_orders).length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-warelyn-muted">Sales orders</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(dashboard.charts.order_status_summary.sales_orders).map(([status, count]) => (
+                        <span key={status} className="inline-flex items-center gap-1.5 rounded-full bg-warelyn-surface px-3 py-1 text-xs font-medium text-warelyn-text">
+                          {status.replace(/_/g, ' ')} <strong>{count}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(!dashboard.charts.order_status_summary?.purchase_orders || Object.keys(dashboard.charts.order_status_summary.purchase_orders).length === 0) &&
+                 (!dashboard.charts.order_status_summary?.sales_orders || Object.keys(dashboard.charts.order_status_summary.sales_orders).length === 0) && (
+                  <EmptyState title="No orders" description="Order status data will appear after orders are created." />
+                )}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>

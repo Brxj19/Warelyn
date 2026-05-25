@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.limiter import limiter
 from app.db.session import get_db
@@ -54,6 +55,8 @@ def _mask_destination(value: str | None) -> str | None:
 @router.post("/email/send", response_model=VerificationSendResponse)
 @limiter.limit("5/minute")
 def send_email_verification(request: Request, context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationSendResponse:
+    if context.user.email_verified_at is not None:
+        raise AppError("ALREADY_VERIFIED", "Email is already verified.", 409)
     svc = _otp_service(db)
     code = svc.create_otp(context.user.id, context.tenant_id, context.user.email, OTPSource.EMAIL, OTPPurpose.EMAIL_VERIFICATION)
     db.commit()
@@ -83,9 +86,11 @@ def send_email_verification(request: Request, context: UserContext = Depends(req
         )
     except (OSError, EmailDeliveryError) as exc:
         raise AppError("EMAIL_DELIVERY_FAILED", f"Failed to send verification email: {exc}", 502) from exc
+    settings = get_settings()
+    development_code = code if settings.debug else None
     return VerificationSendResponse(
         message="Verification code sent to your email.",
-        development_code=code,
+        development_code=development_code,
         destination_hint=_mask_destination(context.user.email),
     )
 
@@ -109,15 +114,20 @@ def confirm_email_verification(request: VerificationConfirmRequest, context: Use
 
 @router.post("/phone/send", response_model=VerificationSendResponse)
 def send_phone_verification(context: UserContext = Depends(require_tenant_user), db: Session = Depends(get_db)) -> VerificationSendResponse:
+    if context.user.phone_verified_at is not None:
+        raise AppError("ALREADY_VERIFIED", "Phone is already verified.", 409)
     if not context.user.phone:
         raise AppError("NO_PHONE", "User has no phone number to verify.", 400)
     svc = _otp_service(db)
     code = svc.create_otp(context.user.id, context.tenant_id, context.user.phone, OTPSource.PHONE, OTPPurpose.PHONE_VERIFICATION)
     sms = SMSDevOutboxService(db)
     sms.send(phone=context.user.phone, message=f"Your Warelyn verification code is: {code}", purpose="PHONE_VERIFICATION", tenant_id=context.tenant_id, user_id=context.user.id)
+    db.commit()
+    settings = get_settings()
+    development_code = code if settings.debug else None
     return VerificationSendResponse(
         message="Verification code sent to your phone.",
-        development_code=code,
+        development_code=development_code,
         destination_hint=_mask_destination(context.user.phone),
     )
 

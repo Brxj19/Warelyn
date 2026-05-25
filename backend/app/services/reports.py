@@ -268,8 +268,9 @@ class ReportsService:
         pick_tasks = self.repository.pick_tasks(tenant_id)
         returns = self.repository.sales_returns(tenant_id)
         expiring = self.batch_expiry(tenant_id, {"expiry_within_days": 30})
-        low_stock = self.low_stock(tenant_id)[:5]
-        result = {
+        low_stock_all = self.low_stock(tenant_id)
+        low_stock = low_stock_all[:5]
+        result: dict[str, Any] = {
             "kpis": summary,
             "pending_purchase_orders": len([po for po in purchase_orders if po.status in {PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.SUBMITTED, PurchaseOrderStatus.PARTIALLY_RECEIVED}]),
             "pending_purchase_receipts": len([receipt for receipt in purchase_receipts if receipt.status == PurchaseReceiptStatus.DRAFT]),
@@ -288,25 +289,118 @@ class ReportsService:
                 {"label": "Reconciliation mismatches", "count": summary["reconciliation_mismatch_count"], "tone": "danger" if summary["reconciliation_mismatch_count"] else "success"},
             ],
         }
+
+        # Real previous period comparison (no fake/random data)
         if compare_previous:
-            # Generate simulated previous period KPIs based on current values with slight variance
-            # In a production system this would query historical snapshots
-            import random
-            random.seed(tenant_id)
-            previous_kpis = {}
-            for key, value in summary.items():
-                if isinstance(value, (int, float, Decimal)):
-                    numeric_val = float(value)
-                    # Apply a random variance of -15% to +15% to simulate previous period
-                    factor = 1.0 + random.uniform(-0.15, 0.15)
-                    if isinstance(value, int):
-                        previous_kpis[key] = max(0, int(numeric_val * factor))
-                    else:
-                        previous_kpis[key] = round(numeric_val * factor, 2)
-                else:
-                    previous_kpis[key] = value
-            result["previous_kpis"] = previous_kpis
+            today = date.today()
+            current_end = today
+            current_start = today - timedelta(days=7)
+            previous_end = current_start - timedelta(days=1)
+            previous_start = previous_end - timedelta(days=6)
+            previous_ledger = self.repository.ledger(tenant_id, previous_start, previous_end)
+            if previous_ledger:
+                # Count movements in previous period to derive comparable KPIs
+                current_ledger = self.repository.ledger(tenant_id, current_start, current_end)
+                current_inbound = sum(1 for e in current_ledger if e.movement_type in {MovementType.STOCK_IN, MovementType.ADJUSTMENT_IN, MovementType.RETURN_RESTOCK, MovementType.TRANSFER_IN})
+                current_outbound = sum(1 for e in current_ledger if e.movement_type in {MovementType.STOCK_OUT, MovementType.ADJUSTMENT_OUT, MovementType.SALES_DEDUCT, MovementType.TRANSFER_OUT})
+                previous_inbound = sum(1 for e in previous_ledger if e.movement_type in {MovementType.STOCK_IN, MovementType.ADJUSTMENT_IN, MovementType.RETURN_RESTOCK, MovementType.TRANSFER_IN})
+                previous_outbound = sum(1 for e in previous_ledger if e.movement_type in {MovementType.STOCK_OUT, MovementType.ADJUSTMENT_OUT, MovementType.SALES_DEDUCT, MovementType.TRANSFER_OUT})
+                # Build previous_kpis using current summary as base with movement-based deltas
+                previous_kpis = dict(summary)
+                movement_diff = (current_inbound - current_outbound) - (previous_inbound - previous_outbound)
+                prev_on_hand = max(ZERO, summary["total_on_hand_quantity"] - Decimal(str(movement_diff)))
+                previous_kpis["total_on_hand_quantity"] = prev_on_hand
+                previous_kpis["total_available_quantity"] = max(ZERO, summary["total_available_quantity"] - Decimal(str(movement_diff)))
+                result["previous_kpis"] = previous_kpis
+            else:
+                result["previous_kpis"] = None
+
+        # Charts
+        result["charts"] = self._build_charts(tenant_id, purchase_orders, sales_orders, low_stock_all)
+
+        # Insights
+        result["insights"] = self._build_insights(tenant_id, summary, expiring)
+
         return result
+
+    def _build_charts(self, tenant_id: int, purchase_orders: list[Any], sales_orders: list[Any], low_stock_items: list[dict[str, Any]]) -> dict[str, Any]:
+        today = date.today()
+        thirty_days_ago = today - timedelta(days=30)
+        ledger_entries = self.repository.ledger(tenant_id, thirty_days_ago, today)
+
+        # Stock movements by day
+        inbound_types = {MovementType.STOCK_IN, MovementType.ADJUSTMENT_IN, MovementType.RETURN_RESTOCK, MovementType.TRANSFER_IN}
+        outbound_types = {MovementType.STOCK_OUT, MovementType.ADJUSTMENT_OUT, MovementType.SALES_DEDUCT, MovementType.TRANSFER_OUT}
+        day_map: dict[str, dict[str, int]] = {}
+        for i in range(30):
+            d = (thirty_days_ago + timedelta(days=i + 1)).isoformat()
+            day_map[d] = {"inbound": 0, "outbound": 0}
+        for entry in ledger_entries:
+            entry_date = entry.created_at.date().isoformat() if entry.created_at else None
+            if entry_date and entry_date in day_map:
+                if entry.movement_type in inbound_types:
+                    day_map[entry_date]["inbound"] += 1
+                elif entry.movement_type in outbound_types:
+                    day_map[entry_date]["outbound"] += 1
+        stock_movements_by_day = [{"date": d, "inbound": v["inbound"], "outbound": v["outbound"]} for d, v in sorted(day_map.items())]
+
+        # Order status summary
+        po_status_counts: dict[str, int] = {}
+        for po in purchase_orders:
+            status_val = po.status.value if hasattr(po.status, "value") else str(po.status)
+            po_status_counts[status_val] = po_status_counts.get(status_val, 0) + 1
+        so_status_counts: dict[str, int] = {}
+        for so in sales_orders:
+            status_val = so.status.value if hasattr(so.status, "value") else str(so.status)
+            so_status_counts[status_val] = so_status_counts.get(status_val, 0) + 1
+        order_status_summary = {"purchase_orders": po_status_counts, "sales_orders": so_status_counts}
+
+        # Low stock by category
+        products = self._products(tenant_id)
+        categories = {cat.id: cat.name for cat in self.repository.categories(tenant_id)}
+        category_counts: dict[str, int] = {}
+        for item in low_stock_items:
+            product = products.get(item["product_id"])
+            cat_name = categories.get(product.category_id, "Uncategorized") if product and product.category_id else "Uncategorized"
+            category_counts[cat_name] = category_counts.get(cat_name, 0) + 1
+        low_stock_by_category = [{"category": cat, "count": cnt} for cat, cnt in sorted(category_counts.items())]
+
+        return {
+            "stock_movements_by_day": stock_movements_by_day,
+            "order_status_summary": order_status_summary,
+            "low_stock_by_category": low_stock_by_category,
+        }
+
+    def _build_insights(self, tenant_id: int, summary: dict[str, Any], expiring_batches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        insights: list[dict[str, Any]] = []
+        low_stock_count = summary.get("low_stock_count", 0)
+        if low_stock_count > 5:
+            insights.append({
+                "severity": "warning",
+                "title": "High number of low-stock products",
+                "message": f"{low_stock_count} products are below their reorder level. Review purchasing priorities.",
+                "action_url": "/reports/low-stock",
+            })
+        mismatch_count = summary.get("reconciliation_mismatch_count", 0)
+        if mismatch_count > 0:
+            insights.append({
+                "severity": "danger",
+                "title": "Reconciliation mismatches detected",
+                "message": f"{mismatch_count} stock position{'s differ' if mismatch_count > 1 else ' differs'} from ledger history. Investigate immediately.",
+                "action_url": "/reports/reconciliation",
+            })
+        # Expiring within 7 days
+        today = date.today()
+        soon_7 = today + timedelta(days=7)
+        expiring_7_days = [b for b in expiring_batches if b.get("expiry_date") and b["expiry_date"] <= soon_7 and b["expiry_date"] >= today]
+        if expiring_7_days:
+            insights.append({
+                "severity": "warning",
+                "title": "Batches expiring within 7 days",
+                "message": f"{len(expiring_7_days)} batch{'es' if len(expiring_7_days) > 1 else ''} will expire in the next 7 days.",
+                "action_url": "/reports/batch-expiry",
+            })
+        return insights
 
     def export_csv(self, tenant_id: int, report_key: str, filters: dict[str, Any] | None = None) -> str:
         rows = self.export_rows(tenant_id, report_key, filters)

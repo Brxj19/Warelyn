@@ -136,11 +136,6 @@ export function AppRoutes() {
             <Route path="blocked-stock" element={<BlockedStockReportPage />} />
             <Route path="reconciliation" element={<ReconciliationReportPage />} />
           </Route>
-          <Route path="admin" element={<AdminDashboardPage />} />
-          <Route path="admin/tenants" element={<TenantsPage />} />
-          <Route path="admin/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="admin/audit-logs" element={<AuditLogsPage />} />
-          <Route path="admin/platform-health" element={<PlatformHealthPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/email-templates" element={<EmailTemplatesPage />} />
           <Route path="settings/pdf-templates" element={<PdfTemplatesPage />} />

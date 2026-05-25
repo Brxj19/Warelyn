@@ -144,3 +144,37 @@ def test_confirm_phone_verification_works(db_session, client):
     assert resp.json()["success"] is True
     user = db_session.query(User).filter(User.id == uid).one()
     assert user.phone_verified_at is not None
+
+
+def test_already_verified_email_returns_409(db_session, client):
+    token, uid = create_tenant_user(db_session, client)
+    user = db_session.query(User).filter(User.id == uid).one()
+    user.email_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    db_session.commit()
+    resp = client.post("/api/verification/email/send", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "ALREADY_VERIFIED"
+
+
+def test_already_verified_phone_returns_409(db_session, client):
+    token, uid = create_tenant_user(db_session, client)
+    user = db_session.query(User).filter(User.id == uid).one()
+    user.phone_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    db_session.commit()
+    resp = client.post("/api/verification/phone/send", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "ALREADY_VERIFIED"
+
+
+def test_development_code_not_in_production(db_session, client, monkeypatch):
+    from app.core.config import Settings
+    import app.api.verification as verification_module
+
+    # Create a settings instance with debug=False
+    prod_settings = Settings(debug=False, environment="production")
+    monkeypatch.setattr(verification_module, "get_settings", lambda: prod_settings)
+
+    token, uid = create_tenant_user(db_session, client)
+    resp = client.post("/api/verification/phone/send", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json().get("development_code") is None

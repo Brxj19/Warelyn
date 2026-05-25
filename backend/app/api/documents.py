@@ -116,6 +116,15 @@ def list_document_templates(
     return DocumentTemplateService(db).list_templates(context.tenant_id, channel)
 
 
+@router.get("/document-templates/{template_id}", response_model=DocumentTemplateRead)
+def get_document_template(
+    template_id: int,
+    context: UserContext = Depends(require_roles(*admin_roles)),
+    db: Session = Depends(get_db),
+) -> DocumentTemplateRead:
+    return DocumentTemplateService(db).get_template(context.tenant_id, template_id)
+
+
 @router.patch("/document-templates/{template_id}", response_model=DocumentTemplateRead)
 def update_document_template(
     template_id: int,

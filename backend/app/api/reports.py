@@ -21,7 +21,7 @@ from app.schemas.reports import (
     SerialStatusReportRow,
     StockMovementReportRow,
     WarehouseStockReportRow,
-)
+)  # noqa: F401 - DashboardCharts, DashboardInsight used via OperationalDashboard
 from app.services.auth import UserContext
 from app.services.reports import ReportsService
 

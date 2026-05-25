@@ -38,6 +38,20 @@ export async function apiRequest(path, options = {}) {
   return payload;
 }
 
+export async function downloadBlob(path, accessToken, filename) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+  if (!response.ok) throw new Error('Download failed');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function getHealth() {
   return apiRequest('/health');
 }

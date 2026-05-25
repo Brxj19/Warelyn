@@ -78,6 +78,13 @@ class NotificationCategory(str, enum.Enum):
     VERIFICATION = "VERIFICATION"
 
 
+class NotificationPriority(str, enum.Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
@@ -98,6 +105,13 @@ class Notification(Base):
     )
     entity_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     entity_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    action_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    priority: Mapped[NotificationPriority] = mapped_column(
+        Enum(NotificationPriority, name="notification_priority", native_enum=False),
+        default=NotificationPriority.NORMAL,
+        nullable=False,
+    )
     is_read: Mapped[bool] = mapped_column(default=False, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

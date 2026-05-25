@@ -181,6 +181,35 @@ class PendingAction(BaseModel):
     tone: str = "neutral"
 
 
+class StockMovementByDay(BaseModel):
+    date: str
+    inbound: int
+    outbound: int
+
+
+class OrderStatusCounts(BaseModel):
+    purchase_orders: dict[str, int] = {}
+    sales_orders: dict[str, int] = {}
+
+
+class LowStockByCategory(BaseModel):
+    category: str
+    count: int
+
+
+class DashboardCharts(BaseModel):
+    stock_movements_by_day: list[StockMovementByDay] = []
+    order_status_summary: OrderStatusCounts = OrderStatusCounts()
+    low_stock_by_category: list[LowStockByCategory] = []
+
+
+class DashboardInsight(BaseModel):
+    severity: str  # "info" | "warning" | "danger"
+    title: str
+    message: str
+    action_url: str | None = None
+
+
 class OperationalDashboard(BaseModel):
     kpis: InventorySummaryReport
     previous_kpis: InventorySummaryReport | None = None
@@ -196,3 +225,5 @@ class OperationalDashboard(BaseModel):
     low_stock_items: list[LowStockReportRow]
     expiring_batches: list[BatchExpiryReportRow]
     pending_actions: list[PendingAction]
+    charts: DashboardCharts = DashboardCharts()
+    insights: list[DashboardInsight] = []

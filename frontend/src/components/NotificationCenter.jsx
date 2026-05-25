@@ -1,23 +1,33 @@
-import { Bell, CheckCheck, ChevronRight } from 'lucide-react';
+import { Bell, CheckCheck, ChevronRight, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import * as notificationService from '../services/notificationService.js';
 import { formatDate } from '../utils/formatters.js';
 
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'cleared', label: 'Cleared' },
+];
+
 export function NotificationBell() {
   const { accessToken } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('all');
 
   const fetchData = useCallback(async () => {
+    if (!accessToken) return;
     try {
       const [list, unread] = await Promise.all([
-        notificationService.listNotifications(accessToken),
+        notificationService.listNotifications(accessToken, { status: activeTab }),
         notificationService.getUnreadCount(accessToken),
       ]);
       setNotifications(list);
@@ -25,13 +35,14 @@ export function NotificationBell() {
     } catch {
       // silently fail
     }
-  }, [accessToken]);
+  }, [accessToken, activeTab]);
 
   useEffect(() => {
+    if (!accessToken) return;
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, accessToken]);
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -60,6 +71,35 @@ export function NotificationBell() {
     }
   }
 
+  async function handleClearOne(id) {
+    try {
+      await notificationService.clearOne(accessToken, id);
+      fetchData();
+    } catch {
+      toast.error('Failed to clear notification.');
+    }
+  }
+
+  async function handleClearAll() {
+    try {
+      await notificationService.clearAll(accessToken);
+      fetchData();
+      toast.success('All notifications cleared.');
+    } catch {
+      toast.error('Failed to clear notifications.');
+    }
+  }
+
+  function handleNotificationClick(n) {
+    if (n.action_url) {
+      if (!n.is_read) {
+        notificationService.markNotificationRead(accessToken, n.id).catch(() => {});
+      }
+      setOpen(false);
+      navigate(n.action_url);
+    }
+  }
+
   return (
     <div className="topbar-popover-anchor" ref={ref}>
       <button className="topbar-icon-btn topbar-icon-btn-quiet relative" onClick={() => setOpen((v) => !v)} title="Notifications" type="button">
@@ -70,32 +110,77 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="topbar-popover topbar-popover-right" style={{ width: '360px' }}>
+        <div className="topbar-popover topbar-popover-right" style={{ width: '380px' }}>
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-bold text-warelyn-text">Notifications</h3>
-            {unreadCount > 0 ? (
-              <button className="flex items-center gap-1 text-xs font-medium text-warelyn-primary hover:underline" onClick={handleMarkAllRead} type="button">
-                <CheckCheck size={14} /> Mark all read
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 ? (
+                <button className="flex items-center gap-1 text-xs font-medium text-warelyn-primary hover:underline" onClick={handleMarkAllRead} title="Mark all as read" type="button">
+                  <CheckCheck size={14} /> Mark all read
+                </button>
+              ) : null}
+              {activeTab !== 'cleared' && notifications.length > 0 ? (
+                <button className="flex items-center gap-1 text-xs font-medium text-red-500 hover:underline" onClick={handleClearAll} title="Clear all notifications" type="button">
+                  <Trash2 size={14} /> Clear all
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-2 flex gap-1 rounded-lg bg-gray-100 p-0.5">
+            {TABS.map((tab) => (
+              <button
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${activeTab === tab.key ? 'bg-white text-warelyn-text shadow-sm' : 'text-warelyn-muted hover:text-warelyn-text'}`}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                type="button"
+              >
+                {tab.label}
               </button>
-            ) : null}
+            ))}
           </div>
 
           {notifications.length === 0 ? (
-            <p className="py-6 text-center text-sm text-warelyn-muted">No notifications yet.</p>
+            <p className="py-6 text-center text-sm text-warelyn-muted">No notifications.</p>
           ) : (
             <div className="max-h-80 overflow-y-auto">
               {notifications.map((n) => (
-                <div className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${n.is_read ? '' : 'bg-blue-50/50'}`} key={n.id}>
+                <div
+                  className={`flex items-start gap-3 rounded-xl px-3 py-3 transition ${n.is_read ? '' : 'bg-blue-50/50'} ${n.action_url ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                  key={n.id}
+                  onClick={() => n.action_url && handleNotificationClick(n)}
+                  role={n.action_url ? 'button' : undefined}
+                  tabIndex={n.action_url ? 0 : undefined}
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-warelyn-text">{n.title}</p>
                     {n.message ? <p className="mt-0.5 text-xs text-warelyn-muted line-clamp-2">{n.message}</p> : null}
                     <p className="mt-1 text-[10px] text-warelyn-muted">{formatDate(n.created_at)}</p>
                   </div>
-                  {!n.is_read ? (
-                    <button className="shrink-0 rounded-lg p-1 text-warelyn-muted hover:bg-white hover:text-warelyn-text" onClick={() => handleMarkRead(n.id)} title="Mark as read" type="button">
-                      <CheckCheck size={14} />
-                    </button>
-                  ) : null}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!n.is_read && !n.cleared_at ? (
+                      <button
+                        className="rounded-lg p-1 text-warelyn-muted hover:bg-white hover:text-warelyn-text"
+                        onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
+                        title="Mark as read"
+                        type="button"
+                      >
+                        <CheckCheck size={14} />
+                      </button>
+                    ) : null}
+                    {!n.cleared_at ? (
+                      <button
+                        className="rounded-lg p-1 text-warelyn-muted hover:bg-white hover:text-red-500"
+                        onClick={(e) => { e.stopPropagation(); handleClearOne(n.id); }}
+                        title="Clear"
+                        type="button"
+                      >
+                        <X size={14} />
+                      </button>
+                    ) : null}
+                    {n.action_url ? <ChevronRight className="text-warelyn-muted" size={14} /> : null}
+                  </div>
                 </div>
               ))}
             </div>

@@ -86,6 +86,7 @@ export function AuthProvider({ children }) {
     setRefreshToken(data.refresh_token);
     setUser(data.user);
     setTenant(data.tenant);
+    await applyPreferences(data.access_token);
     return data;
   }
 

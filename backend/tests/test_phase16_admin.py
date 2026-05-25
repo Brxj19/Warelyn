@@ -94,7 +94,7 @@ def test_notification_repository_unread_count(db_session: Session) -> None:
     repo.create_notification(user_id=user.id, tenant_id=tenant.id, title="N2")
     repo.create_notification(user_id=user.id, tenant_id=tenant.id, title="N3")
     db_session.commit()
-    assert repo.unread_count(user.id) == 3
+    assert repo.unread_count(user.id, tenant.id) == 3
 
 
 def test_notification_mark_read(db_session: Session, client: TestClient) -> None:

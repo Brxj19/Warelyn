@@ -20,7 +20,7 @@ export function getBatchExpiry(accessToken, params) { return apiRequest(`/report
 export function getSerialStatus(accessToken, params) { return apiRequest(`/reports/serial-status${query(params)}`, { accessToken }); }
 export function getBlockedStock(accessToken, params) { return apiRequest(`/reports/blocked-stock${query(params)}`, { accessToken }); }
 export function getReconciliation(accessToken, params) { return apiRequest(`/reports/reconciliation${query(params)}`, { accessToken }); }
-export function getOperationalDashboard(accessToken) { return apiRequest('/dashboard/operations', { accessToken }); }
+export function getOperationalDashboard(accessToken, params) { return apiRequest(`/dashboard/operations${query(params)}`, { accessToken }); }
 
 export async function downloadReportCsv(accessToken, reportKey, params = {}) {
   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api'}/reports/${reportKey}/export.csv${query(params)}`, {

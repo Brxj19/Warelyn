@@ -7,9 +7,17 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
+from app.core.limiter import limiter
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limiter():
+    limiter.enabled = False
+    yield
+    limiter.enabled = True
 
 
 @pytest.fixture()

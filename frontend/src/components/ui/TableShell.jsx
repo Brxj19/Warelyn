@@ -32,7 +32,7 @@ export function TableShell({
       {isLoading ? <LoadingState variant="table" /> : null}
       {!isLoading && error ? <ErrorState description={error} /> : null}
       {!isLoading && !error && isEmpty ? <EmptyState action={emptyAction} title={emptyTitle} description={emptyDescription} /> : null}
-      {!isLoading && !error && !isEmpty ? <div className="table-scroll">{children}</div> : null}
+      {!isLoading && !error && !isEmpty ? <div className="table-scroll overflow-x-auto">{children}</div> : null}
     </section>
   );
 }

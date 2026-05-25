@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -61,6 +62,7 @@ export function AuditLogsPage() {
 
   return (
     <div>
+      <BackButton to="/admin" />
       <div className="page-header">
         <div>
           <p className="page-kicker">Super Admin</p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { StatusBadge } from '../components/ui/Badge.jsx';
@@ -89,6 +90,7 @@ export function PurchaseReceiptDetailPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/purchase-receipts" />
       <PageHeader
         backTo="/purchase-receipts"
         description={

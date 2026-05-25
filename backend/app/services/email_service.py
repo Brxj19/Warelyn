@@ -1,5 +1,6 @@
 import logging
 import smtplib
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -12,15 +13,26 @@ class EmailDeliveryError(Exception):
     pass
 
 
-def _build_message(to_email: str, subject: str, body_text: str, body_html: str | None = None) -> MIMEMultipart:
+def _build_message(to_email: str, subject: str, body_text: str, body_html: str | None = None, attachment: bytes | None = None, attachment_filename: str | None = None) -> MIMEMultipart:
     settings = get_settings()
-    msg = MIMEMultipart("alternative")
+    if attachment:
+        msg = MIMEMultipart("mixed")
+        alt = MIMEMultipart("alternative")
+        alt.attach(MIMEText(body_text, "plain"))
+        if body_html:
+            alt.attach(MIMEText(body_html, "html"))
+        msg.attach(alt)
+        part = MIMEApplication(attachment, Name=attachment_filename or "document.pdf")
+        part["Content-Disposition"] = f'attachment; filename="{attachment_filename or "document.pdf"}"'
+        msg.attach(part)
+    else:
+        msg = MIMEMultipart("alternative")
+        msg.attach(MIMEText(body_text, "plain"))
+        if body_html:
+            msg.attach(MIMEText(body_html, "html"))
     msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg.attach(MIMEText(body_text, "plain"))
-    if body_html:
-        msg.attach(MIMEText(body_html, "html"))
     return msg
 
 
@@ -41,12 +53,12 @@ def _send_via_smtp(msg: MIMEMultipart) -> None:
         raise EmailDeliveryError(f"Failed to deliver email via SMTP: {exc}") from exc
 
 
-def send_email(to_email: str, subject: str, body_text: str, body_html: str | None = None) -> None:
+def send_email(to_email: str, subject: str, body_text: str, body_html: str | None = None, attachment: bytes | None = None, attachment_filename: str | None = None) -> None:
     settings = get_settings()
     if settings.email_delivery_mode == "log":
-        logger.info(f"[EMAIL LOG MODE] To: {to_email}, Subject: {subject}, Body: {body_text[:200]}")
+        logger.info(f"[EMAIL LOG MODE] To: {to_email}, Subject: {subject}, Body: {body_text[:200]}, Attachment: {'yes' if attachment else 'no'}")
         return
-    msg = _build_message(to_email, subject, body_text, body_html)
+    msg = _build_message(to_email, subject, body_text, body_html, attachment, attachment_filename)
     _send_via_smtp(msg)
 
 

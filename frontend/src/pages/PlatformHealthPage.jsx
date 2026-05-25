@@ -1,4 +1,5 @@
 import { CheckCircle2, Database, Server, XCircle } from 'lucide-react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useEffect, useState } from 'react';
 
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
@@ -26,6 +27,7 @@ export function PlatformHealthPage() {
 
   return (
     <div>
+      <BackButton to="/admin" />
       <div className="page-header">
         <div>
           <p className="page-kicker">Super Admin</p>

@@ -69,11 +69,12 @@ import { WarehouseStockReportPage } from '../pages/WarehouseStockReportPage.jsx'
 import { WarehouseFormPage, WarehousesPage } from '../pages/WarehousesPage.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
+import { RootRedirect } from './RootRedirect.jsx';
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="dashboard" element={<DashboardPage />} />

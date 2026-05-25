@@ -26,6 +26,15 @@ export function ToastContainer({ toasts, onDismiss }) {
           <div key={toast.id} className={`flex items-start gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur-sm transition-all duration-300 animate-in slide-in-from-right-2 ${style}`} role="alert">
             <Icon className="mt-0.5 shrink-0" size={18} />
             <p className="flex-1 text-sm font-medium">{toast.message}</p>
+            {toast.action && (
+              <button
+                className="shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold opacity-80 hover:opacity-100 underline"
+                onClick={toast.action.onClick}
+                type="button"
+              >
+                {toast.action.label}
+              </button>
+            )}
             <button className="shrink-0 rounded-lg p-0.5 opacity-60 hover:opacity-100" onClick={() => onDismiss(toast.id)} type="button">
               <X size={16} />
             </button>

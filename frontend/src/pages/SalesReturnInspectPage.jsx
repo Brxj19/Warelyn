@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -121,6 +122,7 @@ export function SalesReturnInspectPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/returns/qc" />
       <PageHeader
         backTo="/returns"
         description="Choose the final QC decision for each returned line. The preview below mirrors backend outcomes and does not calculate authoritative stock on the frontend."

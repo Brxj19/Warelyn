@@ -2,7 +2,7 @@ import enum
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -20,10 +20,26 @@ class DocumentTemplateChannel(str, enum.Enum):
 
 class DocumentTemplateKey(str, enum.Enum):
     EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
+    EMAIL_VERIFICATION_MODERN = "EMAIL_VERIFICATION_MODERN"
+    EMAIL_VERIFICATION_MINIMAL = "EMAIL_VERIFICATION_MINIMAL"
     INVOICE_SEND = "INVOICE_SEND"
+    INVOICE_SEND_MODERN = "INVOICE_SEND_MODERN"
+    INVOICE_SEND_MINIMAL = "INVOICE_SEND_MINIMAL"
+    INVOICE_SEND_FORMAL = "INVOICE_SEND_FORMAL"
     BILL_SEND = "BILL_SEND"
+    BILL_SEND_MODERN = "BILL_SEND_MODERN"
+    BILL_SEND_MINIMAL = "BILL_SEND_MINIMAL"
+    BILL_SEND_FORMAL = "BILL_SEND_FORMAL"
     PDF_INVOICE = "PDF_INVOICE"
+    PDF_INVOICE_MODERN = "PDF_INVOICE_MODERN"
+    PDF_INVOICE_MINIMAL = "PDF_INVOICE_MINIMAL"
+    PDF_INVOICE_BOLD = "PDF_INVOICE_BOLD"
+    PDF_INVOICE_WARM = "PDF_INVOICE_WARM"
     PDF_BILL = "PDF_BILL"
+    PDF_BILL_MODERN = "PDF_BILL_MODERN"
+    PDF_BILL_MINIMAL = "PDF_BILL_MINIMAL"
+    PDF_BILL_BOLD = "PDF_BILL_BOLD"
+    PDF_BILL_WARM = "PDF_BILL_WARM"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -109,6 +125,7 @@ class Invoice(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pdf_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pdf_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -157,6 +174,7 @@ class Bill(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pdf_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pdf_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

@@ -1,4 +1,5 @@
 import { CheckCircle2, Mail } from 'lucide-react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -55,6 +56,7 @@ export function VerifyEmailPage() {
 
   return (
     <div className="mx-auto mt-16 max-w-md">
+      <BackButton to="/settings" />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">

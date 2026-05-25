@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -75,6 +76,7 @@ export function ProductImportPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/catalog/products" />
       <PageHeader backTo="/catalog/products" description="Upload product master data with preview and validation. This does not import or mutate stock." kicker="Catalog import" title="Import Products — CSV or XLSX" />
       {error ? <ErrorState description={error} /> : null}
       <WorkflowProgress
@@ -101,14 +103,26 @@ export function ProductImportPage() {
               <Download size={16} />
               <span>CSV Template</span>
             </a>
-            <a
+            <button
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-warelyn-border bg-white px-4 py-2.5 text-sm font-semibold text-warelyn-text transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-300"
-              download="products-import-template.xlsx"
-              href={`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api'}/imports/products/template.xlsx`}
+              onClick={async () => {
+                const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api';
+                const res = await fetch(`${baseUrl}/imports/products/template.xlsx`, {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (!res.ok) return;
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'products-import-template.xlsx';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
             >
               <Download size={16} />
               <span>XLSX Template</span>
-            </a>
+            </button>
           </div>
         </CardHeader>
         <CardBody className="grid gap-4 md:grid-cols-2">

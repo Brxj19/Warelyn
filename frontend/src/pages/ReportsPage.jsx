@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
+import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
@@ -84,7 +85,8 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
       setIsLoading(true);
       setError('');
       try {
-        setData(await load(accessToken, query));
+        const cleanQuery = Object.fromEntries(Object.entries(query).filter(([, v]) => v));
+        setData(await load(accessToken, cleanQuery));
       } catch (loadError) {
         setError(loadError.message);
       } finally {
@@ -92,8 +94,13 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
       }
     }
     run();
-  }, [accessToken, load, query]);
-  const sourceRows = loadRows ? loadRows(data) : data;
+  }, [accessToken, load, JSON.stringify(query)]);
+  const sourceRows =
+    data === null || data === undefined
+      ? []
+      : loadRows
+      ? loadRows(data)
+      : data;
   const normalizedRows = Array.isArray(sourceRows) ? sourceRows.map(normalize) : [];
   const rows = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -140,7 +147,8 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
 
   async function exportCsv() {
     const slug = window.location.pathname.split('/').pop();
-    const blob = await reportsService.downloadReportCsv(accessToken, slug, query);
+    const cleanQuery = Object.fromEntries(Object.entries(query).filter(([, v]) => v));
+    const blob = await reportsService.downloadReportCsv(accessToken, slug, cleanQuery);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -151,8 +159,73 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
 
   return (
     <div className="space-y-6">
-      <PageHeader backTo="/reports" kicker="Report" title={title} description={description} />
-      {summary ? summary(data) : null}
+      <PageHeader
+        backTo="/reports"
+        kicker="Report"
+        title={title}
+        description={description}
+        actions={
+          <Button variant="secondary" onClick={exportCsv}>
+            <Download size={16} />
+            Export CSV
+          </Button>
+        }
+      />
+      {filters.length > 0 && (
+        <Card>
+          <CardBody>
+            <div className="flex flex-wrap items-end gap-4">
+              {filters.map((filter) =>
+                filter.type === 'date' ? (
+                  <label className="block min-w-[160px]" key={filter.key}>
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-warelyn-muted">{filter.label}</span>
+                    <input
+                      type="date"
+                      className="block w-full rounded-xl border border-warelyn-border bg-white px-3 py-2.5 text-sm"
+                      onChange={(e) => setQuery((current) => ({ ...current, [filter.key]: e.target.value }))}
+                      value={query[filter.key] ?? ''}
+                    />
+                  </label>
+                ) : filter.type === 'number' ? (
+                  <label className="block min-w-[120px]" key={filter.key}>
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-warelyn-muted">{filter.label}</span>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder={filter.placeholder ?? ''}
+                      className="block w-full rounded-xl border border-warelyn-border bg-white px-3 py-2.5 text-sm"
+                      onChange={(e) => setQuery((current) => ({ ...current, [filter.key]: e.target.value }))}
+                      value={query[filter.key] ?? ''}
+                    />
+                  </label>
+                ) : (
+                  <label className="block min-w-[160px]" key={filter.key}>
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-warelyn-muted">{filter.label}</span>
+                    <select
+                      className="block w-full rounded-xl border border-warelyn-border bg-white px-3 py-2.5 text-sm"
+                      onChange={(e) => setQuery((current) => ({ ...current, [filter.key]: e.target.value }))}
+                      value={query[filter.key] ?? ''}
+                    >
+                      <option value="">{filter.emptyLabel ?? `All`}</option>
+                      {(filter.options ?? []).map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )
+              )}
+              {hasActiveFilters && (
+                <Button variant="ghost" onClick={() => { setQuery({}); setSearch(''); }}>
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+      {summary && data !== null && data !== undefined
+        ? summary(data)
+        : null}
       <TableShell
         description={`${sortedRows.length} backend-returned row(s)`}
         emptyDescription={hasActiveFilters ? 'Reset filters to review the full report result.' : 'No data matched this report.'}
@@ -176,27 +249,7 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
             onSearchChange={setSearch}
             searchPlaceholder="Search rows"
             searchValue={search}
-            primaryAction={
-              <Button variant="secondary" onClick={exportCsv}>
-                <Download size={16} />
-                Export CSV
-              </Button>
-            }
-          >
-            {filters.length ? (
-              <div className="flex flex-wrap gap-2">
-                {filters.map((filter) => (
-                  <label className="block min-w-[160px]" key={filter.key}>
-                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-warelyn-muted">{filter.label}</span>
-                    <select className="block w-full rounded-xl border border-warelyn-border bg-white px-3 py-2.5 text-sm" onChange={(event) => setQuery((current) => ({ ...current, [filter.key]: event.target.value }))} value={query[filter.key] ?? ''}>
-                      <option value="">{filter.emptyLabel ?? `All ${filter.label}`}</option>
-                      {filter.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </ScreenToolbar>
+          />
         }
       >
         <table>

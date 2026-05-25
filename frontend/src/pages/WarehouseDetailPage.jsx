@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useParams } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -96,6 +97,7 @@ export function WarehouseDetailPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/warehouses" />
       <PageHeader backTo="/warehouses" description={`Configure bins and locations for warehouse #${id}. Location setup does not create stock balances.`} kicker="Warehouse setup" title="Warehouse locations" />
       {error ? <ErrorState description={error} /> : null}
       <div className="record-summary-grid">

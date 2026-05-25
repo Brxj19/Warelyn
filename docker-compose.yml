@@ -25,10 +25,11 @@ services:
       - "8025:8025"
 
   backend:
-    image: python:3.12-slim
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: warelyn-backend
-    working_dir: /app
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       WARELYN_ENVIRONMENT: development
       WARELYN_DATABASE_URL: mysql+pymysql://warelyn:warelyn_dev_password@mysql:3306/warelyn_inventory
@@ -37,6 +38,7 @@ services:
       WARELYN_SUPER_ADMIN_EMAIL: admin@warelyn.local
       WARELYN_SUPER_ADMIN_PASSWORD: ChangeMe123!
       WARELYN_SUPER_ADMIN_NAME: Warelyn Super Admin
+      WARELYN_SEED_SUPER_ADMIN_ON_STARTUP: "true"
       WARELYN_SMTP_HOST: mailhog
       WARELYN_SMTP_PORT: "1025"
       WARELYN_SMTP_USERNAME: ""

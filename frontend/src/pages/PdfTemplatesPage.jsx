@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
 
+import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -28,32 +28,14 @@ const PDF_VARIABLES = {
     'items[].product_name', 'items[].warehouse_name', 'items[].quantity_ordered', 'items[].unit_price', 'items[].tax_rate', 'items[].total_price',
   ],
 };
-
-function TemplateCard({ template, onEdit }) {
-  return (
-    <div className="group relative cursor-pointer overflow-hidden rounded-xl border border-warelyn-border hover:shadow-lg transition">
-      <div className="relative h-64 overflow-hidden bg-gray-50">
-        <iframe
-          srcDoc={template.body_template}
-          title={template.name}
-          className="absolute top-0 left-0 border-0 pointer-events-none"
-          style={{ width: '333%', height: '333%', transform: 'scale(0.3)', transformOrigin: 'top left' }}
-        />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
-          <Button className="opacity-0 group-hover:opacity-100 transition" variant="primary" onClick={() => onEdit(template)}>
-            Edit Template
-          </Button>
-        </div>
-      </div>
-      <div className="p-3 flex items-center gap-2">
-        <span className="text-sm font-semibold text-warelyn-text">{template.name}</span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-          DEFAULT
-        </span>
-      </div>
-    </div>
-  );
-}
+PDF_VARIABLES.PDF_INVOICE_MODERN = PDF_VARIABLES.PDF_INVOICE;
+PDF_VARIABLES.PDF_INVOICE_MINIMAL = PDF_VARIABLES.PDF_INVOICE;
+PDF_VARIABLES.PDF_INVOICE_BOLD = PDF_VARIABLES.PDF_INVOICE;
+PDF_VARIABLES.PDF_INVOICE_WARM = PDF_VARIABLES.PDF_INVOICE;
+PDF_VARIABLES.PDF_BILL_MODERN = PDF_VARIABLES.PDF_BILL;
+PDF_VARIABLES.PDF_BILL_MINIMAL = PDF_VARIABLES.PDF_BILL;
+PDF_VARIABLES.PDF_BILL_BOLD = PDF_VARIABLES.PDF_BILL;
+PDF_VARIABLES.PDF_BILL_WARM = PDF_VARIABLES.PDF_BILL;
 
 export function PdfTemplatesPage() {
   const { accessToken } = useAuth();
@@ -122,12 +104,20 @@ export function PdfTemplatesPage() {
     const vars = PDF_VARIABLES[selected.template_key] ?? [];
     return (
       <div>
+        <button
+          type="button"
+          onClick={() => setSelected(null)}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-warelyn-muted hover:text-warelyn-text transition"
+        >
+          <ArrowLeft size={16} />
+          Back to Templates
+        </button>
+
         <div className="page-header">
           <div>
-            <p className="page-kicker">Settings</p>
-            <h1>Edit: {selected.name}</h1>
+            <p className="page-kicker">PDF Templates</p>
+            <h1>{selected.name}</h1>
           </div>
-          <Button variant="ghost" onClick={() => setSelected(null)}>Back to Gallery</Button>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -143,8 +133,8 @@ export function PdfTemplatesPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSave}>Save</Button>
-              <Button variant="secondary" onClick={handleDownloadPdf}>Download PDF Preview</Button>
+              <Button onClick={handleSave}>Save Template</Button>
+              <Button variant="secondary" onClick={handleDownloadPdf}>Download PDF</Button>
               <Button variant="ghost" onClick={() => setSelected(null)}>Cancel</Button>
             </div>
 
@@ -156,24 +146,30 @@ export function PdfTemplatesPage() {
               >
                 {variablesOpen ? 'Hide' : 'Show'} Available Variables
               </button>
-              {variablesOpen ? (
+              {variablesOpen && (
                 <div className="mt-2 rounded-lg border border-warelyn-border bg-slate-50 p-3">
                   <ul className="space-y-1 text-xs font-mono text-warelyn-muted">
                     {vars.map((v) => <li key={v}>{`{{ ${v} }}`}</li>)}
                   </ul>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
 
           <div>
-            <span className="mb-2 block text-sm font-medium text-warelyn-text">Live Preview</span>
-            <div className="rounded-xl border border-warelyn-border bg-white overflow-hidden" style={{ height: '600px' }}>
-              <iframe
-                srcDoc={form.body_template}
-                title="PDF preview"
-                className="w-full h-full border-0"
-              />
+            <span className="mb-2 block text-sm font-medium text-warelyn-text">Live Preview (A4)</span>
+            <div className="flex justify-center">
+              <div
+                className="relative bg-white border border-warelyn-border shadow-lg"
+                style={{ width: '396px', height: '560px', overflow: 'hidden' }}
+              >
+                <iframe
+                  srcDoc={form.body_template}
+                  title="PDF preview"
+                  className="absolute top-0 left-0 border-0 pointer-events-none"
+                  style={{ width: '792px', height: '1120px', transform: 'scale(0.5)', transformOrigin: 'top left' }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -183,17 +179,46 @@ export function PdfTemplatesPage() {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-warelyn-muted hover:text-warelyn-text transition"
+      >
+        <ArrowLeft size={16} />
+        Back to Settings
+      </button>
+
       <div className="page-header">
         <div>
           <p className="page-kicker">Settings</p>
           <h1>PDF Templates</h1>
-          <p>Invoice and bill PDF templates.</p>
+          <p>Invoice and bill PDF layouts.</p>
         </div>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {templates.map((template) => (
-          <TemplateCard key={template.id} template={template} onEdit={openEditor} />
+          <div
+            key={template.id}
+            className="group relative cursor-pointer overflow-hidden rounded-xl border border-warelyn-border hover:shadow-lg transition"
+            onClick={() => openEditor(template)}
+          >
+            <div className="relative h-64 overflow-hidden bg-gray-50">
+              <iframe
+                srcDoc={template.body_template}
+                title={template.name}
+                className="absolute top-0 left-0 border-0 pointer-events-none"
+                style={{ width: '333%', height: '333%', transform: 'scale(0.3)', transformOrigin: 'top left' }}
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 transition rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-warelyn-primary shadow">Edit Template</span>
+              </div>
+            </div>
+            <div className="p-3 border-t border-warelyn-border flex items-center justify-between">
+              <span className="text-sm font-semibold text-warelyn-text">{template.name}</span>
+              <Badge tone={template.is_active ? 'success' : 'neutral'}>{template.is_active ? 'Active' : 'Off'}</Badge>
+            </div>
+          </div>
         ))}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -150,6 +151,7 @@ export function SalesReturnFormPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/returns" />
       <PageHeader
         backTo="/returns"
         description="Create a return request from a fulfilled sales order. Inspection later determines whether stock is restocked, blocked, or rejected."

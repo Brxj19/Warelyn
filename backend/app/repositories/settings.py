@@ -27,8 +27,7 @@ class TenantSettingsRepository:
         if settings is None:
             return None
         for key, value in values.items():
-            if value is not None:
-                setattr(settings, key, value)
+            setattr(settings, key, value)
         self.db.flush()
         return settings
 
@@ -54,7 +53,6 @@ class UserPreferencesRepository:
         if prefs is None:
             return None
         for key, value in values.items():
-            if value is not None:
-                setattr(prefs, key, value)
+            setattr(prefs, key, value)
         self.db.flush()
         return prefs

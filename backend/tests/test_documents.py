@@ -201,7 +201,7 @@ def test_template_auto_seed_on_render_by_key(client: TestClient, db_session: Ses
         {"code": "999999", "purpose": "test", "ttl_minutes": 5},
     )
     assert "999999" in rendered["body"]
-    assert db_session.query(DocumentTemplate).filter_by(tenant_id=tenant_id).count() == 5
+    assert db_session.query(DocumentTemplate).filter_by(tenant_id=tenant_id).count() == 21
 
 
 def test_body_template_text_is_stored_in_db(client: TestClient, db_session: Session) -> None:

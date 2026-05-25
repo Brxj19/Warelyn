@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useNavigate } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -67,6 +68,7 @@ export function PurchaseOrderFormPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/purchases" />
       <PageHeader backTo="/purchases" description="Create a draft purchase order. Stock is not changed until a receipt is committed." kicker="Purchasing" title="New purchase order" />
       {error ? <ErrorState description={error} /> : null}
       <form className="space-y-6" onSubmit={handleSubmit}>

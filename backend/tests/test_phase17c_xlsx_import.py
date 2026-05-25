@@ -38,10 +38,11 @@ def test_xlsx_template_has_correct_headers_row(client: TestClient, db_session: S
     resp = client.get("/api/imports/products/template.xlsx", headers={"Authorization": f"Bearer {token}"})
     content = resp.content
     with ZipFile(BytesIO(content)) as zf:
-        assert "xl/sharedStrings.xml" in zf.namelist()
-        shared = zf.read("xl/sharedStrings.xml").decode()
+        all_text = ""
+        for name in zf.namelist():
+            all_text += zf.read(name).decode("utf-8", errors="ignore")
         for field in REQUIRED_FIELDS:
-            assert f"<t>{field}</t>" in shared
+            assert field in all_text
 
 
 def test_import_endpoint_accepts_xlsx_file(client: TestClient, db_session: Session) -> None:

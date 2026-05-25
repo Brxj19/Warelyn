@@ -133,5 +133,5 @@ def test_list_templates_auto_seeds_defaults(client: TestClient, db_session: Sess
     assert db_session.query(DocumentTemplate).filter_by(tenant_id=tenant_id).count() == 0
     resp = client.get("/api/document-templates", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
-    assert len(resp.json()) == 5
-    assert db_session.query(DocumentTemplate).filter_by(tenant_id=tenant_id).count() == 5
+    assert len(resp.json()) == 21
+    assert db_session.query(DocumentTemplate).filter_by(tenant_id=tenant_id).count() == 21

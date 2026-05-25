@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -136,6 +137,7 @@ export function SalesFulfillPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/sales" />
       <PageHeader
         backTo="/sales"
         description="Create a fulfillment draft against active reservation IDs. Stock is only deducted later when the draft is committed."

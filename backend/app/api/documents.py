@@ -56,9 +56,9 @@ def void_invoice(invoice_id: int, context: UserContext = Depends(require_roles(*
 
 
 @router.get("/invoices/{invoice_id}/pdf")
-def invoice_pdf(invoice_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
+def download_invoice_pdf(invoice_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
     invoice = DocumentsService(db).get_invoice(context.tenant_id, invoice_id)
-    pdf = DocumentsService(db).render_invoice_pdf(context.tenant_id, invoice_id)
+    pdf = DocumentsService(db).render_invoice_pdf(context.tenant_id, invoice_id, context.user.id)
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -97,9 +97,9 @@ def void_bill(bill_id: int, context: UserContext = Depends(require_roles(*write_
 
 
 @router.get("/bills/{bill_id}/pdf")
-def bill_pdf(bill_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
+def download_bill_pdf(bill_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
     bill = DocumentsService(db).get_bill(context.tenant_id, bill_id)
-    pdf = DocumentsService(db).render_bill_pdf(context.tenant_id, bill_id)
+    pdf = DocumentsService(db).render_bill_pdf(context.tenant_id, bill_id, context.user.id)
     return Response(
         content=pdf,
         media_type="application/pdf",

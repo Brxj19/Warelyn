@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import * as authService from '../services/authService.js';
+import * as settingsService from '../services/settingsService.js';
 
 const ACCESS_TOKEN_KEY = 'warelyn.accessToken';
 const REFRESH_TOKEN_KEY = 'warelyn.refreshToken';
@@ -30,6 +31,28 @@ export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(() => readStoredTokens().accessToken);
   const [refreshToken, setRefreshToken] = useState(() => readStoredTokens().refreshToken);
   const [isLoading, setIsLoading] = useState(Boolean(readStoredTokens().accessToken));
+  const [defaultLandingPage, setDefaultLandingPage] = useState('/dashboard');
+
+  async function applyPreferences(token) {
+    try {
+      const prefs = await settingsService.getUserPreferences(token);
+      applyTheme(prefs.theme_preference ?? 'light');
+      document.documentElement.setAttribute('data-density', prefs.table_density ?? 'comfortable');
+      setDefaultLandingPage(prefs.default_landing_page ?? '/dashboard');
+    } catch {
+      // Preferences are optional — don't fail login if prefs fetch fails
+    }
+  }
+
+  function applyTheme(preference) {
+    window.localStorage.setItem('warelyn.themePref', preference);
+    if (preference === 'system') {
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', preference);
+    }
+  }
 
   async function loadMe(token = accessToken) {
     if (!token) {
@@ -42,6 +65,7 @@ export function AuthProvider({ children }) {
       const data = await authService.getMe(token);
       setUser(data.user);
       setTenant(data.tenant);
+      await applyPreferences(token);
       return data;
     } catch (error) {
       clearTokens();
@@ -93,6 +117,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function handleChange() {
+      const current = document.documentElement.getAttribute('data-theme');
+      if (current === 'dark' || current === 'light') {
+        const storedPref = window.localStorage.getItem('warelyn.themePref');
+        if (storedPref === 'system') {
+          document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light');
+        }
+      }
+    }
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -101,12 +140,13 @@ export function AuthProvider({ children }) {
       refreshToken,
       isAuthenticated: Boolean(user && accessToken),
       isLoading,
+      defaultLandingPage,
       login,
       register,
       logout,
       loadMe,
     }),
-    [user, tenant, accessToken, refreshToken, isLoading],
+    [user, tenant, accessToken, refreshToken, isLoading, defaultLandingPage],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

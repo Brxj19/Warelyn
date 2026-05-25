@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { Badge } from '../components/ui/Badge.jsx';
@@ -47,6 +48,7 @@ export function TenantDetailPage() {
 
   return (
     <div>
+      <BackButton to="/admin/tenants" />
       <PageHeader
         backLabel="All Tenants"
         backTo="/admin/tenants"

@@ -1,5 +1,6 @@
 import { AppRoutes } from '../routes/AppRoutes.jsx';
 import { ToastContainer } from '../components/ui/Toast.jsx';
+import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 
 function ToastLayer() {
@@ -9,9 +10,9 @@ function ToastLayer() {
 
 export function App() {
   return (
-    <>
+    <ErrorBoundary>
       <AppRoutes />
       <ToastLayer />
-    </>
+    </ErrorBoundary>
   );
 }

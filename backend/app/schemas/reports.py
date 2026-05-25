@@ -183,6 +183,7 @@ class PendingAction(BaseModel):
 
 class OperationalDashboard(BaseModel):
     kpis: InventorySummaryReport
+    previous_kpis: InventorySummaryReport | None = None
     pending_purchase_orders: int
     pending_purchase_receipts: int
     open_sales_orders: int

@@ -22,215 +22,12 @@ from app.models.documents import (
 )
 from app.repositories.audit import AuditLogRepository
 from app.repositories.documents import DocumentsRepository
+from app.repositories.settings import UserPreferencesRepository
+from app.services.default_templates import DEFAULT_TEMPLATES
 from app.services.email_service import send_email
 from app.services.pdf_service import render_html_to_pdf
 
 ZERO = Decimal("0.00")
-
-DEFAULT_TEMPLATES: dict[tuple[DocumentTemplateChannel, DocumentTemplateKey], dict[str, str | bool | None]] = {
-    (DocumentTemplateChannel.EMAIL, DocumentTemplateKey.EMAIL_VERIFICATION): {
-        "name": "Email verification",
-        "subject_template": "Verify your Warelyn email",
-        "body_template": """<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Email Verification</title></head>
-<body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-<h2 style="color:#1E3A8A;">Warelyn Inventory</h2>
-<p>Your {{ purpose|lower }} code is:</p>
-<h1 style="letter-spacing:8px;font-size:32px;color:#1e40af;">{{ code }}</h1>
-<p>This code will expire in {{ ttl_minutes }} minutes.</p>
-<p>If you did not request this, please ignore this email.</p>
-<hr style="border:none;border-top:1px solid #E2E8F0;margin:20px 0;">
-<p style="color:#64748B;font-size:12px;">Warelyn Inventory</p>
-</body>
-</html>""",
-        "body_template_text": """Your {{ purpose|lower }} code is: {{ code }}
-
-This code will expire in {{ ttl_minutes }} minutes.
-
-If you did not request this, please ignore this email.
-
--- Warelyn Inventory""",
-        "is_active": True,
-    },
-    (DocumentTemplateChannel.EMAIL, DocumentTemplateKey.INVOICE_SEND): {
-        "name": "Invoice email",
-        "subject_template": "{{ title }} from {{ sender_name }}",
-        "body_template": """<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>{{ title }}</title></head>
-<body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-<h2 style="color:#1E3A8A;">{{ title }}</h2>
-<p>{{ intro }}</p>
-<p>Please find your {{ document_kind|lower }} <strong>{{ document_number }}</strong> attached.</p>
-{% if notes %}<p><em>Notes: {{ notes }}</em></p>{% endif %}
-<hr style="border:none;border-top:1px solid #E2E8F0;margin:20px 0;">
-<p style="color:#64748B;font-size:12px;">Sent by {{ sender_name }}</p>
-</body>
-</html>""",
-        "body_template_text": """{{ title }}
-
-{{ intro }}
-
-Please find your {{ document_kind|lower }} {{ document_number }} attached.
-{% if notes %}
-Notes: {{ notes }}
-{% endif %}
---
-Sent by {{ sender_name }}""",
-        "is_active": True,
-    },
-    (DocumentTemplateChannel.EMAIL, DocumentTemplateKey.BILL_SEND): {
-        "name": "Bill email",
-        "subject_template": "{{ title }} from {{ sender_name }}",
-        "body_template": """<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>{{ title }}</title></head>
-<body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-<h2 style="color:#1E3A8A;">{{ title }}</h2>
-<p>{{ intro }}</p>
-<p>Please find your {{ document_kind|lower }} <strong>{{ document_number }}</strong> attached.</p>
-{% if notes %}<p><em>Notes: {{ notes }}</em></p>{% endif %}
-<hr style="border:none;border-top:1px solid #E2E8F0;margin:20px 0;">
-<p style="color:#64748B;font-size:12px;">Sent by {{ sender_name }}</p>
-</body>
-</html>""",
-        "body_template_text": """{{ title }}
-
-{{ intro }}
-
-Please find your {{ document_kind|lower }} {{ document_number }} attached.
-{% if notes %}
-Notes: {{ notes }}
-{% endif %}
---
-Sent by {{ sender_name }}""",
-        "is_active": True,
-    },
-    (DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_INVOICE): {
-        "name": "Invoice PDF",
-        "subject_template": None,
-        "body_template": """<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Invoice {{ invoice.invoice_number }}</title>
-<style>
-body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
-h1 { color: #1E3A8A; margin-bottom: 5px; }
-.header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-.company { font-size: 14px; }
-.meta { margin-bottom: 20px; }
-.meta td { padding: 3px 10px 3px 0; }
-table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
-table.items th { background: #1E3A8A; color: white; padding: 8px; text-align: left; }
-table.items td { padding: 8px; border-bottom: 1px solid #E2E8F0; }
-.totals { text-align: right; margin-top: 20px; }
-.totals td { padding: 4px 0 4px 20px; }
-.total-row { font-weight: bold; font-size: 14px; }
-.footer { margin-top: 40px; color: #64748B; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 10px; }
-</style>
-</head>
-<body>
-<div class="header">
-<div class="company">
-<h1>{{ tenant.company_name }}</h1>
-{% if tenant.contact_email %}<p>{{ tenant.contact_email }}</p>{% endif %}
-{% if tenant.phone %}<p>{{ tenant.phone }}</p>{% endif %}
-{% if tenant.address %}<p>{{ tenant.address }}</p>{% endif %}
-</div>
-</div>
-<h2>Invoice {{ invoice.invoice_number }}</h2>
-<table class="meta">
-<tr><td><strong>Date:</strong></td><td>{{ invoice.invoice_date }}</td></tr>
-{% if invoice.due_date %}<tr><td><strong>Due:</strong></td><td>{{ invoice.due_date }}</td></tr>{% endif %}
-{% if sales_order %}<tr><td><strong>SO:</strong></td><td>{{ sales_order.so_number }}</td></tr>{% endif %}
-</table>
-<p><strong>Bill To:</strong></p>
-<p>{{ customer.name }}{% if customer.email %}<br>{{ customer.email }}{% endif %}{% if customer.phone %}<br>{{ customer.phone }}{% endif %}</p>
-<table class="items">
-<thead><tr><th>Product</th><th>Warehouse</th><th>Qty</th><th>Unit Price</th><th>Tax %</th><th>Total</th></tr></thead>
-<tbody>
-{% for item in items %}
-<tr><td>{{ item.product_name }}</td><td>{{ item.warehouse_name }}</td><td>{{ item.quantity }}</td><td>{{ item.unit_price }}</td><td>{{ item.tax_rate }}</td><td>{{ item.total_price }}</td></tr>
-{% endfor %}
-</tbody>
-</table>
-<table class="totals">
-<tr><td>Subtotal:</td><td>{{ invoice.subtotal }}</td></tr>
-<tr><td>Tax:</td><td>{{ invoice.tax_amount }}</td></tr>
-<tr><td>Discount:</td><td>{{ invoice.discount_amount }}</td></tr>
-<tr class="total-row"><td>Total:</td><td>{{ invoice.total_amount }}</td></tr>
-</table>
-{% if invoice.notes %}<p><em>{{ invoice.notes }}</em></p>{% endif %}
-<div class="footer">{{ tenant.footer }}</div>
-</body>
-</html>""",
-        "body_template_text": None,
-        "is_active": True,
-    },
-    (DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_BILL): {
-        "name": "Bill PDF",
-        "subject_template": None,
-        "body_template": """<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Bill {{ bill.bill_number }}</title>
-<style>
-body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
-h1 { color: #1E3A8A; margin-bottom: 5px; }
-.header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-.company { font-size: 14px; }
-.meta { margin-bottom: 20px; }
-.meta td { padding: 3px 10px 3px 0; }
-table.items { width: 100%; border-collapse: collapse; margin: 20px 0; }
-table.items th { background: #1E3A8A; color: white; padding: 8px; text-align: left; }
-table.items td { padding: 8px; border-bottom: 1px solid #E2E8F0; }
-.totals { text-align: right; margin-top: 20px; }
-.totals td { padding: 4px 0 4px 20px; }
-.total-row { font-weight: bold; font-size: 14px; }
-.footer { margin-top: 40px; color: #64748B; font-size: 10px; border-top: 1px solid #E2E8F0; padding-top: 10px; }
-</style>
-</head>
-<body>
-<div class="header">
-<div class="company">
-<h1>{{ tenant.company_name }}</h1>
-{% if tenant.contact_email %}<p>{{ tenant.contact_email }}</p>{% endif %}
-{% if tenant.phone %}<p>{{ tenant.phone }}</p>{% endif %}
-{% if tenant.address %}<p>{{ tenant.address }}</p>{% endif %}
-</div>
-</div>
-<h2>Bill {{ bill.bill_number }}</h2>
-<table class="meta">
-<tr><td><strong>Date:</strong></td><td>{{ bill.bill_date }}</td></tr>
-{% if bill.due_date %}<tr><td><strong>Due:</strong></td><td>{{ bill.due_date }}</td></tr>{% endif %}
-{% if purchase_order %}<tr><td><strong>PO:</strong></td><td>{{ purchase_order.po_number }}</td></tr>{% endif %}
-</table>
-<p><strong>Vendor:</strong></p>
-<p>{{ vendor.name }}{% if vendor.email %}<br>{{ vendor.email }}{% endif %}{% if vendor.phone %}<br>{{ vendor.phone }}{% endif %}</p>
-<table class="items">
-<thead><tr><th>Product</th><th>Warehouse</th><th>Qty</th><th>Unit Price</th><th>Tax %</th><th>Total</th></tr></thead>
-<tbody>
-{% for item in items %}
-<tr><td>{{ item.product_name }}</td><td>{{ item.warehouse_name }}</td><td>{{ item.quantity_ordered }}</td><td>{{ item.unit_price }}</td><td>{{ item.tax_rate }}</td><td>{{ item.total_price }}</td></tr>
-{% endfor %}
-</tbody>
-</table>
-<table class="totals">
-<tr><td>Subtotal:</td><td>{{ bill.subtotal }}</td></tr>
-<tr><td>Tax:</td><td>{{ bill.tax_amount }}</td></tr>
-<tr class="total-row"><td>Total:</td><td>{{ bill.total_amount }}</td></tr>
-</table>
-{% if bill.notes %}<p><em>{{ bill.notes }}</em></p>{% endif %}
-<div class="footer">{{ tenant.footer }}</div>
-</body>
-</html>""",
-        "body_template_text": None,
-        "is_active": True,
-    },
-}
 
 
 class SafeDict(dict):
@@ -286,9 +83,16 @@ class DocumentTemplateService:
         channel: DocumentTemplateChannel,
         template_key: DocumentTemplateKey,
         context: dict[str, Any],
+        preferred_template_id: int | None = None,
     ) -> dict[str, str | None]:
         self._ensure_defaults(tenant_id)
-        template = self.repository.get_template_by_key(tenant_id, channel, template_key)
+        template = None
+        if preferred_template_id:
+            template = self.repository.get_template_by_id(tenant_id, preferred_template_id)
+            if template is None:
+                raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "The selected preferred template is no longer available.", 404)
+        if template is None:
+            template = self.repository.get_template_by_key(tenant_id, channel, template_key)
         if template is None or not template.is_active:
             raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Active document template was not found for this tenant.", 404)
         return {
@@ -305,7 +109,8 @@ class DocumentTemplateService:
         if values.get("bill_id"):
             bill = DocumentsService(self.db).get_bill(tenant_id, int(values["bill_id"]))
             return {**base, **DocumentsService(self.db)._bill_context(bill)}
-        return {**base, **values.get("variables", {})}
+        sample = DocumentsService(self.db)._sample_pdf_invoice_context()
+        return {**sample, **base, **values.get("variables", {})}
 
     def _ensure_defaults(self, tenant_id: int) -> None:
         created = False
@@ -331,9 +136,22 @@ class DocumentTemplateService:
         if not template:
             return ""
         try:
-            return jinja2.Template(template).render(**context)
+            rendered = jinja2.Template(template).render(**context)
         except jinja2.TemplateError:
-            return template
+            rendered = template
+        if rendered == template and "{" in rendered:
+            flat = {}
+            for k, v in context.items():
+                if isinstance(v, dict):
+                    for sk, sv in v.items():
+                        flat[sk] = sv if sv is not None else ""
+                else:
+                    flat[k] = v if v is not None else ""
+            try:
+                rendered = rendered.format_map(SafeDict(flat))
+            except (KeyError, ValueError, IndexError):
+                pass
+        return rendered
 
 
 class DocumentsService:
@@ -545,12 +363,16 @@ class DocumentsService:
         target_email = email or (customer.email if customer else None)
         if not target_email:
             raise AppError("INVOICE_EMAIL_REQUIRED", "Invoice email delivery requires a destination email address.", 400)
-        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.INVOICE_SEND, context)
+        preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_invoice_email_template_id")
+        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.INVOICE_SEND, context, preferred_id)
+        pdf_bytes = self.render_invoice_pdf(tenant_id, invoice_id, actor_user_id)
         send_email(
             target_email,
             rendered["subject"] or f"Invoice {invoice.invoice_number}",
             body_text=rendered.get("text") or rendered["body"],
-            body_html=rendered["body"] if "<html" in rendered["body"].lower() else None,
+            body_html=rendered["body"] if "<html" in rendered["body"].lower() or "<body" in rendered["body"].lower() else None,
+            attachment=pdf_bytes,
+            attachment_filename=f"{invoice.invoice_number}.pdf",
         )
         invoice.status = InvoiceStatus.SENT
         invoice.sent_at = _naive_utcnow()
@@ -564,12 +386,16 @@ class DocumentsService:
         target_email = email or (vendor.email if vendor else None)
         if not target_email:
             raise AppError("BILL_EMAIL_REQUIRED", "Bill email delivery requires a destination email address.", 400)
-        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.BILL_SEND, context)
+        preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_bill_email_template_id")
+        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.BILL_SEND, context, preferred_id)
+        pdf_bytes = self.render_bill_pdf(tenant_id, bill_id, actor_user_id)
         send_email(
             target_email,
             rendered["subject"] or f"Bill {bill.bill_number}",
             body_text=rendered.get("text") or rendered["body"],
-            body_html=rendered["body"] if "<html" in rendered["body"].lower() else None,
+            body_html=rendered["body"] if "<html" in rendered["body"].lower() or "<body" in rendered["body"].lower() else None,
+            attachment=pdf_bytes,
+            attachment_filename=f"{bill.bill_number}.pdf",
         )
         bill.status = BillStatus.SENT
         bill.sent_at = _naive_utcnow()
@@ -607,23 +433,32 @@ class DocumentsService:
         bill.voided_at = _naive_utcnow()
         return self._commit_and_refresh_bill(tenant_id, bill.id, "BILL_VOIDED", actor_user_id)
 
-    def render_invoice_pdf(self, tenant_id: int, invoice_id: int) -> bytes:
+    def render_invoice_pdf(self, tenant_id: int, invoice_id: int, actor_user_id: int | None = None) -> bytes:
         invoice = self.get_invoice(tenant_id, invoice_id)
+        preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_invoice_template_id") if actor_user_id else None
         context = {**self._base_template_context(tenant_id), **self._invoice_context(invoice)}
         context["sender_name"] = context["tenant"]["company_name"]
-        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_INVOICE, context)
-        invoice.pdf_generated_at = _naive_utcnow()
-        self.db.commit()
-        return render_html_to_pdf(rendered["body"])
+        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_INVOICE, context, preferred_id)
+        pdf = render_html_to_pdf(rendered["body"])
+        return pdf
 
-    def render_bill_pdf(self, tenant_id: int, bill_id: int) -> bytes:
+    def render_bill_pdf(self, tenant_id: int, bill_id: int, actor_user_id: int | None = None) -> bytes:
         bill = self.get_bill(tenant_id, bill_id)
+        preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_bill_template_id") if actor_user_id else None
         context = {**self._base_template_context(tenant_id), **self._bill_context(bill)}
         context["sender_name"] = context["tenant"]["company_name"]
-        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_BILL, context)
-        bill.pdf_generated_at = _naive_utcnow()
-        self.db.commit()
-        return render_html_to_pdf(rendered["body"])
+        rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_BILL, context, preferred_id)
+        pdf = render_html_to_pdf(rendered["body"])
+        return pdf
+
+    def _get_user_preferred_template(self, user_id: int | None, field: str) -> int | None:
+        if not user_id:
+            return None
+        prefs_repo = UserPreferencesRepository(self.db)
+        prefs = prefs_repo.get_by_user(user_id)
+        if prefs is None:
+            return None
+        return getattr(prefs, field, None)
 
     def _next_number(self, tenant_id: int, sequence_key: NumberSequenceKey, default_prefix: str) -> str:
         sequence = self.repository.get_sequence(tenant_id, sequence_key)
@@ -672,11 +507,28 @@ class DocumentsService:
                 "warehouse_name": "",
                 "quantity": str(item.quantity),
                 "unit_price": str(item.unit_price),
-                "tax_rate": "0",
+                "tax_rate": (
+                    str(round(float(item.line_total) and float(invoice.tax_amount) / max(float(invoice.subtotal_amount), 0.01) * 100, 1))
+                    if invoice.subtotal_amount and float(invoice.subtotal_amount) > 0 and invoice.tax_amount and float(invoice.tax_amount) > 0
+                    else "0"
+                ),
                 "total_price": str(item.line_total),
             }
             for item in (invoice.items or [])
         ]
+        if hasattr(invoice, 'fulfillment_id') and invoice.fulfillment_id:
+            fulfillment = self.repository.get_fulfillment(invoice.tenant_id, invoice.fulfillment_id)
+            if fulfillment and fulfillment.items:
+                for fi in fulfillment.items:
+                    if hasattr(fi, 'location_id') and fi.location_id:
+                        location = self.repository.get_location(invoice.tenant_id, fi.location_id)
+                        if location:
+                            warehouse = self.repository.get_warehouse(invoice.tenant_id, location.warehouse_id)
+                            if warehouse:
+                                for item in items:
+                                    if item.get("warehouse_name") == "":
+                                        item["warehouse_name"] = warehouse.name
+                                        break
         return {
             "invoice": {
                 "invoice_number": invoice.invoice_number,
@@ -721,7 +573,11 @@ class DocumentsService:
                 "warehouse_name": "",
                 "quantity_ordered": str(item.quantity),
                 "unit_price": str(item.unit_cost),
-                "tax_rate": "0",
+                "tax_rate": (
+                    str(round(float(bill.tax_amount) / max(float(bill.subtotal_amount), 0.01) * 100, 1))
+                    if bill.subtotal_amount and float(bill.subtotal_amount) > 0 and bill.tax_amount and float(bill.tax_amount) > 0
+                    else "0"
+                ),
                 "total_price": str(item.line_total),
             }
             for item in (bill.items or [])

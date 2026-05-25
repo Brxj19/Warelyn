@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Mail } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Mail } from 'lucide-react';
 
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
@@ -34,6 +33,113 @@ const PLACEHOLDER_VARS = {
     { label: 'Sender Name', value: '{{ sender_name }}' },
   ],
 };
+PLACEHOLDER_VARS.INVOICE_SEND_MODERN = PLACEHOLDER_VARS.INVOICE_SEND;
+PLACEHOLDER_VARS.INVOICE_SEND_MINIMAL = PLACEHOLDER_VARS.INVOICE_SEND;
+PLACEHOLDER_VARS.INVOICE_SEND_FORMAL = PLACEHOLDER_VARS.INVOICE_SEND;
+PLACEHOLDER_VARS.BILL_SEND_MODERN = PLACEHOLDER_VARS.BILL_SEND;
+PLACEHOLDER_VARS.BILL_SEND_MINIMAL = PLACEHOLDER_VARS.BILL_SEND;
+PLACEHOLDER_VARS.BILL_SEND_FORMAL = PLACEHOLDER_VARS.BILL_SEND;
+PLACEHOLDER_VARS.EMAIL_VERIFICATION_MODERN = PLACEHOLDER_VARS.EMAIL_VERIFICATION;
+PLACEHOLDER_VARS.EMAIL_VERIFICATION_MINIMAL = PLACEHOLDER_VARS.EMAIL_VERIFICATION;
+
+function TemplateCard({ template, onClick }) {
+  return (
+    <div
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-warelyn-border hover:shadow-lg transition"
+      onClick={onClick}
+    >
+      <div className="relative h-44 overflow-hidden bg-gray-50">
+        <iframe
+          srcDoc={template.body_template}
+          title={template.name}
+          className="absolute top-0 left-0 border-0 pointer-events-none"
+          style={{ width: '560px', height: '700px', transform: 'scale(0.27)', transformOrigin: 'top left' }}
+        />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+          <span className="opacity-0 group-hover:opacity-100 transition rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-warelyn-primary shadow">Edit Template</span>
+        </div>
+      </div>
+      <div className="p-2.5 border-t border-warelyn-border flex items-center justify-between">
+        <span className="text-xs font-semibold text-warelyn-text truncate">{template.name}</span>
+        <Badge tone={template.is_active ? 'success' : 'neutral'}>{template.is_active ? 'Active' : 'Off'}</Badge>
+      </div>
+    </div>
+  );
+}
+
+function FormatToolbar({ textareaRef, onBodyChange, body }) {
+  function applyFormat(openTag, closeTag) {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = body.substring(start, end);
+    const newBody = body.substring(0, start) + openTag + selected + closeTag + body.substring(end);
+    onBodyChange(newBody);
+    setTimeout(() => {
+      el.selectionStart = start + openTag.length;
+      el.selectionEnd = start + openTag.length + selected.length;
+      el.focus();
+    }, 0);
+  }
+
+  const tools = [
+    { label: 'B', title: 'Bold', open: '<strong>', close: '</strong>', style: { fontWeight: 'bold' } },
+    { label: 'I', title: 'Italic', open: '<em>', close: '</em>', style: { fontStyle: 'italic' } },
+    { label: 'U', title: 'Underline', open: '<u>', close: '</u>', style: { textDecoration: 'underline' } },
+    { label: 'S', title: 'Strikethrough', open: '<s>', close: '</s>', style: { textDecoration: 'line-through' } },
+    { label: 'H1', title: 'Heading 1', open: '<h1>', close: '</h1>', style: { fontWeight: 'bold', fontSize: '14px' } },
+    { label: 'H2', title: 'Heading 2', open: '<h2>', close: '</h2>', style: { fontWeight: 'bold', fontSize: '12px' } },
+    { label: 'P', title: 'Paragraph', open: '<p>', close: '</p>', style: {} },
+    { label: 'A', title: 'Link', open: '<a href="">', close: '</a>', style: { color: '#2563eb', textDecoration: 'underline' } },
+  ];
+
+  return (
+    <div className="flex items-center gap-1 border border-warelyn-border border-b-0 bg-gray-50 px-3 py-2 rounded-t-lg">
+      {tools.map((tool) => (
+        <button
+          key={tool.label}
+          type="button"
+          title={tool.title}
+          style={tool.style}
+          className="px-2 py-1 text-sm rounded hover:bg-warelyn-border transition text-warelyn-text"
+          onClick={() => applyFormat(tool.open, tool.close)}
+        >
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PlaceholderDropdown({ vars, onInsert }) {
+  const [open, setOpen] = useState(false);
+
+  if (!vars || vars.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
+        Insert Placeholder <ChevronDown size={14} />
+      </Button>
+      {open && (
+        <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-warelyn-border bg-white py-1 shadow-lg">
+          {vars.map((v) => (
+            <button
+              key={v.value}
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50"
+              onClick={() => { onInsert(v.value); setOpen(false); }}
+              type="button"
+            >
+              <span className="font-medium">{v.label}</span>
+              <span className="ml-2 text-xs text-warelyn-muted">{v.value}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function EmailTemplatesPage() {
   const { accessToken } = useAuth();
@@ -44,7 +150,6 @@ export function EmailTemplatesPage() {
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ name: '', subject_template: '', body_template: '', body_template_text: '' });
   const [preview, setPreview] = useState(null);
-  const [placeholderOpen, setPlaceholderOpen] = useState(false);
   const bodyRef = useRef(null);
 
   async function load() {
@@ -70,7 +175,6 @@ export function EmailTemplatesPage() {
       body_template_text: template.body_template_text ?? '',
     });
     setPreview(null);
-    setPlaceholderOpen(false);
   }
 
   function insertAtCursor(placeholder) {
@@ -88,7 +192,6 @@ export function EmailTemplatesPage() {
       el.selectionStart = el.selectionEnd = start + placeholder.length;
       el.focus();
     }, 0);
-    setPlaceholderOpen(false);
   }
 
   async function handleSave() {
@@ -121,8 +224,100 @@ export function EmailTemplatesPage() {
   if (loading) return <LoadingState message="Loading email templates..." />;
   if (error) return <ErrorState description={error} />;
 
+  if (selected) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setSelected(null)}
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-warelyn-muted hover:text-warelyn-text transition"
+        >
+          <ArrowLeft size={16} />
+          Back to Templates
+        </button>
+
+        <div className="page-header">
+          <div>
+            <p className="page-kicker">Email Templates</p>
+            <h1>{selected.name}</h1>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-4">
+            <Input label="Template Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+            <Input label="Subject" value={form.subject_template} onChange={(e) => setForm((p) => ({ ...p, subject_template: e.target.value }))} />
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-warelyn-text">Body (HTML)</span>
+                <PlaceholderDropdown
+                  vars={PLACEHOLDER_VARS[selected.template_key] ?? []}
+                  onInsert={insertAtCursor}
+                />
+              </div>
+              <FormatToolbar
+                textareaRef={bodyRef}
+                body={form.body_template}
+                onBodyChange={(v) => setForm((p) => ({ ...p, body_template: v }))}
+              />
+              <textarea
+                ref={bodyRef}
+                className="block min-h-[250px] w-full rounded-b-lg rounded-t-none border border-warelyn-border bg-white px-3 py-2.5 font-mono text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                value={form.body_template}
+                onChange={(e) => setForm((p) => ({ ...p, body_template: e.target.value }))}
+                rows={12}
+              />
+            </div>
+
+            <div>
+              <span className="mb-2 block text-sm font-medium text-warelyn-text">Body (Plain Text)</span>
+              <textarea
+                className="block min-h-[100px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 font-mono text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
+                value={form.body_template_text}
+                onChange={(e) => setForm((p) => ({ ...p, body_template_text: e.target.value }))}
+                rows={5}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSave}>Save Template</Button>
+              <Button onClick={handlePreview} variant="secondary">Preview</Button>
+              <Button onClick={() => setSelected(null)} variant="ghost">Cancel</Button>
+            </div>
+          </div>
+
+          <div>
+            <span className="mb-2 block text-sm font-medium text-warelyn-text">Live Preview</span>
+            <div className="rounded-xl border border-warelyn-border bg-white overflow-hidden" style={{ height: '600px' }}>
+              <iframe srcDoc={form.body_template} title="Live preview" className="w-full h-full border-0" />
+            </div>
+            {preview && (
+              <div className="mt-4 rounded-xl border border-warelyn-border bg-white p-4">
+                <h3 className="text-sm font-semibold text-warelyn-text mb-2">Rendered Preview (with sample data)</h3>
+                {preview.subject && <p className="mb-2 text-sm"><span className="font-medium">Subject:</span> {preview.subject}</p>}
+                <div className="rounded border border-warelyn-border overflow-hidden" style={{ height: '300px' }}>
+                  <iframe srcDoc={preview.body} title="Rendered preview" className="w-full h-full border-0" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-warelyn-muted hover:text-warelyn-text transition"
+      >
+        <ArrowLeft size={16} />
+        Back to Settings
+      </button>
+
       <div className="page-header">
         <div>
           <p className="page-kicker">Settings</p>
@@ -131,103 +326,46 @@ export function EmailTemplatesPage() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 space-y-3">
-          {templates.map((template) => (
-            <Card key={template.id} className="cursor-pointer hover:shadow-md transition" onClick={() => openEditor(template)}>
-              <CardBody>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Mail size={16} className="text-warelyn-primary" />
-                    <div>
-                      <h3 className="text-sm font-semibold text-warelyn-text">{template.name}</h3>
-                      <p className="text-xs text-warelyn-muted">{template.subject_template}</p>
-                    </div>
-                  </div>
-                  <Badge tone="neutral">DEFAULT</Badge>
-                </div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
+      {(() => {
+        const verificationTpls = templates.filter((t) => t.template_key?.startsWith('EMAIL_VERIFICATION'));
+        const invoiceTpls = templates.filter((t) => t.template_key?.startsWith('INVOICE_SEND'));
+        const billTpls = templates.filter((t) => t.template_key?.startsWith('BILL_SEND'));
 
-        {selected ? (
-          <div className="lg:w-[500px] space-y-4">
-            <Card>
-              <CardHeader>
-                <h3 className="text-base font-semibold text-warelyn-text">{selected.name} — Edit</h3>
-              </CardHeader>
-              <CardBody className="space-y-4">
-                <Input label="Template Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-                <Input label="Subject" value={form.subject_template} onChange={(e) => setForm((p) => ({ ...p, subject_template: e.target.value }))} />
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-warelyn-text">Body (HTML)</span>
-                    <div className="relative">
-                      <Button size="sm" variant="secondary" onClick={() => setPlaceholderOpen((v) => !v)}>
-                        Insert Placeholder <ChevronDown size={14} />
-                      </Button>
-                      {placeholderOpen && PLACEHOLDER_VARS[selected.template_key] ? (
-                        <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-warelyn-border bg-white py-1 shadow-lg">
-                          {PLACEHOLDER_VARS[selected.template_key].map((v) => (
-                            <button
-                              key={v.value}
-                              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50"
-                              onClick={() => insertAtCursor(v.value)}
-                              type="button"
-                            >
-                              <span className="font-medium">{v.label}</span>
-                              <span className="ml-2 text-xs text-warelyn-muted">{v.value}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                  <textarea
-                    ref={bodyRef}
-                    className="block min-h-[200px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 font-mono text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
-                    value={form.body_template}
-                    onChange={(e) => setForm((p) => ({ ...p, body_template: e.target.value }))}
-                    rows={10}
-                  />
+        return (
+          <div className="space-y-8">
+            {verificationTpls.length > 0 && (
+              <div>
+                <h2 className="text-base font-semibold text-warelyn-text mb-3">Verification</h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {verificationTpls.map((template) => (
+                    <TemplateCard key={template.id} template={template} onClick={() => openEditor(template)} />
+                  ))}
                 </div>
-                <div>
-                  <span className="mb-2 block text-sm font-medium text-warelyn-text">Body (Plain Text)</span>
-                  <textarea
-                    className="block min-h-[100px] w-full rounded-lg border border-warelyn-border bg-white px-3 py-2.5 font-mono text-sm text-warelyn-text shadow-sm outline-none transition focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10"
-                    value={form.body_template_text}
-                    onChange={(e) => setForm((p) => ({ ...p, body_template_text: e.target.value }))}
-                    rows={5}
-                  />
+              </div>
+            )}
+            {invoiceTpls.length > 0 && (
+              <div>
+                <h2 className="text-base font-semibold text-warelyn-text mb-3">Invoice</h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {invoiceTpls.map((template) => (
+                    <TemplateCard key={template.id} template={template} onClick={() => openEditor(template)} />
+                  ))}
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={handlePreview} variant="secondary">Preview</Button>
-                  <Button onClick={handleSave}>Save</Button>
-                  <Button onClick={() => setSelected(null)} variant="ghost">Cancel</Button>
+              </div>
+            )}
+            {billTpls.length > 0 && (
+              <div>
+                <h2 className="text-base font-semibold text-warelyn-text mb-3">Bill</h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {billTpls.map((template) => (
+                    <TemplateCard key={template.id} template={template} onClick={() => openEditor(template)} />
+                  ))}
                 </div>
-              </CardBody>
-            </Card>
-
-            {preview ? (
-              <Card>
-                <CardHeader><h3 className="text-sm font-semibold text-warelyn-text">Preview</h3></CardHeader>
-                <CardBody>
-                  {preview.subject ? <p className="mb-2 text-sm font-medium">Subject: {preview.subject}</p> : null}
-                  <div className="rounded border border-warelyn-border bg-white p-2">
-                    <iframe
-                      srcDoc={preview.body}
-                      title="Email preview"
-                      className="w-full border-0"
-                      style={{ minHeight: '200px' }}
-                    />
-                  </div>
-                </CardBody>
-              </Card>
-            ) : null}
+              </div>
+            )}
           </div>
-        ) : null}
-      </div>
+        );
+      })()}
     </div>
   );
 }

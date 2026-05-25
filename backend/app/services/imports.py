@@ -54,14 +54,47 @@ class ProductImportService:
     @staticmethod
     def build_template_xlsx() -> bytes:
         headers = list(REQUIRED_FIELDS) + sorted(OPTIONAL_FIELDS)
+        sample = [
+            "Sample Product" if h == "name" else
+            "SKU-001" if h == "sku" else
+            "pcs" if h == "unit" else
+            "" if h == "barcode" else
+            "A sample product" if h == "description" else
+            "Electronics" if h == "category_name" else
+            "Acme Brand" if h == "brand_name" else
+            "Sample Vendor" if h == "vendor_name" else
+            "100.00" if h == "cost_price" else
+            "150.00" if h == "selling_price" else
+            "10" if h == "reorder_level" else
+            "false" if h in ("track_batch", "track_expiry", "track_serial") else
+            "active" if h == "status" else ""
+            for h in headers
+        ]
+        try:
+            import openpyxl
+            import io
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Products Import"
+            for col, header in enumerate(headers, 1):
+                ws.cell(row=1, column=col, value=header)
+            for col, value in enumerate(sample, 1):
+                ws.cell(row=2, column=col, value=value)
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            return buffer.getvalue()
+        except ImportError:
+            pass
+
         ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
         rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
         ct_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
 
+        all_strings = headers + sample
         shared_strings_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        shared_strings_xml += f'<sst xmlns="{ns}" count="{len(headers)}" uniqueCount="{len(headers)}">'
-        for h in headers:
-            shared_strings_xml += f"<si><t>{h}</t></si>"
+        shared_strings_xml += f'<sst xmlns="{ns}" count="{len(all_strings)}" uniqueCount="{len(all_strings)}">'
+        for s in all_strings:
+            shared_strings_xml += f"<si><t>{s}</t></si>"
         shared_strings_xml += "</sst>"
 
         sheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -69,15 +102,19 @@ class ProductImportService:
         for idx, _ in enumerate(headers):
             col_letter = chr(65 + idx) if idx < 26 else f"A{chr(65 + idx - 26)}"
             sheet_xml += f'<c r="{col_letter}1" t="s"><v>{idx}</v></c>'
+        sheet_xml += '</row><row r="2">'
+        for idx, _ in enumerate(sample):
+            col_letter = chr(65 + idx) if idx < 26 else f"A{chr(65 + idx - 26)}"
+            sheet_xml += f'<c r="{col_letter}2" t="s"><v>{len(headers) + idx}</v></c>'
         sheet_xml += "</row></sheetData></worksheet>"
 
         workbook_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        workbook_xml += f'<workbook xmlns="{ns}" xmlns:r="{rel_ns}"><sheets><sheet name="Products" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        workbook_xml += f'<workbook xmlns="{ns}" xmlns:r="{rel_ns}"><sheets><sheet name="Products Import" sheetId="1" r:id="rId1"/></sheets></workbook>'
 
         workbook_rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         workbook_rels += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        workbook_rels += f'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-        workbook_rels += f'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+        workbook_rels += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        workbook_rels += '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
         workbook_rels += "</Relationships>"
 
         rels_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

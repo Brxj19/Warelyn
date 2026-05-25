@@ -57,6 +57,11 @@ class UserPreferencesRead(BaseModel):
     theme_preference: str = "light"
     notification_email_enabled: bool = True
     notification_in_app_enabled: bool = True
+    preferred_invoice_template_id: int | None = None
+    preferred_bill_template_id: int | None = None
+    preferred_invoice_email_template_id: int | None = None
+    preferred_bill_email_template_id: int | None = None
+    preferred_verification_template_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -67,3 +72,8 @@ class UserPreferencesUpdate(BaseModel):
     theme_preference: str | None = None
     notification_email_enabled: bool | None = None
     notification_in_app_enabled: bool | None = None
+    preferred_invoice_template_id: int | None = None
+    preferred_bill_template_id: int | None = None
+    preferred_invoice_email_template_id: int | None = None
+    preferred_bill_email_template_id: int | None = None
+    preferred_verification_template_id: int | None = None

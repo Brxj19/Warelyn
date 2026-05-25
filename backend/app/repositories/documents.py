@@ -144,3 +144,30 @@ class DocumentsRepository:
         self.db.add(template)
         self.db.flush()
         return template
+
+    def get_location(self, tenant_id: int, location_id: int):
+        from app.models.master_data import WarehouseLocation
+        return self.db.scalar(
+            select(WarehouseLocation).where(
+                WarehouseLocation.id == location_id,
+                WarehouseLocation.tenant_id == tenant_id,
+            )
+        )
+
+    def get_warehouse(self, tenant_id: int, warehouse_id: int):
+        from app.models.master_data import Warehouse
+        return self.db.scalar(
+            select(Warehouse).where(
+                Warehouse.id == warehouse_id,
+                Warehouse.tenant_id == tenant_id,
+            )
+        )
+
+    def get_template_by_id(self, tenant_id: int, template_id: int) -> DocumentTemplate | None:
+        return self.db.scalar(
+            select(DocumentTemplate).where(
+                DocumentTemplate.tenant_id == tenant_id,
+                DocumentTemplate.id == template_id,
+                DocumentTemplate.is_active == True,
+            )
+        )

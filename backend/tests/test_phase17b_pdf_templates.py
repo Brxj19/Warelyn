@@ -27,7 +27,7 @@ def test_list_pdf_templates_returns_only_pdf_channel(client: TestClient, db_sess
     resp = client.get("/api/document-templates?channel=PDF", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 2
+    assert len(data) == 10
     for t in data:
         assert t["channel"] == "PDF"
 

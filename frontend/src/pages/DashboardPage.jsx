@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, Boxes, ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, TrendingUp, Undo2, Warehouse } from 'lucide-react';
+import { Activity, ArrowRight, Boxes, ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, TrendingDown, TrendingUp, Undo2, Warehouse } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 
@@ -50,7 +50,7 @@ export function DashboardPage() {
       setError('');
       try {
         const [dashboardData, purchaseRows, salesRows, pickRows, returnRows] = await Promise.all([
-          reportsService.getOperationalDashboard(accessToken),
+          reportsService.getOperationalDashboard(accessToken, { compare_previous: true }),
           purchasingService.listPurchaseOrders(accessToken),
           salesService.listSalesOrders(accessToken),
           fulfillmentService.listPickTasks(accessToken),
@@ -93,9 +93,33 @@ export function DashboardPage() {
       />
       {error ? <ErrorState description={error} /> : null}
 
+      {(dashboard?.kpis?.low_stock_count ?? 0) > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <ShieldAlert className="shrink-0 text-amber-600" size={20} />
+          <p className="flex-1 text-sm font-medium text-amber-800">
+            {dashboard.kpis.low_stock_count} product{dashboard.kpis.low_stock_count > 1 ? 's' : ''} below reorder level
+          </p>
+          <Link className="text-sm font-semibold text-amber-700 hover:text-amber-900" to="/reports/low-stock">
+            View report
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map(([key, label, description, tone, Icon, to]) => {
           const value = derivedKpis[key] ?? dashboard?.kpis?.[key] ?? 0;
+          const previousValue = dashboard?.previous_kpis?.[key];
+          let TrendIcon = null;
+          let trendColor = '';
+          if (previousValue !== undefined && previousValue !== null && typeof value === 'number') {
+            if (value > previousValue) {
+              TrendIcon = TrendingUp;
+              trendColor = key === 'low_stock_count' || key === 'reconciliation_mismatch_count' ? 'text-red-500' : 'text-emerald-500';
+            } else if (value < previousValue) {
+              TrendIcon = TrendingDown;
+              trendColor = key === 'low_stock_count' || key === 'reconciliation_mismatch_count' ? 'text-emerald-500' : 'text-red-500';
+            }
+          }
           return (
             <Link className="metric-link-card" key={key} to={to}>
               <div className="metric-link-card-body">
@@ -103,7 +127,10 @@ export function DashboardPage() {
                   <Icon size={20} />
                 </div>
                 <p className="metric-link-card-label">{label}</p>
-                <p className="metric-link-card-value">{typeof value === 'number' && key === 'total_stock_value_cost' ? formatMoney(value) : value}</p>
+                <p className="metric-link-card-value">
+                  {typeof value === 'number' && key === 'total_stock_value_cost' ? formatMoney(value) : value}
+                  {TrendIcon && <TrendIcon className={`ml-1.5 inline ${trendColor}`} size={16} />}
+                </p>
                 <p className="metric-link-card-copy">{description}</p>
                 <span className={`metric-link-card-status ${tone}`}>
                   Open related screen

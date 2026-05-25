@@ -10,7 +10,7 @@ export function ToastProvider({ children }) {
 
   const addToast = useCallback((message, type = 'info', options = {}) => {
     const id = ++toastId;
-    const toast = { id, message, type, duration: options.duration ?? 4500 };
+    const toast = { id, message, type, duration: options.duration ?? 4500, action: options.action ?? null };
     setToasts((prev) => [...prev, toast]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));

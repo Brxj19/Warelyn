@@ -121,8 +121,12 @@ def reconciliation(context: UserContext = Depends(require_roles(*read_roles)), d
 
 
 @router.get("/dashboard/operations", response_model=OperationalDashboard)
-def operational_dashboard(context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> OperationalDashboard:
-    return ReportsService(db).operational_dashboard(context.tenant_id)
+def operational_dashboard(
+    compare_previous: bool = False,
+    context: UserContext = Depends(require_roles(*read_roles)),
+    db: Session = Depends(get_db),
+) -> OperationalDashboard:
+    return ReportsService(db).operational_dashboard(context.tenant_id, compare_previous=compare_previous)
 
 
 @router.get("/reports/{report_key}/export.csv")

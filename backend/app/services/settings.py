@@ -15,10 +15,12 @@ class TenantSettingsService:
         self.audit_logs = AuditLogRepository(db)
 
     def get_settings(self, tenant_id: int) -> Any:
-        return self.repository.get_or_create(tenant_id)
+        settings = self.repository.get_or_create(tenant_id)
+        self.db.commit()
+        return settings
 
     def update_settings(self, tenant_id: int, values: dict[str, Any], actor_user_id: int | None = None, actor_role: str = "") -> Any:
-        current = self.repository.get_or_create(tenant_id)
+        self.repository.get_or_create(tenant_id)
         result = self.repository.update(tenant_id, values)
         if result is None:
             raise AppError("SETTINGS_NOT_FOUND", "Tenant settings were not found.", 404)
@@ -33,6 +35,8 @@ class TenantSettingsService:
                 "metadata_json": json.dumps({"updated_fields": list(values.keys())}, default=str),
             }
         )
+        self.db.commit()
+        self.db.refresh(result)
         return result
 
 
@@ -43,10 +47,12 @@ class UserPreferencesService:
         self.audit_logs = AuditLogRepository(db)
 
     def get_preferences(self, user_id: int) -> Any:
-        return self.repository.get_or_create(user_id)
+        prefs = self.repository.get_or_create(user_id)
+        self.db.commit()
+        return prefs
 
     def update_preferences(self, user_id: int, values: dict[str, Any], actor_role: str = "") -> Any:
-        current = self.repository.get_or_create(user_id)
+        self.repository.get_or_create(user_id)
         result = self.repository.update(user_id, values)
         if result is None:
             raise AppError("PREFERENCES_NOT_FOUND", "User preferences were not found.", 404)
@@ -61,4 +67,6 @@ class UserPreferencesService:
                 "metadata_json": json.dumps({"updated_fields": list(values.keys())}, default=str),
             }
         )
+        self.db.commit()
+        self.db.refresh(result)
         return result

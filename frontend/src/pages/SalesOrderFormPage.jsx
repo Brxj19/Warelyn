@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../components/ui/BackButton.jsx';
 import { useNavigate } from 'react-router-dom';
 
 import { PageHeader } from '../components/ui/PageHeader.jsx';
@@ -80,6 +81,7 @@ export function SalesOrderFormPage() {
 
   return (
     <div className="space-y-6">
+      <BackButton to="/sales" />
       <PageHeader
         backTo="/sales"
         description="Create a draft sales order first. Stock is only reserved later during confirmation with warehouse and location allocation."

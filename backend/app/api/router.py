@@ -17,7 +17,9 @@ from app.api.reorder_rules import router as reorder_rules_router
 from app.api.reports import router as reports_router
 from app.api.returns import router as returns_router
 from app.api.sales import router as sales_router
+from app.api.search import router as search_router
 from app.api.settings import router as settings_router
+from app.api.uploads import router as uploads_router
 from app.api.verification import router as verification_router
 from app.api.warehouses import router as warehouses_router
 
@@ -39,6 +41,8 @@ api_router.include_router(reorder_rules_router)
 api_router.include_router(reports_router)
 api_router.include_router(returns_router)
 api_router.include_router(sales_router)
+api_router.include_router(search_router)
 api_router.include_router(settings_router)
+api_router.include_router(uploads_router)
 api_router.include_router(verification_router)
 api_router.include_router(warehouses_router)

@@ -2,11 +2,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.auth import Tenant
-from app.models.documents import Bill, DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey, Invoice, NumberSequence, NumberSequenceKey
+from app.models.documents import Bill, DocumentTemplate, DocumentTemplateChannel, DocumentTemplateKey, DocumentTemplatePurpose, Invoice, NumberSequence, NumberSequenceKey
 from app.models.master_data import Customer, Product, Vendor
 from app.models.purchasing import PurchaseOrder, PurchaseReceipt
 from app.models.sales import SalesFulfillment, SalesOrder
-from app.models.settings import TenantSettings
+from app.models.settings import TenantSettings, UserPreferences
 
 
 class DocumentsRepository:
@@ -171,3 +171,71 @@ class DocumentsRepository:
                 DocumentTemplate.is_active == True,
             )
         )
+
+    def list_templates_by_purpose(self, tenant_id: int, purpose: DocumentTemplatePurpose) -> list[DocumentTemplate]:
+        stmt = select(DocumentTemplate).where(
+            DocumentTemplate.tenant_id == tenant_id,
+            DocumentTemplate.purpose == purpose,
+        ).order_by(DocumentTemplate.is_system.desc(), DocumentTemplate.name.asc())
+        return list(self.db.scalars(stmt))
+
+    def duplicate_template(self, tenant_id: int, template_id: int, new_name: str, new_code: str, user_id: int, description: str | None = None) -> DocumentTemplate | None:
+        source = self.db.scalar(
+            select(DocumentTemplate).where(
+                DocumentTemplate.tenant_id == tenant_id,
+                DocumentTemplate.id == template_id,
+            )
+        )
+        if source is None:
+            return None
+        new_template = DocumentTemplate(
+            tenant_id=tenant_id,
+            channel=source.channel,
+            template_key=None,
+            purpose=source.purpose,
+            template_code=new_code,
+            is_system=False,
+            created_by=user_id,
+            cloned_from_template_id=source.id,
+            description=description or source.description,
+            name=new_name,
+            subject_template=source.subject_template,
+            body_template=source.body_template,
+            body_template_text=source.body_template_text,
+            is_active=True,
+        )
+        self.db.add(new_template)
+        self.db.flush()
+        return new_template
+
+    def delete_template(self, tenant_id: int, template_id: int) -> bool:
+        template = self.db.scalar(
+            select(DocumentTemplate).where(
+                DocumentTemplate.tenant_id == tenant_id,
+                DocumentTemplate.id == template_id,
+            )
+        )
+        if template is None:
+            return False
+        self.db.delete(template)
+        self.db.flush()
+        return True
+
+    def get_templates_for_preference(self, tenant_id: int, purpose: DocumentTemplatePurpose) -> list[DocumentTemplate]:
+        stmt = select(DocumentTemplate).where(
+            DocumentTemplate.tenant_id == tenant_id,
+            DocumentTemplate.purpose == purpose,
+            DocumentTemplate.is_active == True,
+        ).order_by(DocumentTemplate.is_system.desc(), DocumentTemplate.name.asc())
+        return list(self.db.scalars(stmt))
+
+    def is_template_in_use_by_preference(self, template_id: int) -> bool:
+        """Check if any user preference references this template."""
+        stmt = select(UserPreferences).where(
+            (UserPreferences.preferred_invoice_template_id == template_id)
+            | (UserPreferences.preferred_bill_template_id == template_id)
+            | (UserPreferences.preferred_invoice_email_template_id == template_id)
+            | (UserPreferences.preferred_bill_email_template_id == template_id)
+            | (UserPreferences.preferred_verification_template_id == template_id)
+        )
+        return self.db.scalar(stmt) is not None

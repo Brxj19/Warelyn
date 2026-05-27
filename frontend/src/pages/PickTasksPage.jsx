@@ -9,6 +9,7 @@ import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -104,11 +105,14 @@ export function PickTasksPage() {
       <PageHeader kicker="Picking" title="Pick tasks" description="Review the pick queue only. Task creation still begins from a specific confirmed sales order." />
       <TableShell
         description={`${sortedTasks.length} task(s) in this view`}
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full pick queue.' : 'Create pick tasks from confirmed sales orders.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No pick tasks'}
+        emptyDescription={hasActiveFilters ? 'Try changing your search keyword or clearing filters.' : 'Picking tasks will appear when orders are ready to be prepared.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.picking}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching results found' : 'No picking tasks available'}
         error={error}
         isEmpty={sortedTasks.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter('ALL'); setWarehouseFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedTasks.length}
         title="Warehouse work queue"
         toolbar={

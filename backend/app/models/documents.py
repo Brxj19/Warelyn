@@ -18,6 +18,19 @@ class DocumentTemplateChannel(str, enum.Enum):
     PDF = "PDF"
 
 
+class DocumentTemplatePurpose(str, enum.Enum):
+    EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
+    INVOICE_EMAIL = "INVOICE_EMAIL"
+    BILL_EMAIL = "BILL_EMAIL"
+    INVOICE_PDF = "INVOICE_PDF"
+    BILL_PDF = "BILL_PDF"
+    ACCOUNT_CREATED = "ACCOUNT_CREATED"
+    PASSWORD_RESET = "PASSWORD_RESET"
+    USER_DISABLED = "USER_DISABLED"
+    USER_ENABLED = "USER_ENABLED"
+    ROLE_CHANGED = "ROLE_CHANGED"
+
+
 class DocumentTemplateKey(str, enum.Enum):
     EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
     EMAIL_VERIFICATION_MODERN = "EMAIL_VERIFICATION_MODERN"
@@ -40,6 +53,11 @@ class DocumentTemplateKey(str, enum.Enum):
     PDF_BILL_MINIMAL = "PDF_BILL_MINIMAL"
     PDF_BILL_BOLD = "PDF_BILL_BOLD"
     PDF_BILL_WARM = "PDF_BILL_WARM"
+    ACCOUNT_CREATED = "ACCOUNT_CREATED"
+    PASSWORD_RESET = "PASSWORD_RESET"
+    USER_DISABLED = "USER_DISABLED"
+    USER_ENABLED = "USER_ENABLED"
+    ROLE_CHANGED = "ROLE_CHANGED"
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -77,7 +95,7 @@ class NumberSequence(Base):
 class DocumentTemplate(Base):
     __tablename__ = "document_templates"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "channel", "template_key", name="uq_document_templates_tenant_channel_key"),
+        UniqueConstraint("tenant_id", "template_code", name="uq_document_templates_tenant_code"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -87,11 +105,21 @@ class DocumentTemplate(Base):
         nullable=False,
         index=True,
     )
-    template_key: Mapped[DocumentTemplateKey] = mapped_column(
+    template_key: Mapped[DocumentTemplateKey | None] = mapped_column(
         Enum(DocumentTemplateKey, name="document_template_key", native_enum=False),
+        nullable=True,
+        index=True,
+    )
+    purpose: Mapped[DocumentTemplatePurpose] = mapped_column(
+        Enum(DocumentTemplatePurpose, name="document_template_purpose", native_enum=False),
         nullable=False,
         index=True,
     )
+    template_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    cloned_from_template_id: Mapped[int | None] = mapped_column(ForeignKey("document_templates.id"), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     subject_template: Mapped[str | None] = mapped_column(String(255), nullable=True)
     body_template: Mapped[str] = mapped_column(Text, nullable=False)

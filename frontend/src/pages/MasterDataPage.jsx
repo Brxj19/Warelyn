@@ -11,6 +11,7 @@ import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDecimal, formatMoney } from '../utils/formatters.js';
 import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -22,6 +23,9 @@ export function MasterDataListPage({
   customCellRender,
   description,
   emptyDescription = 'Create master data records when your role allows it.',
+  emptyFilteredDescription,
+  emptyFilteredTitle,
+  emptyIllustration,
   emptyTitle,
   fields,
   kicker = 'Master data',
@@ -106,9 +110,9 @@ export function MasterDataListPage({
     new Set(records.map((record) => record.status).filter(Boolean)),
   ).sort();
 
-  const emptyTitleValue = hasActiveFilters ? 'No records match your filters' : emptyTitle ?? `No ${title.toLowerCase()} yet`;
+  const emptyTitleValue = hasActiveFilters ? (emptyFilteredTitle ?? 'No records match your filters') : emptyTitle ?? `No ${title.toLowerCase()} yet`;
   const emptyDescriptionValue = hasActiveFilters
-    ? 'Reset filters to review the full record list.'
+    ? (emptyFilteredDescription ?? 'Reset filters to review the full record list.')
     : emptyDescription;
 
   return (
@@ -117,10 +121,13 @@ export function MasterDataListPage({
       <TableShell
         description={`${visibleRecords.length} record(s) in this view`}
         emptyDescription={emptyDescriptionValue}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyIllustration}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
         emptyTitle={emptyTitleValue}
         error={error}
         isEmpty={visibleRecords.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter('ALL'); } : undefined}
         rowCount={visibleRecords.length}
         title={tableTitle}
         toolbar={

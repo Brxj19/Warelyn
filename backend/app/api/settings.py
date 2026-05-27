@@ -37,4 +37,4 @@ def update_preferences(
     context: UserContext = Depends(require_tenant_user),
     db: Session = Depends(get_db),
 ) -> UserPreferencesRead:
-    return UserPreferencesService(db).update_preferences(context.user.id, request.model_dump(exclude_unset=True), actor_role=context.role.value)
+    return UserPreferencesService(db).update_preferences(context.user.id, request.model_dump(exclude_unset=True), actor_role=context.role.value, tenant_id=context.tenant_id)

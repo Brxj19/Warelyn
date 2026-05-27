@@ -4,8 +4,19 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
+from app.models.documents import DocumentTemplatePurpose
 from app.repositories.audit import AuditLogRepository
+from app.repositories.documents import DocumentsRepository
 from app.repositories.settings import TenantSettingsRepository, UserPreferencesRepository
+
+# Preference field -> expected purpose
+_PREFERENCE_PURPOSE_MAP: dict[str, DocumentTemplatePurpose] = {
+    "preferred_invoice_template_id": DocumentTemplatePurpose.INVOICE_PDF,
+    "preferred_bill_template_id": DocumentTemplatePurpose.BILL_PDF,
+    "preferred_invoice_email_template_id": DocumentTemplatePurpose.INVOICE_EMAIL,
+    "preferred_bill_email_template_id": DocumentTemplatePurpose.BILL_EMAIL,
+    "preferred_verification_template_id": DocumentTemplatePurpose.EMAIL_VERIFICATION,
+}
 
 
 class TenantSettingsService:
@@ -45,13 +56,44 @@ class UserPreferencesService:
         self.db = db
         self.repository = UserPreferencesRepository(db)
         self.audit_logs = AuditLogRepository(db)
+        self.docs_repository = DocumentsRepository(db)
 
     def get_preferences(self, user_id: int) -> Any:
         prefs = self.repository.get_or_create(user_id)
         self.db.commit()
         return prefs
 
-    def update_preferences(self, user_id: int, values: dict[str, Any], actor_role: str = "") -> Any:
+    def update_preferences(self, user_id: int, values: dict[str, Any], actor_role: str = "", tenant_id: int | None = None) -> Any:
+        # Validate template preferences if any are being set
+        for field, expected_purpose in _PREFERENCE_PURPOSE_MAP.items():
+            if field in values and values[field] is not None:
+                template_id = values[field]
+                if tenant_id is None:
+                    raise AppError(
+                        "TEMPLATE_VALIDATION_FAILED",
+                        "Tenant context is required to validate template preferences.",
+                        400,
+                    )
+                template = self.docs_repository.get_template(tenant_id, template_id)
+                if template is None:
+                    raise AppError(
+                        "DOCUMENT_TEMPLATE_NOT_FOUND",
+                        f"Template {template_id} not found or does not belong to this tenant.",
+                        400,
+                    )
+                if not template.is_active:
+                    raise AppError(
+                        "TEMPLATE_INACTIVE",
+                        f"Cannot set inactive template as preference for {field}.",
+                        400,
+                    )
+                if template.purpose != expected_purpose:
+                    raise AppError(
+                        "TEMPLATE_PURPOSE_MISMATCH",
+                        f"Template purpose '{template.purpose.value}' does not match expected purpose '{expected_purpose.value}' for {field}.",
+                        400,
+                    )
+
         self.repository.get_or_create(user_id)
         result = self.repository.update(user_id, values)
         if result is None:

@@ -6,7 +6,9 @@ import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
+import { PhoneInput } from '../components/ui/PhoneInput.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { isValidPhone, parsePhone } from '../lib/phone.js';
 
 const initialValues = {
   company_name: '',
@@ -26,8 +28,10 @@ function validate(values) {
   if (values.password.length < 8) {
     return 'Password must be at least 8 characters.';
   }
-  if (values.phone && !/^[+\d\s().-]{7,20}$/.test(values.phone)) {
-    return 'Enter a valid phone number or leave it blank.';
+  if (values.phone) {
+    const { countryCode, localNumber } = parsePhone(values.phone);
+    const phoneResult = isValidPhone(countryCode, localNumber);
+    if (!phoneResult.valid) return phoneResult.error;
   }
   return null;
 }
@@ -83,7 +87,7 @@ export function RegisterPage() {
           <Input id="company_name" label="Company name" onChange={updateField('company_name')} placeholder="Acme Warehousing" value={values.company_name} />
           <Input id="name" label="Admin name" onChange={updateField('name')} placeholder="Jane Operator" value={values.name} />
           <Input autoComplete="email" id="email" label="Admin email" onChange={updateField('email')} placeholder="admin@example.com" type="email" value={values.email} />
-          <Input id="phone" label="Phone" onChange={updateField('phone')} placeholder="Optional" value={values.phone} />
+          <PhoneInput label="Phone (optional)" value={values.phone} onChange={(val) => setValues((current) => ({ ...current, phone: val }))} />
           <Input autoComplete="new-password" id="password" label="Password" onChange={updateField('password')} placeholder="Minimum 8 characters" type="password" value={values.password} />
           <Button className="w-full" isLoading={isSubmitting} type="submit">
             {isSubmitting ? 'Creating workspace...' : 'Create workspace'}

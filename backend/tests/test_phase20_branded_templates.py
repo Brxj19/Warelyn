@@ -26,7 +26,7 @@ def _setup(db_session: Session, client: TestClient, email: str = "p20@example.co
 
 
 def test_default_templates_has_13_entries() -> None:
-    assert len(DEFAULT_TEMPLATES) == 21
+    assert len(DEFAULT_TEMPLATES) == 26
 
 
 def test_all_pdf_templates_have_body() -> None:
@@ -41,7 +41,7 @@ def test_ensure_defaults_seeds_all_13(client: TestClient, db_session: Session) -
     resp = client.get("/api/document-templates", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     templates = resp.json()
-    assert len(templates) == 21
+    assert len(templates) == 26
     pdf_templates = [t for t in templates if t["channel"] == "PDF"]
     assert len(pdf_templates) == 10
 

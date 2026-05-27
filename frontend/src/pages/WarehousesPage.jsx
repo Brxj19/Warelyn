@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import * as warehouseService from '../services/warehouseService.js';
 import { MasterDataFormPage, MasterDataListPage } from './MasterDataPage.jsx';
 
@@ -23,7 +24,11 @@ export function WarehousesPage() {
         </Link>
       }
       description="Manage warehouse records and open a warehouse to configure locations."
-      emptyDescription="Create a warehouse to begin mapping tenant storage spaces."
+      emptyDescription="Create warehouses to organize stock across locations."
+      emptyFilteredDescription="Try changing your search or location filter."
+      emptyFilteredTitle="No matching warehouses found"
+      emptyIllustration={emptyStateIllustrations.warehouse}
+      emptyTitle="No warehouses created yet"
       fields={fields}
       kicker="Warehousing"
       listRecords={warehouseService.listWarehouses}

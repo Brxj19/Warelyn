@@ -7,11 +7,16 @@ export function TableShell({
   children,
   description,
   emptyAction,
+  emptyActionLabel,
   emptyDescription = 'No rows match this view.',
+  emptyIllustration,
+  emptySecondaryActionLabel,
   emptyTitle = 'No rows',
   error,
   isEmpty = false,
   isLoading = false,
+  onEmptyAction,
+  onEmptySecondaryAction,
   rowCount,
   title,
   toolbar,
@@ -31,7 +36,19 @@ export function TableShell({
       {toolbar ? <div className="table-toolbar">{toolbar}</div> : null}
       {isLoading ? <LoadingState variant="table" /> : null}
       {!isLoading && error ? <ErrorState description={error} /> : null}
-      {!isLoading && !error && isEmpty ? <EmptyState action={emptyAction} title={emptyTitle} description={emptyDescription} /> : null}
+      {!isLoading && !error && isEmpty ? (
+        <EmptyState
+          action={emptyAction}
+          actionLabel={emptyActionLabel}
+          illustration={emptyIllustration}
+          message={emptyDescription}
+          onAction={onEmptyAction}
+          onSecondaryAction={onEmptySecondaryAction}
+          secondaryActionLabel={emptySecondaryActionLabel}
+          size="default"
+          title={emptyTitle}
+        />
+      ) : null}
       {!isLoading && !error && !isEmpty ? <div className="table-scroll overflow-x-auto">{children}</div> : null}
     </section>
   );

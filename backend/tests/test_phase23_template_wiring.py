@@ -68,14 +68,15 @@ def test_preferred_template_used_in_pdf_render(client: TestClient, db_session: S
     assert tpl_resp.status_code == 200
     templates = tpl_resp.json()
     assert len(templates) > 0
-    first_tpl = templates[0]
+    # Pick an INVOICE_PDF template for the invoice preference
+    invoice_tpl = next(t for t in templates if t.get("purpose") == "INVOICE_PDF")
     client.patch(
         "/api/settings/preferences",
-        json={"preferred_invoice_template_id": first_tpl["id"]},
+        json={"preferred_invoice_template_id": invoice_tpl["id"]},
         headers={"Authorization": f"Bearer {token}"},
     )
     prefs_resp = client.get("/api/settings/preferences", headers={"Authorization": f"Bearer {token}"})
-    assert prefs_resp.json()["preferred_invoice_template_id"] == first_tpl["id"]
+    assert prefs_resp.json()["preferred_invoice_template_id"] == invoice_tpl["id"]
 
 
 def test_preferred_email_template_stored(client: TestClient, db_session: Session):
@@ -84,14 +85,15 @@ def test_preferred_email_template_stored(client: TestClient, db_session: Session
     assert tpl_resp.status_code == 200
     templates = tpl_resp.json()
     assert len(templates) > 0
-    first_tpl = templates[0]
+    # Pick an INVOICE_EMAIL template for the invoice email preference
+    invoice_email_tpl = next(t for t in templates if t.get("purpose") == "INVOICE_EMAIL")
     resp = client.patch(
         "/api/settings/preferences",
-        json={"preferred_invoice_email_template_id": first_tpl["id"]},
+        json={"preferred_invoice_email_template_id": invoice_email_tpl["id"]},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
-    assert resp.json()["preferred_invoice_email_template_id"] == first_tpl["id"]
+    assert resp.json()["preferred_invoice_email_template_id"] == invoice_email_tpl["id"]
 
 
 def test_template_preview_renders_with_sample_data(client: TestClient, db_session: Session):

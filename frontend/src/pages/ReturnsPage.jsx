@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -95,12 +96,15 @@ export function ReturnsPage({ mode = 'all' }) {
       />
       <TableShell
         description={`${sortedReturns.length} return(s) in view`}
-        emptyAction={!isQcMode && canWrite.has(user?.role) ? <Link to="/returns/new"><Button>Create return</Button></Link> : null}
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full returns queue.' : isQcMode ? 'Returns that need inspection will appear here.' : 'Returned items that need inspection will appear here.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : isQcMode ? 'No returns waiting for QC' : 'No returns waiting'}
+        emptyAction={!isQcMode && !hasActiveFilters && canWrite.has(user?.role) ? <Link to="/returns/new"><Button>Create return</Button></Link> : null}
+        emptyDescription={hasActiveFilters ? 'Try changing your search keyword or clearing filters.' : isQcMode ? 'Returns that need inspection will appear here.' : 'Returned items that need inspection will appear here.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.sales}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching results found' : isQcMode ? 'No returns waiting for QC' : 'No returns waiting'}
         error={error}
         isEmpty={sortedReturns.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter(isQcMode ? 'INSPECTION_PENDING' : 'ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedReturns.length}
         title={isQcMode ? 'QC queue' : 'Return queue'}
         toolbar={

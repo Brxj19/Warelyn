@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../hooks/useToast.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import * as notificationService from '../services/notificationService.js';
 import { formatDate } from '../utils/formatters.js';
 
@@ -142,7 +143,15 @@ export function NotificationBell() {
           </div>
 
           {notifications.length === 0 ? (
-            <p className="py-6 text-center text-sm text-warelyn-muted">No notifications.</p>
+            <div className="py-6 text-center">
+              <img src={emptyStateIllustrations.notifications} alt="" aria-hidden="true" className="mx-auto mb-3 w-16" />
+              <p className="text-sm font-medium text-warelyn-text">
+                {activeTab === 'unread' ? 'No unread notifications' : 'No notifications available'}
+              </p>
+              <p className="mt-1 text-xs text-warelyn-muted">
+                {activeTab === 'unread' ? 'You are all caught up for now.' : 'New account, template, inventory, and transaction updates will appear here.'}
+              </p>
+            </div>
           ) : (
             <div className="max-h-80 overflow-y-auto">
               {notifications.map((n) => (

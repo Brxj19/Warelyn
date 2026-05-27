@@ -7,19 +7,40 @@ from typing import Iterable
 logger = logging.getLogger(__name__)
 
 _WEASYPRINT_AVAILABLE = False
+_WEASYPRINT_IMPORT_ERROR: str | None = None
 try:
     import weasyprint
     _WEASYPRINT_AVAILABLE = True
 except (ImportError, OSError) as exc:
+    _WEASYPRINT_IMPORT_ERROR = str(exc)
     logger.warning(f"weasyprint not available ({exc}); PDF output will use fallback renderer.")
 
 
-def render_html_to_pdf(html: str) -> bytes:
+def render_html_to_pdf(html: str, *, allow_fallback: bool = False) -> bytes:
+    """Render HTML to a styled PDF using WeasyPrint.
+
+    By default, raises if WeasyPrint is unavailable or rendering fails so that
+    callers are aware of degraded output. Set allow_fallback=True to silently
+    fall back to the plain-text PDF renderer (useful for non-critical previews).
+    """
     if _WEASYPRINT_AVAILABLE:
         try:
             return weasyprint.HTML(string=html).write_pdf()
         except Exception as exc:
-            logger.warning(f"weasyprint render failed ({exc}); using fallback PDF.")
+            logger.error(f"weasyprint render failed: {exc}", exc_info=True)
+            if not allow_fallback:
+                raise RuntimeError(
+                    f"PDF rendering failed: {exc}. "
+                    "Ensure system dependencies (Pango, Cairo, GDK-Pixbuf) are installed."
+                ) from exc
+    else:
+        msg = f"WeasyPrint is not available: {_WEASYPRINT_IMPORT_ERROR}"
+        logger.error(msg)
+        if not allow_fallback:
+            raise RuntimeError(
+                f"{msg}. Install weasyprint and its system dependencies "
+                "(Pango, Cairo, GDK-Pixbuf) to generate styled PDFs."
+            )
     return _fallback_pdf(html)
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
@@ -13,8 +14,10 @@ from app.models.documents import (
     Bill,
     BillItem,
     BillStatus,
+    DocumentTemplate,
     DocumentTemplateChannel,
     DocumentTemplateKey,
+    DocumentTemplatePurpose,
     Invoice,
     InvoiceItem,
     InvoiceStatus,
@@ -27,7 +30,72 @@ from app.services.default_templates import DEFAULT_TEMPLATES
 from app.services.email_service import send_email
 from app.services.pdf_service import render_html_to_pdf
 
+from dataclasses import dataclass
+
 ZERO = Decimal("0.00")
+
+# Mapping from template_key to purpose for system templates
+_KEY_TO_PURPOSE: dict[DocumentTemplateKey, DocumentTemplatePurpose] = {
+    DocumentTemplateKey.EMAIL_VERIFICATION: DocumentTemplatePurpose.EMAIL_VERIFICATION,
+    DocumentTemplateKey.EMAIL_VERIFICATION_MODERN: DocumentTemplatePurpose.EMAIL_VERIFICATION,
+    DocumentTemplateKey.EMAIL_VERIFICATION_MINIMAL: DocumentTemplatePurpose.EMAIL_VERIFICATION,
+    DocumentTemplateKey.INVOICE_SEND: DocumentTemplatePurpose.INVOICE_EMAIL,
+    DocumentTemplateKey.INVOICE_SEND_MODERN: DocumentTemplatePurpose.INVOICE_EMAIL,
+    DocumentTemplateKey.INVOICE_SEND_MINIMAL: DocumentTemplatePurpose.INVOICE_EMAIL,
+    DocumentTemplateKey.INVOICE_SEND_FORMAL: DocumentTemplatePurpose.INVOICE_EMAIL,
+    DocumentTemplateKey.BILL_SEND: DocumentTemplatePurpose.BILL_EMAIL,
+    DocumentTemplateKey.BILL_SEND_MODERN: DocumentTemplatePurpose.BILL_EMAIL,
+    DocumentTemplateKey.BILL_SEND_MINIMAL: DocumentTemplatePurpose.BILL_EMAIL,
+    DocumentTemplateKey.BILL_SEND_FORMAL: DocumentTemplatePurpose.BILL_EMAIL,
+    DocumentTemplateKey.PDF_INVOICE: DocumentTemplatePurpose.INVOICE_PDF,
+    DocumentTemplateKey.PDF_INVOICE_MODERN: DocumentTemplatePurpose.INVOICE_PDF,
+    DocumentTemplateKey.PDF_INVOICE_MINIMAL: DocumentTemplatePurpose.INVOICE_PDF,
+    DocumentTemplateKey.PDF_INVOICE_BOLD: DocumentTemplatePurpose.INVOICE_PDF,
+    DocumentTemplateKey.PDF_INVOICE_WARM: DocumentTemplatePurpose.INVOICE_PDF,
+    DocumentTemplateKey.PDF_BILL: DocumentTemplatePurpose.BILL_PDF,
+    DocumentTemplateKey.PDF_BILL_MODERN: DocumentTemplatePurpose.BILL_PDF,
+    DocumentTemplateKey.PDF_BILL_MINIMAL: DocumentTemplatePurpose.BILL_PDF,
+    DocumentTemplateKey.PDF_BILL_BOLD: DocumentTemplatePurpose.BILL_PDF,
+    DocumentTemplateKey.PDF_BILL_WARM: DocumentTemplatePurpose.BILL_PDF,
+    DocumentTemplateKey.ACCOUNT_CREATED: DocumentTemplatePurpose.ACCOUNT_CREATED,
+    DocumentTemplateKey.PASSWORD_RESET: DocumentTemplatePurpose.PASSWORD_RESET,
+    DocumentTemplateKey.USER_DISABLED: DocumentTemplatePurpose.USER_DISABLED,
+    DocumentTemplateKey.USER_ENABLED: DocumentTemplatePurpose.USER_ENABLED,
+    DocumentTemplateKey.ROLE_CHANGED: DocumentTemplatePurpose.ROLE_CHANGED,
+}
+
+# Strict channel validation for each purpose
+_PURPOSE_CHANNEL_MAP: dict[DocumentTemplatePurpose, DocumentTemplateChannel] = {
+    DocumentTemplatePurpose.EMAIL_VERIFICATION: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.INVOICE_EMAIL: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.BILL_EMAIL: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.INVOICE_PDF: DocumentTemplateChannel.PDF,
+    DocumentTemplatePurpose.BILL_PDF: DocumentTemplateChannel.PDF,
+    DocumentTemplatePurpose.ACCOUNT_CREATED: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.PASSWORD_RESET: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.USER_DISABLED: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.USER_ENABLED: DocumentTemplateChannel.EMAIL,
+    DocumentTemplatePurpose.ROLE_CHANGED: DocumentTemplateChannel.EMAIL,
+}
+
+# Preference field -> expected purpose
+_PREFERENCE_PURPOSE_MAP: dict[str, DocumentTemplatePurpose] = {
+    "preferred_invoice_template_id": DocumentTemplatePurpose.INVOICE_PDF,
+    "preferred_bill_template_id": DocumentTemplatePurpose.BILL_PDF,
+    "preferred_invoice_email_template_id": DocumentTemplatePurpose.INVOICE_EMAIL,
+    "preferred_bill_email_template_id": DocumentTemplatePurpose.BILL_EMAIL,
+    "preferred_verification_template_id": DocumentTemplatePurpose.EMAIL_VERIFICATION,
+}
+
+
+@dataclass
+class PdfRenderResult:
+    """Result of a PDF render operation, including template metadata."""
+    pdf_bytes: bytes
+    template_id: int
+    template_key: str
+    template_name: str
+    template_purpose: str
 
 
 class SafeDict(dict):
@@ -52,8 +120,11 @@ class DocumentTemplateService:
         self.db = db
         self.repository = DocumentsRepository(db)
 
-    def list_templates(self, tenant_id: int, channel: str | None = None) -> list:
+    def list_templates(self, tenant_id: int, channel: str | None = None, purpose: str | None = None) -> list:
         self._ensure_defaults(tenant_id)
+        if purpose:
+            resolved_purpose = DocumentTemplatePurpose(purpose)
+            return self.repository.list_templates_by_purpose(tenant_id, resolved_purpose)
         resolved = DocumentTemplateChannel(channel) if channel else None
         return self.repository.list_templates(tenant_id, resolved)
 
@@ -93,14 +164,14 @@ class DocumentTemplateService:
         preferred_template_id: int | None = None,
     ) -> dict[str, str | None]:
         self._ensure_defaults(tenant_id)
+        expected_purpose = _KEY_TO_PURPOSE.get(template_key)
         template = None
         if preferred_template_id:
             template = self.repository.get_template_by_id(tenant_id, preferred_template_id)
             if template is None:
                 raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "The selected preferred template is no longer available.", 404)
-            # Validate that the preferred template's purpose matches the requested key
-            expected_prefix = self._template_purpose_prefix(template_key)
-            if expected_prefix and not template.template_key.value.startswith(expected_prefix):
+            # Validate purpose using the purpose field
+            if expected_purpose and template.purpose != expected_purpose:
                 raise AppError(
                     "TEMPLATE_PURPOSE_MISMATCH",
                     "Selected template cannot be used for this document type.",
@@ -114,6 +185,10 @@ class DocumentTemplateService:
             "subject": self._render(template.subject_template, context) if template.subject_template else None,
             "body": self._render(template.body_template, context),
             "text": self._render(template.body_template_text, context) if template.body_template_text else None,
+            "template_id": template.id,
+            "template_key": template.template_key.value if template.template_key else template.template_code,
+            "template_name": template.name,
+            "template_purpose": template.purpose.value,
         }
 
     @staticmethod
@@ -132,6 +207,80 @@ class DocumentTemplateService:
             return "EMAIL_VERIFICATION"
         return None
 
+    def create_custom_template(self, tenant_id: int, user_id: int, data: dict[str, Any]) -> DocumentTemplate:
+        """Create a custom template with strict purpose/channel validation."""
+        self._ensure_defaults(tenant_id)
+        try:
+            purpose = DocumentTemplatePurpose(data["purpose"])
+        except (ValueError, KeyError):
+            raise AppError(
+                "INVALID_TEMPLATE_PURPOSE",
+                f"Invalid purpose. Must be one of: {', '.join(p.value for p in DocumentTemplatePurpose)}",
+                400,
+            )
+        expected_channel = _PURPOSE_CHANNEL_MAP[purpose]
+        template_code = f"CUSTOM_{purpose.value}_{uuid.uuid4().hex[:8]}"
+        template = self.repository.create_template({
+            "tenant_id": tenant_id,
+            "channel": expected_channel,
+            "template_key": None,
+            "purpose": purpose,
+            "template_code": template_code,
+            "is_system": False,
+            "created_by": user_id,
+            "description": data.get("description"),
+            "name": data["name"],
+            "subject_template": data.get("subject_template"),
+            "body_template": data["body_template"],
+            "body_template_text": data.get("body_template_text"),
+            "is_active": data.get("is_active", True),
+        })
+        self.db.commit()
+        self.db.refresh(template)
+        return template
+
+    def duplicate_template(self, tenant_id: int, user_id: int, template_id: int, new_name: str | None = None, description: str | None = None) -> DocumentTemplate:
+        """Duplicate an existing template (system or custom)."""
+        source = self.repository.get_template(tenant_id, template_id)
+        if source is None:
+            raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Document template was not found for this tenant.", 404)
+        name = new_name or f"{source.name} (Copy)"
+        template_code = f"CUSTOM_{source.purpose.value}_{uuid.uuid4().hex[:8]}"
+        result = self.repository.duplicate_template(tenant_id, template_id, name, template_code, user_id, description)
+        if result is None:
+            raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Document template was not found for this tenant.", 404)
+        self.db.commit()
+        self.db.refresh(result)
+        return result
+
+    def delete_template(self, tenant_id: int, template_id: int) -> None:
+        """Delete a custom template. System templates cannot be deleted."""
+        template = self.repository.get_template(tenant_id, template_id)
+        if template is None:
+            raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Document template was not found for this tenant.", 404)
+        if template.is_system:
+            raise AppError("CANNOT_DELETE_SYSTEM_TEMPLATE", "System templates cannot be deleted.", 400)
+        if self.repository.is_template_in_use_by_preference(template_id):
+            raise AppError("TEMPLATE_IN_USE", "Cannot delete a template that is currently set as a user preference.", 400)
+        self.repository.delete_template(tenant_id, template_id)
+        self.db.commit()
+
+    def validate_template_preference(self, tenant_id: int, template_id: int, expected_purpose: DocumentTemplatePurpose) -> DocumentTemplate:
+        """Validate that a template can be used for a given preference purpose."""
+        self._ensure_defaults(tenant_id)
+        template = self.repository.get_template(tenant_id, template_id)
+        if template is None:
+            raise AppError("DOCUMENT_TEMPLATE_NOT_FOUND", "Template not found or does not belong to this tenant.", 400)
+        if not template.is_active:
+            raise AppError("TEMPLATE_INACTIVE", "Cannot set an inactive template as a preference.", 400)
+        if template.purpose != expected_purpose:
+            raise AppError(
+                "TEMPLATE_PURPOSE_MISMATCH",
+                f"Template purpose '{template.purpose.value}' does not match expected purpose '{expected_purpose.value}'.",
+                400,
+            )
+        return template
+
     def _preview_context(self, tenant_id: int, values: dict[str, Any]) -> dict[str, Any]:
         base = DocumentsService(self.db)._base_template_context(tenant_id)
         if values.get("invoice_id"):
@@ -147,11 +296,15 @@ class DocumentTemplateService:
         created = False
         for (channel, template_key), payload in DEFAULT_TEMPLATES.items():
             if self.repository.get_template_by_key(tenant_id, channel, template_key) is None:
+                purpose = _KEY_TO_PURPOSE[template_key]
                 self.repository.create_template(
                     {
                         "tenant_id": tenant_id,
                         "channel": channel,
                         "template_key": template_key,
+                        "purpose": purpose,
+                        "template_code": template_key.value,
+                        "is_system": True,
                         "name": payload["name"],
                         "subject_template": payload["subject_template"],
                         "body_template": payload["body_template"],
@@ -396,13 +549,13 @@ class DocumentsService:
             raise AppError("INVOICE_EMAIL_REQUIRED", "Invoice email delivery requires a destination email address.", 400)
         preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_invoice_email_template_id")
         rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.INVOICE_SEND, context, preferred_id)
-        pdf_bytes = self.render_invoice_pdf(tenant_id, invoice_id, actor_user_id)
+        pdf_result = self.render_invoice_pdf(tenant_id, invoice_id, actor_user_id)
         send_email(
             target_email,
             rendered["subject"] or f"Invoice {invoice.invoice_number}",
             body_text=rendered.get("text") or rendered["body"],
             body_html=rendered["body"] if "<html" in rendered["body"].lower() or "<body" in rendered["body"].lower() else None,
-            attachment=pdf_bytes,
+            attachment=pdf_result.pdf_bytes,
             attachment_filename=f"{invoice.invoice_number}.pdf",
         )
         invoice.status = InvoiceStatus.SENT
@@ -419,13 +572,13 @@ class DocumentsService:
             raise AppError("BILL_EMAIL_REQUIRED", "Bill email delivery requires a destination email address.", 400)
         preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_bill_email_template_id")
         rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.EMAIL, DocumentTemplateKey.BILL_SEND, context, preferred_id)
-        pdf_bytes = self.render_bill_pdf(tenant_id, bill_id, actor_user_id)
+        pdf_result = self.render_bill_pdf(tenant_id, bill_id, actor_user_id)
         send_email(
             target_email,
             rendered["subject"] or f"Bill {bill.bill_number}",
             body_text=rendered.get("text") or rendered["body"],
             body_html=rendered["body"] if "<html" in rendered["body"].lower() or "<body" in rendered["body"].lower() else None,
-            attachment=pdf_bytes,
+            attachment=pdf_result.pdf_bytes,
             attachment_filename=f"{bill.bill_number}.pdf",
         )
         bill.status = BillStatus.SENT
@@ -464,23 +617,98 @@ class DocumentsService:
         bill.voided_at = _naive_utcnow()
         return self._commit_and_refresh_bill(tenant_id, bill.id, "BILL_VOIDED", actor_user_id)
 
-    def render_invoice_pdf(self, tenant_id: int, invoice_id: int, actor_user_id: int | None = None) -> bytes:
+    def render_invoice_pdf(self, tenant_id: int, invoice_id: int, actor_user_id: int | None = None) -> PdfRenderResult:
         invoice = self.get_invoice(tenant_id, invoice_id)
         preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_invoice_template_id") if actor_user_id else None
         context = {**self._base_template_context(tenant_id), **self._invoice_context(invoice)}
         context["sender_name"] = context["tenant"]["company_name"]
         rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_INVOICE, context, preferred_id)
         pdf = render_html_to_pdf(rendered["body"])
-        return pdf
+        return PdfRenderResult(
+            pdf_bytes=pdf,
+            template_id=rendered["template_id"],
+            template_key=rendered["template_key"],
+            template_name=rendered["template_name"],
+            template_purpose=rendered["template_purpose"],
+        )
 
-    def render_bill_pdf(self, tenant_id: int, bill_id: int, actor_user_id: int | None = None) -> bytes:
+    def render_bill_pdf(self, tenant_id: int, bill_id: int, actor_user_id: int | None = None) -> PdfRenderResult:
         bill = self.get_bill(tenant_id, bill_id)
         preferred_id = self._get_user_preferred_template(actor_user_id, "preferred_bill_template_id") if actor_user_id else None
         context = {**self._base_template_context(tenant_id), **self._bill_context(bill)}
         context["sender_name"] = context["tenant"]["company_name"]
         rendered = self.templates.render_by_key(tenant_id, DocumentTemplateChannel.PDF, DocumentTemplateKey.PDF_BILL, context, preferred_id)
         pdf = render_html_to_pdf(rendered["body"])
-        return pdf
+        return PdfRenderResult(
+            pdf_bytes=pdf,
+            template_id=rendered["template_id"],
+            template_key=rendered["template_key"],
+            template_name=rendered["template_name"],
+            template_purpose=rendered["template_purpose"],
+        )
+
+    def resolve_pdf_template_for_document(
+        self,
+        tenant_id: int,
+        document_type: str,
+        actor_user_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Determine which PDF template will be used for a document type.
+
+        Resolution order:
+        1. User preference (preferred_invoice_template_id / preferred_bill_template_id)
+        2. Tenant default (the base template key for the channel)
+        3. System default (from DEFAULT_TEMPLATES)
+
+        Returns template metadata: id, key, name, purpose, and resolution_source.
+        """
+        if document_type == "invoice":
+            pref_field = "preferred_invoice_template_id"
+            template_key = DocumentTemplateKey.PDF_INVOICE
+            expected_purpose = DocumentTemplatePurpose.INVOICE_PDF
+        elif document_type == "bill":
+            pref_field = "preferred_bill_template_id"
+            template_key = DocumentTemplateKey.PDF_BILL
+            expected_purpose = DocumentTemplatePurpose.BILL_PDF
+        else:
+            raise AppError("INVALID_DOCUMENT_TYPE", f"Unknown document type: {document_type}", 400)
+
+        self.templates._ensure_defaults(tenant_id)
+
+        # 1. User preference
+        preferred_id = self._get_user_preferred_template(actor_user_id, pref_field) if actor_user_id else None
+        if preferred_id:
+            template = self.repository.get_template_by_id(tenant_id, preferred_id)
+            if template and template.is_active:
+                # Validate purpose match
+                if template.purpose == expected_purpose:
+                    return {
+                        "template_id": template.id,
+                        "template_key": template.template_key.value if template.template_key else template.template_code,
+                        "template_name": template.name,
+                        "template_purpose": template.purpose.value,
+                        "resolution_source": "user_preference",
+                    }
+
+        # 2. Tenant default (the base key)
+        template = self.templates.repository.get_template_by_key(
+            tenant_id, DocumentTemplateChannel.PDF, template_key
+        )
+        if template and template.is_active:
+            return {
+                "template_id": template.id,
+                "template_key": template.template_key.value if template.template_key else template.template_code,
+                "template_name": template.name,
+                "template_purpose": template.purpose.value,
+                "resolution_source": "tenant_default",
+            }
+
+        # 3. System default - should always exist after _ensure_defaults
+        raise AppError(
+            "DOCUMENT_TEMPLATE_NOT_FOUND",
+            f"No active PDF template found for {document_type}.",
+            404,
+        )
 
     def _get_user_preferred_template(self, user_id: int | None, field: str) -> int | None:
         if not user_id:
@@ -656,7 +884,7 @@ class DocumentsService:
         sample = self._sample_pdf_invoice_context()
         context = {**sample, **variables}
         rendered = self.templates.preview_template(tenant_id, template_id, context)
-        return render_html_to_pdf(rendered["body"])
+        return render_html_to_pdf(rendered["body"], allow_fallback=True)
 
     def _sample_pdf_invoice_context(self) -> dict:
         return {

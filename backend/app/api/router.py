@@ -20,6 +20,7 @@ from app.api.sales import router as sales_router
 from app.api.search import router as search_router
 from app.api.settings import router as settings_router
 from app.api.uploads import router as uploads_router
+from app.api.users import router as users_router
 from app.api.verification import router as verification_router
 from app.api.warehouses import router as warehouses_router
 
@@ -44,5 +45,6 @@ api_router.include_router(sales_router)
 api_router.include_router(search_router)
 api_router.include_router(settings_router)
 api_router.include_router(uploads_router)
+api_router.include_router(users_router)
 api_router.include_router(verification_router)
 api_router.include_router(warehouses_router)

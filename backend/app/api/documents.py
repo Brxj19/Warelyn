@@ -9,6 +9,10 @@ from app.schemas.documents import (
     BillRead,
     DocumentEmailRequest,
     DocumentStatusResponse,
+    DocumentTemplateCreate,
+    DocumentTemplateDetailResponse,
+    DocumentTemplateDuplicate,
+    DocumentTemplateListResponse,
     DocumentTemplatePreviewRequest,
     DocumentTemplatePreviewResponse,
     DocumentTemplateRead,
@@ -58,11 +62,16 @@ def void_invoice(invoice_id: int, context: UserContext = Depends(require_roles(*
 @router.get("/invoices/{invoice_id}/pdf")
 def download_invoice_pdf(invoice_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
     invoice = DocumentsService(db).get_invoice(context.tenant_id, invoice_id)
-    pdf = DocumentsService(db).render_invoice_pdf(context.tenant_id, invoice_id, context.user.id)
+    result = DocumentsService(db).render_invoice_pdf(context.tenant_id, invoice_id, context.user.id)
     return Response(
-        content=pdf,
+        content=result.pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{invoice.invoice_number}.pdf"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{invoice.invoice_number}.pdf"',
+            "X-Warelyn-Template-Id": str(result.template_id),
+            "X-Warelyn-Template-Key": result.template_key,
+            "X-Warelyn-Template-Purpose": result.template_purpose,
+        },
     )
 
 
@@ -99,40 +108,78 @@ def void_bill(bill_id: int, context: UserContext = Depends(require_roles(*write_
 @router.get("/bills/{bill_id}/pdf")
 def download_bill_pdf(bill_id: int, context: UserContext = Depends(require_roles(*read_roles)), db: Session = Depends(get_db)) -> Response:
     bill = DocumentsService(db).get_bill(context.tenant_id, bill_id)
-    pdf = DocumentsService(db).render_bill_pdf(context.tenant_id, bill_id, context.user.id)
+    result = DocumentsService(db).render_bill_pdf(context.tenant_id, bill_id, context.user.id)
     return Response(
-        content=pdf,
+        content=result.pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{bill.bill_number}.pdf"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{bill.bill_number}.pdf"',
+            "X-Warelyn-Template-Id": str(result.template_id),
+            "X-Warelyn-Template-Key": result.template_key,
+            "X-Warelyn-Template-Purpose": result.template_purpose,
+        },
     )
 
 
 @router.get("/document-templates", response_model=list[DocumentTemplateRead])
 def list_document_templates(
     channel: str | None = None,
+    purpose: str | None = None,
     context: UserContext = Depends(require_roles(*admin_roles)),
     db: Session = Depends(get_db),
 ) -> list[DocumentTemplateRead]:
-    return DocumentTemplateService(db).list_templates(context.tenant_id, channel)
+    return DocumentTemplateService(db).list_templates(context.tenant_id, channel, purpose)
 
 
-@router.get("/document-templates/{template_id}", response_model=DocumentTemplateRead)
+@router.get("/document-templates/{template_id}", response_model=DocumentTemplateDetailResponse)
 def get_document_template(
     template_id: int,
     context: UserContext = Depends(require_roles(*admin_roles)),
     db: Session = Depends(get_db),
-) -> DocumentTemplateRead:
+) -> DocumentTemplateDetailResponse:
     return DocumentTemplateService(db).get_template(context.tenant_id, template_id)
 
 
-@router.patch("/document-templates/{template_id}", response_model=DocumentTemplateRead)
+@router.post("/document-templates", response_model=DocumentTemplateDetailResponse, status_code=status.HTTP_201_CREATED)
+def create_document_template(
+    request: DocumentTemplateCreate,
+    context: UserContext = Depends(require_roles(*admin_roles)),
+    db: Session = Depends(get_db),
+) -> DocumentTemplateDetailResponse:
+    return DocumentTemplateService(db).create_custom_template(
+        context.tenant_id, context.user.id, request.model_dump(exclude_unset=True)
+    )
+
+
+@router.patch("/document-templates/{template_id}", response_model=DocumentTemplateDetailResponse)
 def update_document_template(
     template_id: int,
     request: DocumentTemplateUpdate,
     context: UserContext = Depends(require_roles(*admin_roles)),
     db: Session = Depends(get_db),
-) -> DocumentTemplateRead:
+) -> DocumentTemplateDetailResponse:
     return DocumentTemplateService(db).update_template(context.tenant_id, template_id, request.model_dump(exclude_unset=True))
+
+
+@router.delete("/document-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document_template(
+    template_id: int,
+    context: UserContext = Depends(require_roles(*admin_roles)),
+    db: Session = Depends(get_db),
+) -> None:
+    DocumentTemplateService(db).delete_template(context.tenant_id, template_id)
+
+
+@router.post("/document-templates/{template_id}/duplicate", response_model=DocumentTemplateDetailResponse, status_code=status.HTTP_201_CREATED)
+def duplicate_document_template(
+    template_id: int,
+    request: DocumentTemplateDuplicate,
+    context: UserContext = Depends(require_roles(*admin_roles)),
+    db: Session = Depends(get_db),
+) -> DocumentTemplateDetailResponse:
+    return DocumentTemplateService(db).duplicate_template(
+        context.tenant_id, context.user.id, template_id, request.name, request.description
+    )
 
 
 @router.post("/document-templates/{template_id}/preview", response_model=DocumentTemplatePreviewResponse)
@@ -159,4 +206,19 @@ def preview_template_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": "inline; filename=preview.pdf"},
+    )
+
+
+@router.get("/pdf-template-resolution/{document_type}")
+def resolve_pdf_template(
+    document_type: str,
+    context: UserContext = Depends(require_roles(*read_roles)),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Resolve which PDF template would be used for a given document type.
+
+    Resolution order: user preference -> tenant default -> system default.
+    """
+    return DocumentsService(db).resolve_pdf_template_for_document(
+        context.tenant_id, document_type, context.user.id
     )

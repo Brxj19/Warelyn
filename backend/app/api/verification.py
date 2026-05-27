@@ -102,7 +102,7 @@ def confirm_email_verification(request: VerificationConfirmRequest, context: Use
         svc.verify_otp(context.user.id, request.code, OTPPurpose.EMAIL_VERIFICATION, OTPSource.EMAIL)
     except OTPError as exc:
         raise AppError(exc.code, exc.message, 400) from exc
-    context.user.email_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    context.user.email_verified_at = datetime.now(UTC)
     db.flush()
     AuditLogRepository(db).create(
         {"tenant_id": context.tenant_id, "actor_user_id": context.user.id, "actor_role": context.role.value, "action": "EMAIL_VERIFIED", "entity_type": "user", "entity_id": str(context.user.id)}
@@ -139,7 +139,7 @@ def confirm_phone_verification(request: VerificationConfirmRequest, context: Use
         svc.verify_otp(context.user.id, request.code, OTPPurpose.PHONE_VERIFICATION, OTPSource.PHONE)
     except OTPError as exc:
         raise AppError(exc.code, exc.message, 400) from exc
-    context.user.phone_verified_at = datetime.now(UTC).replace(tzinfo=None)
+    context.user.phone_verified_at = datetime.now(UTC)
     db.flush()
     AuditLogRepository(db).create(
         {"tenant_id": context.tenant_id, "actor_user_id": context.user.id, "actor_role": context.role.value, "action": "PHONE_VERIFIED", "entity_type": "user", "entity_id": str(context.user.id)}

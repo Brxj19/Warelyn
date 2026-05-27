@@ -1,21 +1,19 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-import { Card, CardBody } from '../components/ui/Card.jsx';
+import { EmptyState } from '../components/ui/EmptyState.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 
 export function NotFoundPage() {
+  const navigate = useNavigate();
+
   return (
-    <Card>
-      <CardBody className="text-center">
-        <p className="text-sm font-semibold text-warelyn-primary">404</p>
-        <h1 className="mt-2 text-2xl font-bold text-warelyn-text">Page not found</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-warelyn-muted">This workspace route is not available in the current foundation.</p>
-        <Link
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-warelyn-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-900 focus:outline-none focus:ring-4 focus:ring-warelyn-primary/30"
-          to="/"
-        >
-          Back to dashboard
-        </Link>
-      </CardBody>
-    </Card>
+    <EmptyState
+      illustration={emptyStateIllustrations.notFound}
+      title="Page not found"
+      message="The page you are looking for does not exist or may have been moved."
+      actionLabel="Go to Dashboard"
+      onAction={() => navigate('/dashboard')}
+      size="lg"
+    />
   );
 }

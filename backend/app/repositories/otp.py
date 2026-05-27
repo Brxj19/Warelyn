@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -7,7 +7,7 @@ from app.models.communication import OTPPurpose, OTPSource, OTPVerification
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 class OTPRepository:

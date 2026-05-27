@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PhoneInput } from '../components/ui/PhoneInput.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../hooks/useToast.jsx';
 import * as settingsService from '../services/settingsService.js';
@@ -172,7 +173,7 @@ function TenantSettingsSection({ accessToken }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Company Display Name" value={form.company_display_name} onChange={handleChange('company_display_name')} disabled={!editing} />
               <Input label="Contact Email" type="email" value={form.contact_email} onChange={handleChange('contact_email')} disabled={!editing} />
-              <Input label="Phone" value={form.phone} onChange={handleChange('phone')} disabled={!editing} />
+              <PhoneInput label="Phone" value={form.phone} onChange={(val) => editing && setForm((p) => ({ ...p, phone: val }))} disabled={!editing} />
               <Input label="Timezone" value={form.timezone} onChange={handleChange('timezone')} disabled={!editing} />
               <Input label="Currency" value={form.currency} onChange={handleChange('currency')} disabled={!editing} />
               <Input label="Tax ID" value={form.tax_id} onChange={handleChange('tax_id')} disabled={!editing} />
@@ -476,8 +477,6 @@ function UserPreferencesSection({ accessToken }) {
   const [activeSection, setActiveSection] = useState('display');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [pdfTemplates, setPdfTemplates] = useState([]);
-  const [emailTemplates, setEmailTemplates] = useState([]);
 
   const prefSections = [
     { group: 'Appearance', items: [{ id: 'display', icon: Palette, label: 'Display' }] },
@@ -485,6 +484,12 @@ function UserPreferencesSection({ accessToken }) {
     { group: 'Notifications', items: [{ id: 'alerts', icon: Bell, label: 'Alerts' }] },
     { group: 'Templates', items: [{ id: 'invoice-templates', icon: FileText, label: 'Invoice' }, { id: 'bill-templates', icon: FileText, label: 'Bill' }, { id: 'verification-templates', icon: Mail, label: 'Verification' }] },
   ];
+
+  const [invoicePdfTemplates, setInvoicePdfTemplates] = useState([]);
+  const [billPdfTemplates, setBillPdfTemplates] = useState([]);
+  const [invoiceEmailTemplates, setInvoiceEmailTemplates] = useState([]);
+  const [billEmailTemplates, setBillEmailTemplates] = useState([]);
+  const [verificationTemplates, setVerificationTemplates] = useState([]);
 
   useEffect(() => {
     settingsService.getUserPreferences(accessToken)
@@ -505,8 +510,11 @@ function UserPreferencesSection({ accessToken }) {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-    documentService.listTemplates(accessToken, 'PDF').then(setPdfTemplates).catch(() => {});
-    documentService.listTemplates(accessToken, 'EMAIL').then(setEmailTemplates).catch(() => {});
+    documentService.listTemplates(accessToken, 'PDF', 'INVOICE_PDF').then(setInvoicePdfTemplates).catch(() => {});
+    documentService.listTemplates(accessToken, 'PDF', 'BILL_PDF').then(setBillPdfTemplates).catch(() => {});
+    documentService.listTemplates(accessToken, 'EMAIL', 'INVOICE_EMAIL').then(setInvoiceEmailTemplates).catch(() => {});
+    documentService.listTemplates(accessToken, 'EMAIL', 'BILL_EMAIL').then(setBillEmailTemplates).catch(() => {});
+    documentService.listTemplates(accessToken, 'EMAIL', 'EMAIL_VERIFICATION').then(setVerificationTemplates).catch(() => {});
   }, [accessToken]);
 
   async function handleSave() {
@@ -542,12 +550,6 @@ function UserPreferencesSection({ accessToken }) {
     { value: '/sales', label: 'Sales Orders', icon: FileText },
     { value: '/purchases', label: 'Purchase Orders', icon: FileText },
   ];
-
-  const invoicePdfTemplates = pdfTemplates.filter((t) => t.template_key?.startsWith('PDF_INVOICE'));
-  const billPdfTemplates = pdfTemplates.filter((t) => t.template_key?.startsWith('PDF_BILL'));
-  const invoiceEmailTemplates = emailTemplates.filter((t) => t.template_key?.startsWith('INVOICE_SEND'));
-  const billEmailTemplates = emailTemplates.filter((t) => t.template_key?.startsWith('BILL_SEND'));
-  const verificationTemplates = emailTemplates.filter((t) => t.template_key?.startsWith('EMAIL_VERIFICATION'));
 
   function renderSection() {
     switch (activeSection) {

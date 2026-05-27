@@ -4,6 +4,171 @@ from app.models.documents import DocumentTemplateChannel, DocumentTemplateKey
 EMAIL = DocumentTemplateChannel.EMAIL
 PDF = DocumentTemplateChannel.PDF
 
+# ---------------------------------------------------------------------------
+# User management email templates
+# ---------------------------------------------------------------------------
+
+_ACCOUNT_CREATED_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Welcome</title></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%);padding:28px 40px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;">Warelyn</p>
+<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Inventory Platform</p>
+</td></tr>
+<tr><td style="padding:40px;">
+<h1 style="margin:0 0 16px;font-size:24px;color:#0F172A;">Welcome, {{ user_name }}!</h1>
+<p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">Your account has been created on <strong>{{ tenant_name }}</strong>.</p>
+<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+<tr><td style="padding:4px 0;font-size:14px;color:#64748B;">Email:</td><td style="padding:4px 0 4px 12px;font-size:14px;color:#0F172A;font-weight:600;">{{ email }}</td></tr>
+<tr><td style="padding:4px 0;font-size:14px;color:#64748B;">Role:</td><td style="padding:4px 0 4px 12px;font-size:14px;color:#0F172A;font-weight:600;">{{ role }}</td></tr>
+</table>
+<a href="{{ login_url }}" style="display:inline-block;background:#2563EB;color:#FFFFFF;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">Sign In</a>
+</td></tr>
+<tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 40px;">
+<p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;">Warelyn Inventory &middot; {{ tenant_name }}</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>'''
+
+_ACCOUNT_CREATED_TEXT = '''Welcome, {{ user_name }}!
+
+Your account has been created on {{ tenant_name }}.
+
+Email: {{ email }}
+Role: {{ role }}
+
+Sign in at: {{ login_url }}
+
+-- Warelyn Inventory'''
+
+_PASSWORD_RESET_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Password Reset</title></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%);padding:28px 40px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;">Warelyn</p>
+<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Inventory Platform</p>
+</td></tr>
+<tr><td style="padding:40px;">
+<h1 style="margin:0 0 16px;font-size:24px;color:#0F172A;">Password Reset</h1>
+<p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">Hi {{ user_name }}, your password on <strong>{{ tenant_name }}</strong> has been reset by an administrator.</p>
+<p style="margin:0;font-size:14px;color:#64748B;line-height:1.6;">If you did not expect this change, please contact your administrator immediately.</p>
+</td></tr>
+<tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 40px;">
+<p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;">Warelyn Inventory &middot; {{ tenant_name }}</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>'''
+
+_PASSWORD_RESET_TEXT = '''Hi {{ user_name }},
+
+Your password on {{ tenant_name }} has been reset by an administrator.
+
+If you did not expect this change, please contact your administrator immediately.
+
+-- Warelyn Inventory'''
+
+_USER_DISABLED_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Account Disabled</title></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%);padding:28px 40px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;">Warelyn</p>
+<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Inventory Platform</p>
+</td></tr>
+<tr><td style="padding:40px;">
+<h1 style="margin:0 0 16px;font-size:24px;color:#0F172A;">Account Disabled</h1>
+<p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">Hi {{ user_name }}, your account on <strong>{{ tenant_name }}</strong> has been disabled.</p>
+{% if reason %}<p style="margin:0 0 24px;font-size:14px;color:#64748B;line-height:1.6;"><strong>Reason:</strong> {{ reason }}</p>{% endif %}
+<p style="margin:0;font-size:14px;color:#64748B;line-height:1.6;">Please contact your administrator if you believe this is an error.</p>
+</td></tr>
+<tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 40px;">
+<p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;">Warelyn Inventory &middot; {{ tenant_name }}</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>'''
+
+_USER_DISABLED_TEXT = '''Hi {{ user_name }},
+
+Your account on {{ tenant_name }} has been disabled.
+{% if reason %}
+Reason: {{ reason }}
+{% endif %}
+Please contact your administrator if you believe this is an error.
+
+-- Warelyn Inventory'''
+
+_USER_ENABLED_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Account Enabled</title></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%);padding:28px 40px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;">Warelyn</p>
+<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Inventory Platform</p>
+</td></tr>
+<tr><td style="padding:40px;">
+<h1 style="margin:0 0 16px;font-size:24px;color:#0F172A;">Account Re-enabled</h1>
+<p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">Hi {{ user_name }}, your account on <strong>{{ tenant_name }}</strong> has been re-enabled. You can now sign in again.</p>
+</td></tr>
+<tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 40px;">
+<p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;">Warelyn Inventory &middot; {{ tenant_name }}</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>'''
+
+_USER_ENABLED_TEXT = '''Hi {{ user_name }},
+
+Your account on {{ tenant_name }} has been re-enabled. You can now sign in again.
+
+-- Warelyn Inventory'''
+
+_ROLE_CHANGED_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Role Changed</title></head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 0;">
+<tr><td align="center">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%);padding:28px 40px;">
+<p style="margin:0;font-size:22px;font-weight:700;color:#FFFFFF;">Warelyn</p>
+<p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;">Inventory Platform</p>
+</td></tr>
+<tr><td style="padding:40px;">
+<h1 style="margin:0 0 16px;font-size:24px;color:#0F172A;">Role Updated</h1>
+<p style="margin:0 0 24px;font-size:15px;color:#475569;line-height:1.6;">Hi {{ user_name }}, your role on <strong>{{ tenant_name }}</strong> has been changed.</p>
+<table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+<tr><td style="padding:4px 0;font-size:14px;color:#64748B;">Previous role:</td><td style="padding:4px 0 4px 12px;font-size:14px;color:#0F172A;font-weight:600;">{{ old_role }}</td></tr>
+<tr><td style="padding:4px 0;font-size:14px;color:#64748B;">New role:</td><td style="padding:4px 0 4px 12px;font-size:14px;color:#0F172A;font-weight:600;">{{ new_role }}</td></tr>
+</table>
+</td></tr>
+<tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:20px 40px;">
+<p style="margin:0;font-size:12px;color:#94A3B8;text-align:center;">Warelyn Inventory &middot; {{ tenant_name }}</p>
+</td></tr>
+</table></td></tr></table>
+</body></html>'''
+
+_ROLE_CHANGED_TEXT = '''Hi {{ user_name }},
+
+Your role on {{ tenant_name }} has been changed.
+
+Previous role: {{ old_role }}
+New role: {{ new_role }}
+
+-- Warelyn Inventory'''
+
 _OTP_EMAIL_HTML = '''<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verification Code</title></head>
@@ -683,6 +848,41 @@ DEFAULT_TEMPLATES: dict[tuple[DocumentTemplateChannel, DocumentTemplateKey], dic
         "subject_template": None,
         "body_template": _pdf_warm("bill"),
         "body_template_text": None,
+        "is_active": True,
+    },
+    (EMAIL, DocumentTemplateKey.ACCOUNT_CREATED): {
+        "name": "Account created notification",
+        "subject_template": "Welcome to {{ tenant_name }}",
+        "body_template": _ACCOUNT_CREATED_HTML,
+        "body_template_text": _ACCOUNT_CREATED_TEXT,
+        "is_active": True,
+    },
+    (EMAIL, DocumentTemplateKey.PASSWORD_RESET): {
+        "name": "Password reset notification",
+        "subject_template": "Your password has been reset — {{ tenant_name }}",
+        "body_template": _PASSWORD_RESET_HTML,
+        "body_template_text": _PASSWORD_RESET_TEXT,
+        "is_active": True,
+    },
+    (EMAIL, DocumentTemplateKey.USER_DISABLED): {
+        "name": "Account disabled notification",
+        "subject_template": "Your account has been disabled — {{ tenant_name }}",
+        "body_template": _USER_DISABLED_HTML,
+        "body_template_text": _USER_DISABLED_TEXT,
+        "is_active": True,
+    },
+    (EMAIL, DocumentTemplateKey.USER_ENABLED): {
+        "name": "Account enabled notification",
+        "subject_template": "Your account has been re-enabled — {{ tenant_name }}",
+        "body_template": _USER_ENABLED_HTML,
+        "body_template_text": _USER_ENABLED_TEXT,
+        "is_active": True,
+    },
+    (EMAIL, DocumentTemplateKey.ROLE_CHANGED): {
+        "name": "Role changed notification",
+        "subject_template": "Your role has been updated — {{ tenant_name }}",
+        "body_template": _ROLE_CHANGED_HTML,
+        "body_template_text": _ROLE_CHANGED_TEXT,
         "is_active": True,
     },
 }

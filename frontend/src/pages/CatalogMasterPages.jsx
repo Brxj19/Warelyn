@@ -11,8 +11,10 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { LoadingState } from '../components/ui/LoadingState.jsx';
+import { PhoneInput } from '../components/ui/PhoneInput.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatMoney } from '../utils/formatters.js';
 import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -20,6 +22,19 @@ import * as catalogService from '../services/catalogService.js';
 import { MasterDataFormPage, MasterDataListPage } from './MasterDataPage.jsx';
 
 const canWrite = new Set(['TENANT_ADMIN', 'INVENTORY_MANAGER']);
+
+// Adapter to use PhoneInput within MasterDataFormPage's customInputs pattern
+function PhoneFieldInput({ label, value, onChange }) {
+  return (
+    <PhoneInput
+      label={label}
+      value={value}
+      onChange={(val) => onChange({ target: { value: val } })}
+    />
+  );
+}
+
+const partyCustomInputs = { phone: PhoneFieldInput };
 
 const nameDescriptionFields = [
   { name: 'name', label: 'Name', required: true },
@@ -181,7 +196,7 @@ export function ProductsPage() {
       <TableShell
         description={`${sortedProducts.length} product record(s) in view`}
         emptyAction={
-          mayWrite ? (
+          !hasActiveFilters && mayWrite ? (
             <div className="flex flex-wrap gap-2">
               <Link to="/catalog/products/import">
                 <Button variant="secondary">Import Products</Button>
@@ -192,11 +207,14 @@ export function ProductsPage() {
             </div>
           ) : null
         }
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full catalog.' : 'Create a product or import a product sheet to start building your SKU catalog.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No products yet'}
+        emptyDescription={hasActiveFilters ? 'Try changing the search keyword, category, warehouse, or stock filter.' : 'Add your first product to start managing stock, pricing, and inventory movement.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.products}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching products found' : 'No products added yet'}
         error={error}
         isEmpty={sortedProducts.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setCategoryFilter('ALL'); setBrandFilter('ALL'); setTrackingFilter('ALL'); setStatusFilter('ALL'); } : undefined}
         rowCount={sortedProducts.length}
         title="Product records"
         toolbar={
@@ -416,7 +434,11 @@ export function CategoriesPage() {
         </Link>
       }
       description="Manage category records used to organize products and catalog reporting."
-      emptyDescription="Create a category to organize product records."
+      emptyDescription="Create categories to organize products and simplify reporting."
+      emptyFilteredDescription="Try changing your search keyword or clearing filters."
+      emptyFilteredTitle="No matching categories found"
+      emptyIllustration={emptyStateIllustrations.products}
+      emptyTitle="No categories created yet"
       fields={nameDescriptionFields}
       listRecords={catalogService.listCategories}
       searchPlaceholder="Search categories"
@@ -452,6 +474,9 @@ export function BrandsPage() {
       }
       description="Maintain brand master data used across products and reports."
       emptyDescription="Create a brand to classify catalog records."
+      emptyFilteredDescription="Try changing your search keyword or clearing filters."
+      emptyFilteredTitle="No matching brands found"
+      emptyIllustration={emptyStateIllustrations.products}
       fields={nameDescriptionFields}
       listRecords={catalogService.listBrands}
       searchPlaceholder="Search brands"
@@ -486,7 +511,11 @@ export function VendorsPage() {
         </Link>
       }
       description="Maintain supplier records used by purchase order workflows."
-      emptyDescription="Create a vendor before starting purchase orders."
+      emptyDescription="Add suppliers to create purchase orders, record bills, and manage procurement."
+      emptyFilteredDescription="Adjust your search or filters to find the supplier you need."
+      emptyFilteredTitle="No matching suppliers found"
+      emptyIllustration={emptyStateIllustrations.billings}
+      emptyTitle="No suppliers added yet"
       fields={partyFields}
       listRecords={catalogService.listVendors}
       searchPlaceholder="Search vendors by name, email, or GST number"
@@ -500,6 +529,7 @@ export function VendorFormPage() {
     <MasterDataFormPage
       backTo="/catalog/vendors"
       createRecord={catalogService.createVendor}
+      customInputs={partyCustomInputs}
       description="Create a dedicated vendor record for purchasing workflows."
       fields={partyFields}
       kicker="Catalog"
@@ -521,7 +551,11 @@ export function CustomersPage() {
         </Link>
       }
       description="Maintain customer records used by sales orders and returns."
-      emptyDescription="Create a customer before entering sales workflows."
+      emptyDescription="Add customers to create sales orders, invoices, and track receivables."
+      emptyFilteredDescription="Adjust your search or filters to find the customer you need."
+      emptyFilteredTitle="No matching customers found"
+      emptyIllustration={emptyStateIllustrations.sales}
+      emptyTitle="No customers added yet"
       fields={partyFields}
       listRecords={catalogService.listCustomers}
       searchPlaceholder="Search customers by name, email, or GST number"
@@ -535,6 +569,7 @@ export function CustomerFormPage() {
     <MasterDataFormPage
       backTo="/catalog/customers"
       createRecord={catalogService.createCustomer}
+      customInputs={partyCustomInputs}
       description="Create a dedicated customer record for sales workflows."
       fields={partyFields}
       kicker="Catalog"

@@ -11,6 +11,7 @@ import { RecordDetailShell } from '../components/ui/RecordDetailShell.jsx';
 import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate, formatMoney } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as documentService from '../services/documentService.js';
@@ -46,11 +47,14 @@ export function InvoicesPage() {
       <PageHeader kicker="Documents" title="Invoices" description="Customer-facing invoice records generated from committed sales workflow context." />
       <TableShell
         description={`${rows.length} invoice(s) in view`}
-        emptyDescription="Generate invoices from sales orders or fulfillments to start document delivery."
-        emptyTitle="No invoices yet"
+        emptyDescription={search ? 'Adjust your customer, status, date, or invoice number filters.' : 'Create your first invoice to start tracking customer payments.'}
+        emptyIllustration={search ? emptyStateIllustrations.noResult : emptyStateIllustrations.sales}
+        emptySecondaryActionLabel={search ? 'Clear filters' : undefined}
+        emptyTitle={search ? 'No matching invoices found' : 'No invoices created yet'}
         error={error}
         isEmpty={rows.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={search ? () => setSearch('') : undefined}
         rowCount={rows.length}
         title="Invoice records"
         toolbar={<ScreenToolbar onSearchChange={setSearch} searchPlaceholder="Search invoice number or status" searchValue={search} />}
@@ -214,11 +218,14 @@ export function BillsPage() {
       <PageHeader kicker="Documents" title="Bills" description="Vendor-facing payable documents linked back to purchase orders and receipts." />
       <TableShell
         description={`${rows.length} bill(s) in view`}
-        emptyDescription="Generate bills from purchase orders or receipts to start payable document tracking."
-        emptyTitle="No bills yet"
+        emptyDescription={search ? 'Adjust your supplier, status, date, or bill number filters.' : 'Record supplier bills to track payables and purchase expenses.'}
+        emptyIllustration={search ? emptyStateIllustrations.noResult : emptyStateIllustrations.billings}
+        emptySecondaryActionLabel={search ? 'Clear filters' : undefined}
+        emptyTitle={search ? 'No matching bills found' : 'No bills recorded yet'}
         error={error}
         isEmpty={rows.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={search ? () => setSearch('') : undefined}
         rowCount={rows.length}
         title="Bill records"
         toolbar={<ScreenToolbar onSearchChange={setSearch} searchPlaceholder="Search bill number or status" searchValue={search} />}

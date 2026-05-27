@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
 import { MetadataDrawer } from '../components/MetadataDrawer.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as auditService from '../services/auditService.js';
@@ -72,6 +73,11 @@ export function AuditLogsPage() {
       </div>
 
       <TableShell error={error} isLoading={loading} isEmpty={logs.length === 0} title="Audit Events" rowCount={logs.length}
+        emptyIllustration={(actionFilter || entityFilter) ? emptyStateIllustrations.noResult : emptyStateIllustrations.data}
+        emptyTitle={(actionFilter || entityFilter) ? 'No matching results found' : 'No audit logs yet'}
+        emptyDescription={(actionFilter || entityFilter) ? 'Try changing your search keyword or clearing filters.' : 'Audit events will appear after platform activity is recorded.'}
+        emptySecondaryActionLabel={(actionFilter || entityFilter) ? 'Clear filters' : undefined}
+        onEmptySecondaryAction={(actionFilter || entityFilter) ? () => { setActionFilter(''); setEntityFilter(''); } : undefined}
         toolbar={
           <div className="flex gap-3">
             <select className="rounded-lg border border-warelyn-border bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-warelyn-primary focus:ring-4 focus:ring-blue-900/10" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>

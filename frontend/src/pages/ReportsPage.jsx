@@ -9,6 +9,7 @@ import { PageHeader } from '../components/ui/PageHeader.jsx';
 import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate, formatDateTime, formatDecimal, formatMoney, titleCaseStatus } from '../utils/formatters.js';
 import { getNextSort, inferSortType, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -228,11 +229,14 @@ export function SimpleReportPage({ columns, description, filters = [], load, loa
         : null}
       <TableShell
         description={`${sortedRows.length} backend-returned row(s)`}
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full report result.' : 'No data matched this report.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No report rows'}
+        emptyDescription={hasActiveFilters ? 'Adjust your date range, module, or report filters.' : 'Reports will appear after inventory, sales, or purchase activity is recorded.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.reports}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching report data found' : 'No report data available'}
         error={error}
         isEmpty={sortedRows.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setQuery({}); setSearch(''); } : undefined}
         rowCount={sortedRows.length}
         title="Results"
         toolbar={

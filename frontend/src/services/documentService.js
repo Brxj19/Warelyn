@@ -85,8 +85,11 @@ export function previewDocumentTemplate(accessToken, id, payload) {
   return apiRequest(`/document-templates/${id}/preview`, { accessToken, method: 'POST', body: JSON.stringify(payload) });
 }
 
-export function listTemplates(accessToken, channel) {
-  const query = channel ? `?channel=${encodeURIComponent(channel)}` : '';
+export function listTemplates(accessToken, channel, purpose) {
+  const params = new URLSearchParams();
+  if (channel) params.set('channel', channel);
+  if (purpose) params.set('purpose', purpose);
+  const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest(`/document-templates${query}`, { accessToken });
 }
 
@@ -94,8 +97,20 @@ export function getTemplate(accessToken, id) {
   return apiRequest(`/document-templates/${id}`, { accessToken });
 }
 
+export function createTemplate(accessToken, data) {
+  return apiRequest('/document-templates', { accessToken, method: 'POST', body: JSON.stringify(data) });
+}
+
 export function updateTemplate(accessToken, id, payload) {
   return apiRequest(`/document-templates/${id}`, { accessToken, method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export function deleteTemplate(accessToken, id) {
+  return apiRequest(`/document-templates/${id}`, { accessToken, method: 'DELETE' });
+}
+
+export function duplicateTemplate(accessToken, id, name) {
+  return apiRequest(`/document-templates/${id}/duplicate`, { accessToken, method: 'POST', body: JSON.stringify({ name }) });
 }
 
 export function previewTemplate(accessToken, id, variables) {

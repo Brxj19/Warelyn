@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as adminService from '../services/adminService.js';
@@ -65,6 +66,11 @@ export function TenantsPage() {
       </div>
 
       <TableShell error={error} isLoading={loading} isEmpty={tenants.length === 0} title="All Tenants" rowCount={tenants.length}
+        emptyIllustration={(search || statusFilter) ? emptyStateIllustrations.noResult : emptyStateIllustrations.users}
+        emptyTitle={(search || statusFilter) ? 'No matching tenants found' : 'No tenants yet'}
+        emptyDescription={(search || statusFilter) ? 'Adjust your search or status filter.' : 'Tenants will appear here once accounts are registered.'}
+        emptySecondaryActionLabel={(search || statusFilter) ? 'Clear filters' : undefined}
+        onEmptySecondaryAction={(search || statusFilter) ? () => { setSearch(''); setStatusFilter(''); } : undefined}
         toolbar={
           <div className="flex gap-3">
             <div className="relative flex-1">

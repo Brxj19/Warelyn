@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -97,12 +98,15 @@ export function PurchasesPage() {
       />
       <TableShell
         description={`${sortedOrders.length} purchase order(s) in view`}
-        emptyAction={mayWrite ? <Link to="/purchases/new"><Button>Create purchase order</Button></Link> : null}
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full purchase queue.' : 'Create your first purchase order to start receiving stock.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No purchase orders yet'}
+        emptyAction={!hasActiveFilters && mayWrite ? <Link to="/purchases/new"><Button>Create purchase order</Button></Link> : null}
+        emptyDescription={hasActiveFilters ? 'Adjust your supplier, status, date, or search filters.' : 'Create a purchase order when buying stock from a supplier.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.billings}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching purchase orders found' : 'No purchase orders created yet'}
         error={error}
         isEmpty={sortedOrders.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter('ALL'); setVendorFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedOrders.length}
         title="Orders"
         toolbar={

@@ -9,6 +9,7 @@ import { StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate } from '../utils/formatters.js';
 import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -92,12 +93,15 @@ export function SalesPage() {
       <PageHeader kicker="Sales" title="Sales orders" description="Review sales order records only. Confirmation, picking, packing, fulfillment, and returns each stay on focused workflow pages." actions={mayWrite ? <Link to="/sales/new"><Button><Plus size={16} />Sales Order</Button></Link> : null} />
       <TableShell
         description={`${sortedOrders.length} sales order(s) in view`}
-        emptyAction={mayWrite ? <Link to="/sales/new"><Button>Create sales order</Button></Link> : null}
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full sales queue.' : 'Create a sales order when a customer is ready to buy.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No sales orders yet'}
+        emptyAction={!hasActiveFilters && mayWrite ? <Link to="/sales/new"><Button>Create sales order</Button></Link> : null}
+        emptyDescription={hasActiveFilters ? 'Adjust your customer, status, date, or sales order number filters.' : 'Create a sales order when a customer places an order.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.sales}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching sales orders found' : 'No sales orders created yet'}
         error={error}
         isEmpty={sortedOrders.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter('ALL'); setCustomerFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedOrders.length}
         title="Orders"
         toolbar={

@@ -127,7 +127,13 @@ class DocumentTemplateRead(BaseModel):
     id: int
     tenant_id: int
     channel: str
-    template_key: str
+    template_key: str | None = None
+    purpose: str
+    template_code: str
+    is_system: bool
+    created_by: int | None = None
+    cloned_from_template_id: int | None = None
+    description: str | None = None
     name: str
     subject_template: str | None = None
     body_template: str
@@ -137,12 +143,68 @@ class DocumentTemplateRead(BaseModel):
     updated_at: datetime
 
 
+class DocumentTemplateListResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tenant_id: int
+    channel: str
+    template_key: str | None = None
+    purpose: str
+    template_code: str
+    is_system: bool
+    created_by: int | None = None
+    name: str
+    description: str | None = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class DocumentTemplateDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tenant_id: int
+    channel: str
+    template_key: str | None = None
+    purpose: str
+    template_code: str
+    is_system: bool
+    created_by: int | None = None
+    cloned_from_template_id: int | None = None
+    description: str | None = None
+    name: str
+    subject_template: str | None = None
+    body_template: str
+    body_template_text: str | None = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class DocumentTemplateCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    purpose: str = Field(..., description="One of: EMAIL_VERIFICATION, INVOICE_EMAIL, BILL_EMAIL, INVOICE_PDF, BILL_PDF")
+    description: str | None = Field(None, max_length=500)
+    subject_template: str | None = None
+    body_template: str = Field(..., min_length=1)
+    body_template_text: str | None = None
+    is_active: bool = True
+
+
 class DocumentTemplateUpdate(BaseModel):
     name: str | None = None
+    description: str | None = None
     subject_template: str | None = None
     body_template: str | None = None
     body_template_text: str | None = None
     is_active: bool | None = None
+
+
+class DocumentTemplateDuplicate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
 
 
 class DocumentTemplatePreviewRequest(BaseModel):

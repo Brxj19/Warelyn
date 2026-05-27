@@ -13,6 +13,7 @@ import { LoadingState } from '../components/ui/LoadingState.jsx';
 import { ScreenToolbar } from '../components/ui/ScreenToolbar.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { getNextSort, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as warehouseService from '../services/warehouseService.js';
@@ -122,6 +123,7 @@ export function WarehouseDetailPage() {
         <TableShell
           description={`${sortedLocations.length} configured location(s)`}
           emptyDescription={hasActiveFilters ? 'Reset filters to review the full location list.' : 'Create receiving, storage, picking, or packing locations when your role allows it.'}
+          emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.warehouse}
           emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No locations yet'}
           isEmpty={sortedLocations.length === 0}
           rowCount={sortedLocations.length}

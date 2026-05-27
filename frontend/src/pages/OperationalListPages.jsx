@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button.jsx';
 import { ErrorState } from '../components/ui/ErrorState.jsx';
 import { SortableHeader } from '../components/ui/SortableHeader.jsx';
 import { TableShell } from '../components/ui/TableShell.jsx';
+import { emptyStateIllustrations } from '../lib/emptyStates.js';
 import { formatDate, formatDecimal } from '../utils/formatters.js';
 import { getDateRangeLabel, getNextSort, isDateInRange, sortRows } from '../utils/table.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -138,17 +139,20 @@ export function PurchaseReceiptsPage() {
       <TableShell
         description={`${sortedReceipts.length} receipt(s) in view`}
         emptyAction={
-          mayWrite ? (
+          !hasActiveFilters && mayWrite ? (
             <Link to="/purchase-receipts/new">
               <Button>Create receipt</Button>
             </Link>
           ) : null
         }
-        emptyDescription={hasActiveFilters ? 'Reset filters to review the full receipts list.' : 'Open a receivable purchase order to create the first receipt.'}
-        emptyTitle={hasActiveFilters ? 'No records match your filters' : 'No purchase receipts yet'}
+        emptyDescription={hasActiveFilters ? 'Adjust your supplier, status, date, or search filters.' : 'Open a receivable purchase order to create the first receipt.'}
+        emptyIllustration={hasActiveFilters ? emptyStateIllustrations.noResult : emptyStateIllustrations.billings}
+        emptySecondaryActionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+        emptyTitle={hasActiveFilters ? 'No matching purchase orders found' : 'No purchase receipts yet'}
         error={error}
         isEmpty={sortedReceipts.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={hasActiveFilters ? () => { setSearch(''); setStatusFilter('ALL'); setWarehouseFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedReceipts.length}
         title="Receipts"
         toolbar={
@@ -448,11 +452,14 @@ export function PackagesPage() {
       />
       <TableShell
         description={`${sortedPackages.length} package record(s) in view`}
-        emptyDescription={packageFilters.length ? 'Reset filters to review the full package list.' : 'Create packages from picked sales order items.'}
-        emptyTitle={packageFilters.length ? 'No records match your filters' : 'No packages yet'}
+        emptyDescription={packageFilters.length ? 'Try changing your search keyword or clearing filters.' : 'Packing tasks will appear when picked orders are ready for shipment.'}
+        emptyIllustration={packageFilters.length ? emptyStateIllustrations.noResult : emptyStateIllustrations.packing}
+        emptySecondaryActionLabel={packageFilters.length ? 'Clear filters' : undefined}
+        emptyTitle={packageFilters.length ? 'No matching results found' : 'No packing tasks available'}
         error={error}
         isEmpty={sortedPackages.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={packageFilters.length ? () => { setSearch(''); setStatusFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedPackages.length}
         title="Package records"
         toolbar={
@@ -622,11 +629,14 @@ export function SalesFulfillmentsPage() {
       />
       <TableShell
         description={`${sortedFulfillments.length} fulfillment record(s) in view`}
-        emptyDescription={fulfillmentFilters.length ? 'Reset filters to review the full fulfillment list.' : 'Create fulfillments from sales orders with active reservations.'}
-        emptyTitle={fulfillmentFilters.length ? 'No records match your filters' : 'No fulfillments yet'}
+        emptyDescription={fulfillmentFilters.length ? 'Try changing your search keyword or clearing filters.' : 'Create fulfillments from sales orders with active reservations.'}
+        emptyIllustration={fulfillmentFilters.length ? emptyStateIllustrations.noResult : emptyStateIllustrations.packing}
+        emptySecondaryActionLabel={fulfillmentFilters.length ? 'Clear filters' : undefined}
+        emptyTitle={fulfillmentFilters.length ? 'No matching results found' : 'No fulfillments yet'}
         error={error}
         isEmpty={sortedFulfillments.length === 0}
         isLoading={isLoading}
+        onEmptySecondaryAction={fulfillmentFilters.length ? () => { setSearch(''); setStatusFilter('ALL'); setDateRange({ from: '', to: '' }); } : undefined}
         rowCount={sortedFulfillments.length}
         title="Fulfillment records"
         toolbar={

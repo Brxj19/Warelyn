@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   LogIn,
   MapPin,
+  Mail,
   Package,
   PackageCheck,
   PackagePlus,
@@ -41,6 +42,7 @@ import {
   TrendingUp,
   Truck,
   UserRound,
+  Users,
   Warehouse,
 } from 'lucide-react';
 
@@ -49,6 +51,7 @@ export const purchaseRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STA
 export const purchaseWriteRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF'];
 export const salesRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF', 'VIEWER'];
 export const salesWriteRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF'];
+export const operationsRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'SALES_STAFF'];
 export const reportRoles = ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'VIEWER'];
 
 export const superAdminRoles = ['SUPER_ADMIN'];
@@ -91,7 +94,7 @@ export const navGroups = [
   },
   {
     label: 'Warehousing',
-    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
+    roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'VIEWER'],
     items: [
       {
         icon: Warehouse,
@@ -164,33 +167,33 @@ export const navGroups = [
   },
   {
     label: 'Operations',
-    roles: salesRoles,
+    roles: operationsRoles,
     items: [
       {
         icon: ClipboardCheck,
         label: 'Picking',
         section: 'Operations',
-        roles: salesRoles,
+        roles: operationsRoles,
         children: [
-          { icon: ClipboardCheck, label: 'Pick Tasks', section: 'Operations', to: '/pick-tasks', roles: salesRoles, exact: true },
+          { icon: ClipboardCheck, label: 'Pick Tasks', section: 'Operations', to: '/pick-tasks', roles: operationsRoles, exact: true },
         ],
       },
       {
         icon: PackageCheck,
         label: 'Packing',
         section: 'Operations',
-        roles: salesRoles,
+        roles: operationsRoles,
         children: [
-          { icon: PackageCheck, label: 'Packages', section: 'Operations', to: '/packages', roles: salesRoles, exact: true },
+          { icon: PackageCheck, label: 'Packages', section: 'Operations', to: '/packages', roles: operationsRoles, exact: true },
         ],
       },
       {
         icon: Send,
         label: 'Fulfillment',
         section: 'Operations',
-        roles: salesRoles,
+        roles: operationsRoles,
         children: [
-          { icon: Send, label: 'Fulfillments', section: 'Operations', to: '/sales-fulfillments', roles: salesRoles, exact: true },
+          { icon: Send, label: 'Fulfillments', section: 'Operations', to: '/sales-fulfillments', roles: operationsRoles, exact: true },
         ],
       },
       {
@@ -201,7 +204,7 @@ export const navGroups = [
         children: [
           { icon: RotateCcw, label: 'Sales Returns', section: 'Operations', to: '/returns', roles: salesRoles, exact: true },
           { icon: CornerUpLeft, label: 'Create Return', section: 'Operations', to: '/returns/new', roles: salesWriteRoles, exact: true },
-          { icon: ShieldCheck, label: 'Returns QC', section: 'Operations', to: '/returns/qc', roles: salesRoles, exact: true },
+          { icon: ShieldCheck, label: 'Returns QC', section: 'Operations', to: '/returns/qc', roles: operationsRoles, exact: true },
         ],
       },
     ],
@@ -227,7 +230,19 @@ export const navGroups = [
   {
     label: 'Preferences',
     roles: ['TENANT_ADMIN', 'INVENTORY_MANAGER', 'PURCHASE_STAFF', 'SALES_STAFF', 'VIEWER'],
-    items: [{ icon: Settings, label: 'Settings', section: 'Preferences', to: '/settings', exact: true }],
+    items: [
+      {
+        icon: Settings,
+        label: 'Settings',
+        section: 'Preferences',
+        children: [
+          { icon: Settings, label: 'General', section: 'Preferences', to: '/settings', exact: true },
+          { icon: Users, label: 'Users & Roles', section: 'Preferences', to: '/settings/users', roles: ['TENANT_ADMIN'], exact: true },
+          { icon: FileCheck2, label: 'PDF Templates', section: 'Preferences', to: '/settings/pdf-templates', roles: ['TENANT_ADMIN'], exact: true },
+          { icon: Mail, label: 'Email Templates', section: 'Preferences', to: '/settings/email-templates', roles: ['TENANT_ADMIN'], exact: true },
+        ],
+      },
+    ],
   },
 ];
 

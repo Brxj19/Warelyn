@@ -1,6 +1,6 @@
 import random
 import string
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from app.core.config import get_settings
 from app.core.security import hash_token
@@ -8,8 +8,15 @@ from app.models.communication import OTPPurpose, OTPSource
 from app.repositories.otp import OTPRepository
 
 
-def _naive_utcnow() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+def _ensure_aware(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware (UTC). Handles SQLite returning naive datetimes."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 class OTPError(Exception):
@@ -31,7 +38,7 @@ class OTPService:
         settings = get_settings()
         code = self._generate_code()
         code_hash = hash_token(code)
-        expires_at = _naive_utcnow() + timedelta(minutes=settings.otp_expire_minutes)
+        expires_at = _utcnow() + timedelta(minutes=settings.otp_expire_minutes)
         self.repo.create(
             {
                 "tenant_id": tenant_id,
@@ -54,7 +61,7 @@ class OTPService:
             raise OTPError("OTP_CONSUMED", "Verification code has already been used.")
         if otp.superseded_at is not None:
             raise OTPError("OTP_SUPERSEDED", "A newer verification code has been sent.")
-        if otp.expires_at < _naive_utcnow():
+        if _ensure_aware(otp.expires_at) < _utcnow():
             raise OTPError("OTP_EXPIRED", "Verification code has expired.")
         if otp.attempt_count >= otp.max_attempts:
             raise OTPError("OTP_MAX_ATTEMPTS", "Too many failed attempts. Please request a new code.")
